@@ -328,7 +328,7 @@ void Doors::HandleClick(Client* sender, uint8 trigger) {
 					float player_pick_lock_skill = sender->GetSkill(EQEmu::skills::SkillPickLock);
 					sender->CheckIncreaseSkill(EQEmu::skills::SkillPickLock, nullptr, 1);
 
-					Log(Logs::General, Logs::Skills, "Client has lockpicks: skill=%f", player_pick_lock_skill);
+					LogSkills("Client has lockpicks: skill=[{}]", player_pick_lock_skill);
 
 					if (GetLockpick() <= player_pick_lock_skill) {
 						if (!IsDoorOpen()) {
@@ -682,7 +682,7 @@ int32 ZoneDatabase::GetDoorsDBCountPlusOne(const char *zone_name, int16 version)
 }
 
 bool ZoneDatabase::LoadDoors(int32 door_count, Door *into, const char *zone_name, int16 version) {
-	Log(Logs::General, Logs::Status, "Loading Doors from database...");
+	LogInfo("Loading Doors from database");
 
 	std::string query = StringFormat(
 			" SELECT "

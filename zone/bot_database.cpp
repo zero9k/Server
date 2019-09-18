@@ -27,6 +27,8 @@
 #include "bot.h"
 #include "client.h"
 
+#include <fmt/format.h>
+
 
 bool BotDatabase::LoadBotCommandSettings(std::map<std::string, std::pair<uint8, std::vector<std::string>>> &bot_command_settings)
 {
@@ -47,6 +49,58 @@ bool BotDatabase::LoadBotCommandSettings(std::map<std::string, std::pair<uint8, 
 			if (!iter.empty())
 				bot_command_settings[row[0]].second.push_back(iter);
 		}
+	}
+
+	return true;
+}
+
+bool BotDatabase::UpdateInjectedBotCommandSettings(const std::vector<std::pair<std::string, uint8>> &injected)
+{
+	if (injected.size()) {
+
+		query = fmt::format(
+			"REPLACE INTO `bot_command_settings`(`bot_command`, `access`) VALUES {}",
+			implode(
+				",",
+				std::pair<char, char>('(', ')'),
+				join_pair(",", std::pair<char, char>('\'', '\''), injected)
+			)
+		);
+
+		if (!database.QueryDatabase(query).Success()) {
+			return false;
+		}
+
+		Log(Logs::General,
+			Logs::Status,
+			"%u New Bot Command%s Added",
+			injected.size(),
+			(injected.size() == 1 ? "" : "s")
+		);
+	}
+
+	return true;
+}
+
+bool BotDatabase::UpdateOrphanedBotCommandSettings(const std::vector<std::string> &orphaned)
+{
+	if (orphaned.size()) {
+
+		query = fmt::format(
+			"DELETE FROM `bot_command_settings` WHERE `bot_command` IN ({})",
+			implode(",", std::pair<char, char>('\'', '\''), orphaned)
+		);
+
+		if (!database.QueryDatabase(query).Success()) {
+			return false;
+		}
+
+		Log(Logs::General,
+			Logs::Status,
+			"%u Orphaned Bot Command%s Deleted",
+			orphaned.size(),
+			(orphaned.size() == 1 ? "" : "s")
+		);
 	}
 
 	return true;
@@ -138,7 +192,7 @@ bool BotDatabase::QueryBotCount(const uint32 owner_id, uint32& bot_count)
 		return false;
 	if (!results.RowCount())
 		return true;
-	
+
 	auto row = results.begin();
 	bot_count = atoi(row[0]);
 
@@ -163,12 +217,19 @@ bool BotDatabase::LoadQuestableSpawnCount(const uint32 owner_id, int& spawn_coun
 	return true;
 }
 
-bool BotDatabase::LoadBotsList(const uint32 owner_id, std::list<BotsAvailableList>& bots_list)
+bool BotDatabase::LoadBotsList(const uint32 owner_id, std::list<BotsAvailableList>& bots_list, bool ByAccount)
 {
 	if (!owner_id)
 		return false;
 
-	query = StringFormat("SELECT `bot_id`, `name`, `class`, `level`, `race`, `gender` FROM `bot_data` WHERE `owner_id` = '%u'", owner_id);
+	if (ByAccount == true)
+		 query = StringFormat("SELECT bot_id, bd.`name`, bd.class, bd.`level`, bd.race, bd.gender, cd.`name` as owner, bd.owner_id, cd.account_id, cd.id"
+			 " FROM bot_data as bd inner join character_data as cd on bd.owner_id = cd.id"
+			 " WHERE cd.account_id = (select account_id from bot_data bd inner join character_data as cd on bd.owner_id = cd.id where bd.owner_id = '%u' LIMIT 1)"
+			 " ORDER BY bd.owner_id", owner_id);
+	else
+		 query = StringFormat("SELECT `bot_id`, `name`, `class`, `level`, `race`, `gender`, 'You' as owner, owner_id FROM `bot_data` WHERE `owner_id` = '%u'", owner_id);
+
 	auto results = database.QueryDatabase(query);
 	if (!results.Success())
 		return false;
@@ -186,12 +247,17 @@ bool BotDatabase::LoadBotsList(const uint32 owner_id, std::list<BotsAvailableLis
 			bot_name = bot_name.substr(0, 63);
 		if (!bot_name.empty())
 			strcpy(bot_entry.Name, bot_name.c_str());
-
+		memset(&bot_entry.Owner, 0, sizeof(bot_entry.Owner));
+		std::string bot_owner = row[6];
+		if (bot_owner.size() > 63)
+			 bot_owner = bot_owner.substr(0, 63);
+		if (!bot_owner.empty())
+			 strcpy(bot_entry.Owner, bot_owner.c_str());
 		bot_entry.Class = atoi(row[2]);
 		bot_entry.Level = atoi(row[3]);
 		bot_entry.Race = atoi(row[4]);
 		bot_entry.Gender = atoi(row[5]);
-
+		bot_entry.Owner_ID = atoi(row[7]);
 		bots_list.push_back(bot_entry);
 	}
 
@@ -248,7 +314,7 @@ bool BotDatabase::LoadBotID(const uint32 owner_id, const std::string& bot_name, 
 		return false;
 	if (!results.RowCount())
 		return true;
-	
+
 	auto row = results.begin();
 	bot_id = atoi(row[0]);
 
@@ -266,8 +332,8 @@ bool BotDatabase::LoadBot(const uint32 bot_id, Bot*& loaded_bot)
 		" `spells_id`,"
 		" `name`,"
 		" `last_name`,"
-		" `title`,"				/* planned use[4] */
-		" `suffix`,"			/* planned use[5] */
+		" `title`,"
+		" `suffix`,"
 		" `zone_id`,"
 		" `gender`,"
 		" `race`,"
@@ -364,7 +430,9 @@ bool BotDatabase::LoadBot(const uint32 bot_id, Bot*& loaded_bot)
 	loaded_bot = new Bot(bot_id, atoi(row[0]), atoi(row[1]), atof(row[14]), atoi(row[6]), tempNPCStruct);
 	if (loaded_bot) {
 		loaded_bot->SetShowHelm((atoi(row[43]) > 0 ? true : false));
-
+		loaded_bot->SetSurname(row[3]);//maintaining outside mob::lastname to cater to spaces
+		loaded_bot->SetTitle(row[4]);
+		loaded_bot->SetSuffix(row[5]);
 		uint32 bfd = atoi(row[44]);
 		if (bfd < 1)
 			bfd = 1;
@@ -383,7 +451,7 @@ bool BotDatabase::SaveNewBot(Bot* bot_inst, uint32& bot_id)
 {
 	if (!bot_inst)
 		return false;
-	
+
 	query = StringFormat(
 		"INSERT INTO `bot_data` ("
 		" `owner_id`,"
@@ -528,7 +596,7 @@ bool BotDatabase::SaveBot(Bot* bot_inst)
 {
 	if (!bot_inst)
 		return false;
-	
+
 	query = StringFormat(
 		"UPDATE `bot_data`"
 		" SET"
@@ -573,12 +641,14 @@ bool BotDatabase::SaveBot(Bot* bot_inst)
 		" `corruption` = '%i',"
 		" `show_helm` = '%i',"
 		" `follow_distance` = '%i',"
-		" `stop_melee_level` = '%u'"
+		" `stop_melee_level` = '%u',"
+		" `title` = '%s',"
+		" `suffix` = '%s'"
 		" WHERE `bot_id` = '%u'",
 		bot_inst->GetBotOwnerCharacterID(),
 		bot_inst->GetBotSpellID(),
 		bot_inst->GetCleanName(),
-		bot_inst->GetLastName(),
+		bot_inst->GetSurname().c_str(),
 		bot_inst->GetLastZoneID(),
 		bot_inst->GetBaseGender(),
 		bot_inst->GetBaseRace(),
@@ -616,6 +686,8 @@ bool BotDatabase::SaveBot(Bot* bot_inst)
 		((bot_inst->GetShowHelm()) ? (1) : (0)),
 		bot_inst->GetFollowDistance(),
 		bot_inst->GetStopMeleeLevel(),
+		bot_inst->GetTitle().c_str(),
+		bot_inst->GetSuffix().c_str(),
 		bot_inst->GetBotID()
 	);
 	auto results = database.QueryDatabase(query);
@@ -942,7 +1014,7 @@ bool BotDatabase::LoadTimers(Bot* bot_inst)
 		if (timer_id >= 0 && timer_id < MaxTimer && timer_value < (Timer::GetCurrentTime() + max_value))
 			bot_timers[timer_id] = timer_value;
 	}
-	
+
 	return true;
 }
 
@@ -1055,7 +1127,7 @@ bool BotDatabase::QueryInventoryCount(const uint32 bot_id, uint32& item_count)
 {
 	if (!bot_id)
 		return false;
-	
+
 	query = StringFormat("SELECT COUNT(`inventories_index`) FROM `bot_inventories` WHERE `bot_id` = '%u'", bot_id);
 	auto results = database.QueryDatabase(query);
 	if (!results.Success())
@@ -1101,7 +1173,7 @@ bool BotDatabase::LoadItems(const uint32 bot_id, EQEmu::InventoryProfile& invent
 		return false;
 	if (!results.RowCount())
 		return true;
-	
+
 	for (auto row = results.begin(); row != results.end(); ++row) {
 		int16 slot_id = atoi(row[0]);
 		if (slot_id < EQEmu::invslot::EQUIPMENT_BEGIN || slot_id > EQEmu::invslot::EQUIPMENT_END)
@@ -1121,7 +1193,7 @@ bool BotDatabase::LoadItems(const uint32 bot_id, EQEmu::InventoryProfile& invent
 			(uint32)atoul(row[14])
 		);
 		if (!item_inst) {
-			Log(Logs::General, Logs::Error, "Warning: bot_id '%i' has an invalid item_id '%i' in inventory slot '%i'", bot_id, item_id, slot_id);
+			LogError("Warning: bot_id [{}] has an invalid item_id [{}] in inventory slot [{}]", bot_id, item_id, slot_id);
 			continue;
 		}
 
@@ -1174,7 +1246,7 @@ bool BotDatabase::LoadItems(const uint32 bot_id, EQEmu::InventoryProfile& invent
 		item_inst->SetOrnamentHeroModel((uint32)atoul(row[8]));
 
 		if (inventory_inst.PutItem(slot_id, *item_inst) == INVALID_INDEX)
-			Log(Logs::General, Logs::Error, "Warning: Invalid slot_id for item in inventory: bot_id = '%i', item_id = '%i', slot_id = '%i'", bot_id, item_id, slot_id);
+			LogError("Warning: Invalid slot_id for item in inventory: bot_id = [{}], item_id = [{}], slot_id = [{}]", bot_id, item_id, slot_id);
 
 		safe_delete(item_inst);
 	}
@@ -1209,7 +1281,7 @@ bool BotDatabase::LoadItemBySlot(const uint32 bot_id, const uint32 slot_id, uint
 {
 	if (!bot_id || slot_id > EQEmu::invslot::EQUIPMENT_END)
 		return false;
-	
+
 	query = StringFormat("SELECT `item_id` FROM `bot_inventories` WHERE `bot_id` = '%i' AND `slot_id` = '%i' LIMIT 1", bot_id, slot_id);
 	auto results = database.QueryDatabase(query);
 	if (!results.Success())
@@ -1233,11 +1305,11 @@ bool BotDatabase::SaveItemBySlot(Bot* bot_inst, const uint32 slot_id, const EQEm
 
 	if (!item_inst || !item_inst->GetID())
 		return true;
-	
+
 	uint32 augment_id[EQEmu::invaug::SOCKET_COUNT] = { 0, 0, 0, 0, 0, 0 };
 	for (int augment_iter = EQEmu::invaug::SOCKET_BEGIN; augment_iter <= EQEmu::invaug::SOCKET_END; ++augment_iter)
 		augment_id[augment_iter] = item_inst->GetAugmentItemID(augment_iter);
-	
+
 	uint16 item_charges = 0;
 	if (item_inst->GetCharges() >= 0)
 		item_charges = item_inst->GetCharges();
@@ -1328,7 +1400,7 @@ bool BotDatabase::LoadEquipmentColor(const uint32 bot_id, const uint8 material_s
 	int16 slot_id = EQEmu::InventoryProfile::CalcSlotFromMaterial(material_slot_id);
 	if (slot_id == INVALID_INDEX)
 		return false;
-	
+
 	query = StringFormat("SELECT `inst_color` FROM `bot_inventories` WHERE `bot_id` = '%u' AND `slot_id` = '%u' LIMIT 1", bot_id, slot_id);
 	auto results = database.QueryDatabase(query);
 	if (!results.Success())
@@ -1379,7 +1451,7 @@ bool BotDatabase::LoadPetIndex(const uint32 bot_id, uint32& pet_index)
 {
 	if (!bot_id)
 		return false;
-	
+
 	query = StringFormat("SELECT `pets_index` FROM `bot_pets` WHERE `bot_id` = '%u' LIMIT 1", bot_id);
 	auto results = database.QueryDatabase(query);
 	if (!results.Success())
@@ -1389,7 +1461,7 @@ bool BotDatabase::LoadPetIndex(const uint32 bot_id, uint32& pet_index)
 
 	auto row = results.begin();
 	pet_index = atoi(row[0]);
-	
+
 	return true;
 }
 
@@ -1407,7 +1479,7 @@ bool BotDatabase::LoadPetSpellID(const uint32 bot_id, uint32& pet_spell_id)
 
 	auto row = results.begin();
 	pet_spell_id = atoi(row[0]);
-	
+
 	return true;
 }
 
@@ -1434,7 +1506,7 @@ bool BotDatabase::LoadPetStats(const uint32 bot_id, std::string& pet_name, uint3
 	pet_name = row[1];
 	pet_mana = atoi(row[2]);
 	pet_hp = atoi(row[3]);
-	
+
 	return true;
 }
 
@@ -1442,7 +1514,7 @@ bool BotDatabase::SavePetStats(const uint32 bot_id, const std::string& pet_name,
 {
 	if (!bot_id || pet_name.empty() || !pet_spell_id || pet_spell_id > SPDAT_RECORDS)
 		return false;
-	
+
 	if (!DeletePetItems(bot_id))
 		return false;
 	if (!DeletePetBuffs(bot_id))
@@ -1535,14 +1607,14 @@ bool BotDatabase::LoadPetBuffs(const uint32 bot_id, SpellBuff_Struct* pet_buffs)
 
 		++buff_index;
 	}
-	
+
 	return true;
 }
 
 bool BotDatabase::SavePetBuffs(const uint32 bot_id, const SpellBuff_Struct* pet_buffs, bool delete_flag)
 {
 	// Only use 'delete_flag' if not invoked after a botdb.SavePetStats() call
-	
+
 	if (!bot_id || !pet_buffs)
 		return false;
 
@@ -1629,14 +1701,14 @@ bool BotDatabase::LoadPetItems(const uint32 bot_id, uint32* pet_items)
 		pet_items[item_index] = atoi(row[0]);
 		++item_index;
 	}
-	
+
 	return true;
 }
 
 bool BotDatabase::SavePetItems(const uint32 bot_id, const uint32* pet_items, bool delete_flag)
 {
 	// Only use 'delete_flag' if not invoked after a botdb.SavePetStats() call
-	
+
 	if (!bot_id || !pet_items)
 		return false;
 
@@ -1705,7 +1777,7 @@ bool BotDatabase::LoadInspectMessage(const uint32 bot_id, InspectMessage_Struct&
 		return true;
 
 	memcpy(inspect_message.text, bot_message.c_str(), bot_message.size());
-	
+
 	return true;
 }
 
@@ -1713,7 +1785,7 @@ bool BotDatabase::SaveInspectMessage(const uint32 bot_id, const InspectMessage_S
 {
 	if (!bot_id)
 		return false;
-	
+
 	if (!DeleteInspectMessage(bot_id))
 		return false;
 
@@ -1753,7 +1825,7 @@ bool BotDatabase::SaveAllInspectMessages(const uint32 owner_id, const InspectMes
 
 	if (!DeleteAllInspectMessages(owner_id))
 		return false;
-	
+
 	std::string bot_message = inspect_message.text;
 	if (bot_message.size() > 255)
 		bot_message = bot_message.substr(0, 255);
@@ -1835,7 +1907,7 @@ bool BotDatabase::SaveHelmAppearance(const uint32 owner_id, const uint32 bot_id,
 {
 	if (!owner_id || !bot_id)
 		return false;
-	
+
 	query = StringFormat(
 		"UPDATE `bot_data`"
 		" SET `show_helm` = '%u'"
@@ -1953,7 +2025,7 @@ bool BotDatabase::CreateCloneBot(const uint32 owner_id, const uint32 bot_id, con
 {
 	if (!owner_id || !bot_id || clone_name.empty())
 		return false;
-	
+
 	query = StringFormat(
 		"INSERT INTO `bot_data`"
 		" ("
@@ -2126,7 +2198,7 @@ bool BotDatabase::CreateCloneBotInventory(const uint32 owner_id, const uint32 bo
 		DeleteItems(clone_id);
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -2153,111 +2225,92 @@ bool BotDatabase::SaveStopMeleeLevel(const uint32 owner_id, const uint32 bot_id,
 
 bool BotDatabase::LoadOwnerOptions(Client *owner)
 {
-	if (!owner || !owner->CharacterID())
-		return false;
-
-	query = StringFormat(
-		"SELECT `death_marquee`, `stats_update`, `spawn_message_enabled`, `spawn_message_type` FROM `bot_owner_options`"
-		" WHERE `owner_id` = '%u'",
-		owner->CharacterID()
-	);
-	auto results = database.QueryDatabase(query);
-	if (!results.Success())
-		return false;
-	if (!results.RowCount()) {
-		query = StringFormat("REPLACE INTO `bot_owner_options` (`owner_id`) VALUES ('%u')", owner->CharacterID());
-		results = database.QueryDatabase(query);
-
+	if (!owner || !owner->CharacterID()) {
 		return false;
 	}
 
-	auto row = results.begin();
-	owner->SetBotOptionDeathMarquee((atoi(row[0]) != 0));
-	owner->SetBotOptionStatsUpdate((atoi(row[1]) != 0));
-	switch (atoi(row[2])) {
-	case 2:
-		owner->SetBotOptionSpawnMessageSay();
-		break;
-	case 1:
-		owner->SetBotOptionSpawnMessageTell();
-		break;
+	query = fmt::format("SELECT `option_type`, `option_value` FROM `bot_owner_options` WHERE `owner_id` = '{}'", owner->CharacterID());
+
+	auto results = database.QueryDatabase(query);
+	if (!results.Success()) {
+		return false;
+	}
+
+	for (auto row : results) {
+
+		owner->SetBotOption(static_cast<Client::BotOwnerOption>(atoul(row[0])), (atoul(row[1]) != 0));
+	}
+
+	return true;
+}
+
+bool BotDatabase::SaveOwnerOption(const uint32 owner_id, size_t type, const bool flag)
+{
+	if (!owner_id) {
+		return false;
+	}
+
+	switch (static_cast<Client::BotOwnerOption>(type)) {
+	case Client::booDeathMarquee:
+	case Client::booStatsUpdate:
+	case Client::booSpawnMessageClassSpecific: {
+
+		query = fmt::format(
+			"REPLACE INTO `bot_owner_options`(`owner_id`, `option_type`, `option_value`) VALUES ('{}', '{}', '{}')",
+			owner_id,
+			type,
+			(flag == true ? 1 : 0)
+		);
+
+		auto results = database.QueryDatabase(query);
+		if (!results.Success()) {
+			return false;
+		}
+
+		return true;
+	}
 	default:
-		owner->SetBotOptionSpawnMessageSilent();
-		break;
+		return false;
 	}
-	owner->SetBotOptionSpawnMessageClassSpecific((atoi(row[3]) != 0));
-
-	return true;
 }
 
-bool BotDatabase::SaveOwnerOptionDeathMarquee(const uint32 owner_id, const bool flag)
+bool BotDatabase::SaveOwnerOption(const uint32 owner_id, const std::pair<size_t, size_t> type, const std::pair<bool, bool> flag)
 {
-	if (!owner_id)
+	if (!owner_id) {
 		return false;
+	}
 
-	query = StringFormat(
-		"UPDATE `bot_owner_options`"
-		" SET `death_marquee` = '%u'"
-		" WHERE `owner_id` = '%u'",
-		(flag == true ? 1 : 0),
-		owner_id
-	);
-	auto results = database.QueryDatabase(query);
-	if (!results.Success())
+	switch (static_cast<Client::BotOwnerOption>(type.first)) {
+	case Client::booSpawnMessageSay:
+	case Client::booSpawnMessageTell: {
+		switch (static_cast<Client::BotOwnerOption>(type.second)) {
+		case Client::booSpawnMessageSay:
+		case Client::booSpawnMessageTell: {
+
+			query = fmt::format(
+				"REPLACE INTO `bot_owner_options`(`owner_id`, `option_type`, `option_value`) VALUES ('{}', '{}', '{}'), ('{}', '{}', '{}')",
+				owner_id,
+				type.first,
+				(flag.first == true ? 1 : 0),
+				owner_id,
+				type.second,
+				(flag.second == true ? 1 : 0)
+			);
+
+			auto results = database.QueryDatabase(query);
+			if (!results.Success()) {
+				return false;
+			}
+
+			return true;
+		}
+		default:
+			return false;
+		}
+	}
+	default:
 		return false;
-
-	return true;
-}
-
-bool BotDatabase::SaveOwnerOptionStatsUpdate(const uint32 owner_id, const bool flag)
-{
-	if (!owner_id)
-		return false;
-
-	query = StringFormat(
-		"UPDATE `bot_owner_options`"
-		" SET `stats_update` = '%u'"
-		" WHERE `owner_id` = '%u'",
-		(flag == true ? 1 : 0),
-		owner_id
-	);
-	auto results = database.QueryDatabase(query);
-	if (!results.Success())
-		return false;
-
-	return true;
-}
-
-bool BotDatabase::SaveOwnerOptionSpawnMessage(const uint32 owner_id, const bool say, const bool tell, const bool class_specific)
-{
-	if (!owner_id)
-		return false;
-
-	uint8 enabled_value = 0;
-	if (say)
-		enabled_value = 2;
-	else if (tell)
-		enabled_value = 1;
-
-	uint8 type_value = 0;
-	if (class_specific)
-		type_value = 1;
-
-	query = StringFormat(
-		"UPDATE `bot_owner_options`"
-		" SET"
-		" `spawn_message_enabled` = '%u',"
-		" `spawn_message_type` = '%u'"
-		" WHERE `owner_id` = '%u'",
-		enabled_value,
-		type_value,
-		owner_id
-	);
-	auto results = database.QueryDatabase(query);
-	if (!results.Success())
-		return false;
-
-	return true;
+	}
 }
 
 
@@ -2311,7 +2364,7 @@ bool BotDatabase::LoadBotGroupIDByLeaderID(const uint32 leader_id, uint32& botgr
 
 	auto row = results.begin();
 	botgroup_id = atoi(row[0]);
-	
+
 	return true;
 }
 
@@ -2329,7 +2382,7 @@ bool BotDatabase::LoadBotGroupIDByMemberID(const uint32 member_id, uint32& botgr
 
 	auto row = results.begin();
 	botgroup_id = atoi(row[0]);
-	
+
 	return true;
 }
 
@@ -2347,7 +2400,7 @@ bool BotDatabase::LoadLeaderIDByBotGroupName(const std::string& group_name, uint
 
 	auto row = results.begin();
 	leader_id = atoi(row[0]);
-	
+
 	return true;
 }
 
@@ -2365,7 +2418,7 @@ bool BotDatabase::LoadLeaderIDByBotGroupID(const uint32 group_id, uint32& leader
 
 	auto row = results.begin();
 	leader_id = atoi(row[0]);
-	
+
 	return true;
 }
 
@@ -2383,7 +2436,7 @@ bool BotDatabase::LoadBotGroupNameByBotGroupID(const uint32 group_id, std::strin
 
 	auto row = results.begin();
 	botgroup_name = row[0];
-	
+
 	return true;
 }
 
@@ -2401,7 +2454,7 @@ bool BotDatabase::LoadBotGroupNameByLeaderID(const uint32 leader_id, std::string
 
 	auto row = results.begin();
 	botgroup_name = row[0];
-	
+
 	return true;
 }
 
@@ -2545,7 +2598,7 @@ bool BotDatabase::LoadBotGroup(const std::string& group_name, std::map<uint32, s
 
 	for (auto row = results.begin(); row != results.end(); ++row)
 		member_list[botgroup_id].push_back(atoi(row[0]));
-	
+
 	return true;
 }
 

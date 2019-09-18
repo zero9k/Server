@@ -399,10 +399,12 @@ sub build_linux_source {
     print `git clone https://github.com/EQEmu/Server.git`;
 
     mkdir($source_dir . "/Server/build") if (!-e $source_dir . "/Server/build");
-    chdir($source_dir . "/Server/build");
+    chdir($source_dir . "/Server");
 
     print `git submodule init`;
     print `git submodule update`;
+
+    chdir($source_dir . "/Server/build");
 
     print "Generating CMake build files...\n";
     if ($os_flavor eq "fedora_core") {
@@ -470,9 +472,19 @@ sub do_installer_routines {
     print `"$path" --host $host --user $user --password="$pass" -N -B -e "DROP DATABASE IF EXISTS $db_name;"`;
     print `"$path" --host $host --user $user --password="$pass" -N -B -e "CREATE DATABASE $db_name"`;
 
+    my $world_path = "world";
+    if (-e "bin/world") {
+        $world_path = "bin/world";
+    }
+
     #::: Get Binary DB version
-    if ($OS eq "Windows") { @db_version = split(': ', `world db_version`); }
-    if ($OS eq "Linux") { @db_version   = split(': ', `./world db_version`); }
+    if ($OS eq "Windows") {
+        @db_version = split(': ', `$world_path db_version`);
+    }
+    if ($OS eq "Linux") {
+        @db_version = split(': ', `./$world_path db_version`);
+    }
+
     $binary_database_version            = trim($db_version[1]);
 
     #::: Local DB Version
@@ -2620,7 +2632,7 @@ sub quest_faction_convert {
 								print "BEFORE: " . $line . "\n";
 								$line =~ s/$faction_value_clean/$new_faction/g;
 								print "AFTER: " . $line . "\n";
-								$changes_made = 1;	
+								$changes_made = 1;
 							}
 							else {
 								print "Unknown Faction: '$match' FACTION VALUE: '" . $faction_value_clean . "'\n";
@@ -2669,5 +2681,5 @@ sub fix_quest_factions {
 	}
 
 	# Fix the factions
-	quest_faction_convert();	
+	quest_faction_convert();
 }
