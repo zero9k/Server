@@ -21,30 +21,30 @@ public:
 	Doors(const char *model, const glm::vec4& position, uint8 open_type = 58, uint16 size = 100);
 	Doors(const Door* door);
 
-	bool GetDisableTimer() { return disable_timer; }
+	bool GetDisableTimer() const { return disable_timer; }
 	bool IsDoor() const { return true; }
-	bool IsDoorOpen() { return is_open; }
+	bool IsDoorOpen() const { return is_open; }
 	bool Process();
 	bool triggered;
 	char *GetDoorName() { return door_name; }
 	const glm::vec4 GetDestination() const { return m_Destination; }
 	const glm::vec4 &GetPosition() const { return m_Position; }
-	int GetIncline() { return incline; }
-	int GetInvertState() { return invert_state; }
-	uint8 GetDoorID() { return door_id; }
-	uint8 GetNoKeyring() { return no_key_ring; }
-	uint8 GetOpenType() { return open_type; }
-	uint8 GetTriggerDoorID() { return trigger_door; }
-	uint8 GetTriggerType() { return trigger_type; }
+	int GetIncline() const { return incline; }
+	int GetInvertState() const { return invert_state; }
+	uint8 GetDoorID() const { return door_id; }
+	uint8 GetNoKeyring() const { return no_key_ring; }
+	uint8 GetOpenType() const { return open_type; }
+	uint8 GetTriggerDoorID() const { return trigger_door; }
+	uint8 GetTriggerType() const { return trigger_type; }
 	bool IsLDoNDoor() const { return is_ldon_door; }
-	uint16 GetLockpick() { return lockpick; }
-	uint16 GetSize() { return size; }
-	uint32 GetClientVersionMask() { return client_version_mask; }
-	uint32 GetDoorDBID() { return database_id; }
-	uint32 GetDoorParam() { return door_param; }
-	uint32 GetEntityID() { return entity_id; }
-	uint32 GetGuildID() { return guild_id; }
-	uint32 GetKeyItem() { return key_item_id; }
+	uint16 GetLockpick() const { return lockpick; }
+	uint16 GetSize() const { return size; }
+	uint32 GetClientVersionMask() const { return client_version_mask; }
+	uint32 GetDoorDBID() const { return database_id; }
+	uint32 GetDoorParam() const { return door_param; }
+	uint32 GetEntityID() const { return entity_id; }
+	uint32 GetGuildID() const { return guild_id; }
+	uint32 GetKeyItem() const { return key_item_id; }
 	void CreateDatabaseEntry();
 	void ForceClose(Mob *sender, bool alt_mode = false);
 	void ForceOpen(Mob *sender, bool alt_mode = false);
