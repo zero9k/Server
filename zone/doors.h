@@ -36,7 +36,7 @@ public:
 	uint8 GetOpenType() { return open_type; }
 	uint8 GetTriggerDoorID() { return trigger_door; }
 	uint8 GetTriggerType() { return trigger_type; }
-	uint8 IsLDoNDoor() { return is_ldon_door; }
+	bool IsLDoNDoor() const { return is_ldon_door; }
 	uint16 GetLockpick() { return lockpick; }
 	uint16 GetSize() { return size; }
 	uint32 GetClientVersionMask() { return client_version_mask; }
@@ -93,7 +93,7 @@ private:
 	char      destination_zone_name[16];
 	int       destination_instance_id;
 	glm::vec4 m_Destination;
-	uint8     is_ldon_door;
+	bool      is_ldon_door;
 	uint32    client_version_mask;
 };
 #endif

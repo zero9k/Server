@@ -98,7 +98,7 @@ Doors::Doors(const char *model, const glm::vec4 &position, uint8 open_type, uint
 	this->triggered               = false;
 	this->door_param              = 0;
 	this->invert_state            = 0;
-	this->is_ldon_door            = 0;
+	this->is_ldon_door            = false;
 	this->client_version_mask     = 4294967295u;
 	this->disable_timer           = 0;
 	this->destination_instance_id = 0;
@@ -764,7 +764,7 @@ bool ZoneDatabase::LoadDoors(int32 door_count, Door *into, const char *zone_name
 		into[row_index].invert_state        = atoi(row[22]);
 		into[row_index].incline             = atoi(row[23]);
 		into[row_index].size                = static_cast<uint16>(atoi(row[24]));
-		into[row_index].is_ldon_door        = static_cast<uint8>(atoi(row[25]));
+		into[row_index].is_ldon_door        = atoi(row[25]) != 0;
 		into[row_index].client_version_mask = (uint32) strtoul(row[26], nullptr, 10);
 		into[row_index].disable_timer       = static_cast<uint8>(atoi(row[27]));
 

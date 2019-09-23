@@ -226,7 +226,7 @@ struct Door {
 	float	dest_y;
 	float	dest_z;
 	float	dest_heading;
-	uint8	is_ldon_door;
+	bool	is_ldon_door;
 	uint32	client_version_mask;
 };
 

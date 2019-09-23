@@ -49,3 +49,4 @@ CREATE TABLE `shared_task_members` (
 	`is_leader` TINYINT DEFAULT 0,
 	PRIMARY KEY(shared_task_id, character_id)
 );
+ALTER TABLE `doors` MODIFY `is_ldon_door` TINYINT;
