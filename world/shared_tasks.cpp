@@ -91,6 +91,7 @@ void SharedTaskManager::HandleTaskRequest(ServerPacket *pack)
 		buf.WriteInt32(id);				// shared task's ID
 		buf.WriteInt32(task_id);		// ID of the task's data
 		buf.WriteInt32(npc_id);			// NPC we're requesting from
+		buf.WriteInt32(task.GetAcceptedTime());	// time we accepted it
 		buf.WriteString(leader_name);	// leader's name
 		buf.WriteInt32(0); // member list minus leader
 
