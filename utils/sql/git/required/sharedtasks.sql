@@ -50,3 +50,4 @@ CREATE TABLE `shared_task_members` (
 	PRIMARY KEY(shared_task_id, character_id)
 );
 ALTER TABLE `doors` MODIFY `is_ldon_door` TINYINT;
+ALTER TABLE `doors` ADD `is_instance_door` TINYINT NOT NULL DEFAULT '0';

@@ -37,6 +37,7 @@ public:
 	uint8 GetTriggerDoorID() const { return trigger_door; }
 	uint8 GetTriggerType() const { return trigger_type; }
 	bool IsLDoNDoor() const { return is_ldon_door; }
+	bool IsInstanceDoor() const { return is_instance_door; }
 	uint16 GetLockpick() const { return lockpick; }
 	uint16 GetSize() const { return size; }
 	uint32 GetClientVersionMask() const { return client_version_mask; }
@@ -94,6 +95,7 @@ private:
 	int       destination_instance_id;
 	glm::vec4 m_Destination;
 	bool      is_ldon_door;
+	bool      is_instance_door;
 	uint32    client_version_mask;
 };
 #endif

@@ -227,6 +227,7 @@ struct Door {
 	float	dest_z;
 	float	dest_heading;
 	bool	is_ldon_door;
+	bool	is_instance_door; // used for expedition/shared tasks
 	uint32	client_version_mask;
 };
 

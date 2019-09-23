@@ -65,6 +65,7 @@ Doors::Doors(const Door *door) :
 	this->invert_state            = door->invert_state;
 	this->destination_instance_id = door->dest_instance_id;
 	this->is_ldon_door            = door->is_ldon_door;
+	this->is_instance_door        = door->is_instance_door;
 	this->client_version_mask     = door->client_version_mask;
 
 	SetOpenState(false);
@@ -99,6 +100,7 @@ Doors::Doors(const char *model, const glm::vec4 &position, uint8 open_type, uint
 	this->door_param              = 0;
 	this->invert_state            = 0;
 	this->is_ldon_door            = false;
+	this->is_instance_door        = false;
 	this->client_version_mask     = 4294967295u;
 	this->disable_timer           = 0;
 	this->destination_instance_id = 0;
@@ -712,6 +714,7 @@ bool ZoneDatabase::LoadDoors(int32 door_count, Door *into, const char *zone_name
 			" 	incline, "
 			" 	size, "
 			" 	is_ldon_door, "
+			" 	is_instance_door, "
 			" 	client_version_mask, "
 			" 	disable_timer  "
 			" FROM "
@@ -765,8 +768,9 @@ bool ZoneDatabase::LoadDoors(int32 door_count, Door *into, const char *zone_name
 		into[row_index].incline             = atoi(row[23]);
 		into[row_index].size                = static_cast<uint16>(atoi(row[24]));
 		into[row_index].is_ldon_door        = atoi(row[25]) != 0;
-		into[row_index].client_version_mask = (uint32) strtoul(row[26], nullptr, 10);
-		into[row_index].disable_timer       = static_cast<uint8>(atoi(row[27]));
+		into[row_index].is_instance_door    = atoi(row[26]) != 0;
+		into[row_index].client_version_mask = (uint32) strtoul(row[27], nullptr, 10);
+		into[row_index].disable_timer       = static_cast<uint8>(atoi(row[28]));
 
 		Log(Logs::Detail, Logs::Doors, "Door Load: db id: %u, door_id %u disable_timer: %i",
 			into[row_index].db_id,
