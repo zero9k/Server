@@ -134,6 +134,9 @@ bool Doors::Process()
 }
 
 void Doors::HandleClick(Client* sender, uint8 trigger) {
+	// well, null sender means we can't do anything useful :P
+	if (sender == nullptr)
+		return;
 	Log(Logs::Detail, Logs::Doors,
 	    "%s clicked door %s (dbid %d, eqid %d) at %s",
 	    sender->GetName(),
@@ -208,6 +211,32 @@ void Doors::HandleClick(Client* sender, uint8 trigger) {
 			safe_delete(outapp);
 			return;
 		}
+	}
+
+	/* The idea here is we have a single flag handling shared tasks and expeditions
+	 * We check if the client has one of these, and get the instance information from them.
+	 * Unlike above with LDoNs which ask world
+	 */
+	if (IsInstanceDoor()) {
+		// check SharedTasks
+		if (taskmanager != nullptr && sender->GetSharedTask() != nullptr) {
+			auto shared_task = sender->GetSharedTask();
+			auto instance_id = shared_task->GetInstanceID();
+			auto task_info = taskmanager->GetTaskInformation(shared_task->GetTaskID());
+
+			if (task_info == nullptr) { // hmm, invalid state, fuck it
+				safe_delete(outapp);
+				return;
+			}
+
+			// now we need to check if we're clicking the right object
+			if (GetDoorDBID() == task_info->zone_in_object_id &&
+			    zone->GetZoneID() == task_info->zone_in_zone_id) {
+				sender->MovePC(task_info->instance_zone_id, instance_id, task_info->dest_x,
+					       task_info->dest_y, task_info->dest_z, task_info->dest_h, 0);
+			}
+		}
+		// TODO: check Expeditions
 	}
 
 	uint32 required_key_item       = GetKeyItem();
