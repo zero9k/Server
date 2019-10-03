@@ -137,6 +137,7 @@ void Doors::HandleClick(Client* sender, uint8 trigger) {
 	// well, null sender means we can't do anything useful :P
 	if (sender == nullptr)
 		return;
+
 	Log(Logs::Detail, Logs::Doors,
 	    "%s clicked door %s (dbid %d, eqid %d) at %s",
 	    sender->GetName(),
@@ -175,42 +176,40 @@ void Doors::HandleClick(Client* sender, uint8 trigger) {
 		sender->UpdateTasksOnTouch(GetDoorDBID());
 
 	if (this->IsLDoNDoor()) {
-		if (sender) {
-			if (RuleI(Adventure, ItemIDToEnablePorts) != 0) {
-				if (!sender->KeyRingCheck(RuleI(Adventure, ItemIDToEnablePorts))) {
-					if (sender->GetInv().HasItem(RuleI(Adventure, ItemIDToEnablePorts)) == INVALID_INDEX) {
-						sender->MessageString(Chat::Red, DUNGEON_SEALED);
-						safe_delete(outapp);
-						return;
-					} else {
-						sender->KeyRingAdd(RuleI(Adventure, ItemIDToEnablePorts));
-					}
+		if (RuleI(Adventure, ItemIDToEnablePorts) != 0) {
+			if (!sender->KeyRingCheck(RuleI(Adventure, ItemIDToEnablePorts))) {
+				if (sender->GetInv().HasItem(RuleI(Adventure, ItemIDToEnablePorts)) == INVALID_INDEX) {
+					sender->MessageString(Chat::Red, DUNGEON_SEALED);
+					safe_delete(outapp);
+					return;
+				} else {
+					sender->KeyRingAdd(RuleI(Adventure, ItemIDToEnablePorts));
 				}
 			}
-
-			if (!sender->GetPendingAdventureDoorClick()) {
-				sender->PendingAdventureDoorClick();
-				auto pack = new ServerPacket(
-						ServerOP_AdventureClickDoor,
-						sizeof(ServerPlayerClickedAdventureDoor_Struct)
-				);
-
-				/**
-				 * Adventure door
-				 */
-				ServerPlayerClickedAdventureDoor_Struct *adventure_door_click;
-				adventure_door_click = (ServerPlayerClickedAdventureDoor_Struct *) pack->pBuffer;
-				strcpy(adventure_door_click->player, sender->GetName());
-
-				adventure_door_click->zone_id = zone->GetZoneID();
-				adventure_door_click->id      = this->GetDoorDBID();
-
-				worldserver.SendPacket(pack);
-				safe_delete(pack);
-			}
-			safe_delete(outapp);
-			return;
 		}
+
+		if (!sender->GetPendingAdventureDoorClick()) {
+			sender->PendingAdventureDoorClick();
+			auto pack = new ServerPacket(
+					ServerOP_AdventureClickDoor,
+					sizeof(ServerPlayerClickedAdventureDoor_Struct)
+			);
+
+			/**
+			 * Adventure door
+			 */
+			ServerPlayerClickedAdventureDoor_Struct *adventure_door_click;
+			adventure_door_click = (ServerPlayerClickedAdventureDoor_Struct *) pack->pBuffer;
+			strcpy(adventure_door_click->player, sender->GetName());
+
+			adventure_door_click->zone_id = zone->GetZoneID();
+			adventure_door_click->id      = this->GetDoorDBID();
+
+			worldserver.SendPacket(pack);
+			safe_delete(pack);
+		}
+		safe_delete(outapp);
+		return;
 	}
 
 	/* The idea here is we have a single flag handling shared tasks and expeditions
