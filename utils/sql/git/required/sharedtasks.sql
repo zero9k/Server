@@ -31,6 +31,7 @@ CREATE TABLE `shared_task_state` (
 	`id` INT NOT NULL,
 	`task_id` INT NOT NULL,
 	`accepted_time` INT NOT NULL,
+	`instance_id` INT NOT NULL,
 	`is_locked` TINYINT NOT NULL DEFAULT '0',
 	`is_completed` TINYINT NOT NULL DEFAULT '0',
 	PRIMARY KEY(`id`)
@@ -51,3 +52,4 @@ CREATE TABLE `shared_task_members` (
 );
 ALTER TABLE `doors` MODIFY `is_ldon_door` TINYINT;
 ALTER TABLE `doors` ADD `is_instance_door` TINYINT NOT NULL DEFAULT '0';
+

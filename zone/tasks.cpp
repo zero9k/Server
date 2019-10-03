@@ -3335,7 +3335,8 @@ void TaskManager::SendActiveTaskDescription(Client *c, int TaskID, ClientTaskInf
 SharedTaskState *TaskManager::LoadSharedTask(int id)
 {
 	std::string query = fmt::format(
-	    "SELECT task_id, accepted_time, is_locked, is_completed FROM shared_task_state WHERE id = {}", id);
+	    "SELECT task_id, accepted_time, instance_id, is_locked, is_completed FROM shared_task_state WHERE id = {}",
+	    id);
 	auto results = database.QueryDatabase(query);
 
 	const char *ERR_MYSQLERROR = "[TASKS]Error in TaskManager::LoadSharedTask: %s";
@@ -3361,8 +3362,9 @@ SharedTaskState *TaskManager::LoadSharedTask(int id)
 	task_activity->Updated = true;
 	task_activity->CurrentStep = -1;
 
-	task_state->SetLocked(atoi(row[2]) != 0);
-	task_state->SetCompleted(atoi(row[3]) != 0);
+	task_state->SetInstanceID(atoi(row[2]));
+	task_state->SetLocked(atoi(row[3]) != 0);
+	task_state->SetCompleted(atoi(row[4]) != 0);
 
 	query = fmt::format("SELECT activity_id, done_count, completed FROM shared_task_activities WHERE shared_task_id = {}", id);
 	results = database.QueryDatabase(query);
@@ -3811,7 +3813,7 @@ void ClientTaskState::RequestSharedTask(Client *c, int TaskID, int NPCID, bool e
 	return;
 }
 
-void ClientTaskState::AcceptNewSharedTask(Client *c, int TaskID, int NPCID, int id, int accepted_time,
+void ClientTaskState::AcceptNewSharedTask(Client *c, int TaskID, int NPCID, int id, int instance_id, int accepted_time,
 					  std::vector<std::string> &members)
 {
 	Log(Logs::General, Logs::Tasks,
@@ -3825,6 +3827,8 @@ void ClientTaskState::AcceptNewSharedTask(Client *c, int TaskID, int NPCID, int 
 		// TODO: something failed, tell world
 		return;
 	}
+
+	task_state->SetInstanceID(instance_id);
 
 	// we need to init the activity now
 	auto task_activity = task_state->GetActivity();

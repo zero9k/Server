@@ -31,22 +31,11 @@ struct SharedTaskMemberList {
 
 class SharedTask {
 public:
-	SharedTask() : id(0), task_id(0), locked(false), completed(false) {}
-	SharedTask(int id, int task_id) : id(id), task_id(task_id), locked(false), completed(false) {}
+	SharedTask() : id(0), task_id(0), instance_id(0), locked(false), completed(false) {}
+	SharedTask(int id, int task_id) : id(id), task_id(task_id), instance_id(0), locked(false), completed(false) {}
 	~SharedTask() {}
 
-	void AddMember(std::string name, ClientListEntry *cle = nullptr, int char_id = 0, bool leader = false)
-	{
-		members.update = true;
-		members.list.push_back({name, cle, char_id, leader});
-		if (leader)
-			leader_name = name;
-		if (char_id == 0)
-			return;
-		auto it = std::find(char_ids.begin(), char_ids.end(), char_id);
-		if (it == char_ids.end())
-			char_ids.push_back(char_id);
-	}
+	void AddMember(std::string name, ClientListEntry *cle = nullptr, int char_id = 0, bool leader = false);
 	void MemberLeftGame(ClientListEntry *cle);
 	inline const std::string &GetLeaderName() const { return leader_name; }
 	inline SharedTaskMember *GetLeader() {
@@ -66,7 +55,11 @@ public:
 	inline void SetCompleted(bool in) { completed = in; }
 	inline bool GetCompleted() const { return completed; }
 
+	inline void SetInstanceID(int in) { instance_id = in; }
+	inline int GetInstanceID() const { return instance_id; }
+
 	bool TaskCompleted();
+
 
 	void ProcessActivityUpdate(int activity_id, int value);
 
@@ -82,6 +75,7 @@ private:
 	inline int GetAcceptedTime() const { return task_state.AcceptedTime; }
 	int id; // id we have in our map
 	int task_id; // ID of the task we're on
+	int instance_id; // ID of our instance if we're responsible for creating it
 	bool locked;
 	bool completed;
 	std::string leader_name;
@@ -131,6 +125,8 @@ public:
 
 	void Process();
 
+	int CreateInstance(uint32 zone_id, uint32 zone_version, uint32 duration);
+	bool AddPlayerToInstance(uint32 instance_id, int32 character_id);
 private:
 	int GetNextID();
 	int next_id;

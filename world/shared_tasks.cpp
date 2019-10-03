@@ -83,6 +83,17 @@ void SharedTaskManager::HandleTaskRequest(ServerPacket *pack)
 	}
 
 	auto &task = ret.first->second;
+
+	// Create Instance if this task has one
+	if (it->second.instance_zone_id != 0) {
+		auto id = shared_tasks.CreateInstance(it->second.instance_zone_id, it->second.zone_version, it->second.Duration);
+		if (id == -1) {
+			// TODO: fail case
+		} else {
+			task.SetInstanceID(id);
+		}
+	}
+
 	task.AddMember(leader_name, cle_leader, cle_leader->CharID(), true);
 
 	if (players.empty()) {
@@ -91,6 +102,7 @@ void SharedTaskManager::HandleTaskRequest(ServerPacket *pack)
 		buf.WriteInt32(id);				// shared task's ID
 		buf.WriteInt32(task_id);		// ID of the task's data
 		buf.WriteInt32(npc_id);			// NPC we're requesting from
+		buf.WriteInt32(task.GetInstanceID());	// instance ID if we had to create one
 		buf.WriteInt32(task.GetAcceptedTime());	// time we accepted it
 		buf.WriteString(leader_name);	// leader's name
 		buf.WriteInt32(0); // member list minus leader
@@ -156,11 +168,13 @@ void SharedTaskManager::HandleTaskRequest(ServerPacket *pack)
 	task.SetCLESharedTasks();
 	task.InitActivities();
 	task.SetUpdated();
+
 	// fire off to zone we're done!
 	SerializeBuffer buf(10 + 10 * players.size());
 	buf.WriteInt32(id);				// shared task's ID
 	buf.WriteInt32(task_id);		// ID of the task's data
 	buf.WriteInt32(npc_id);			// NPC we're requesting from
+	buf.WriteInt32(task.GetInstanceID());	// instance ID if we had to create one
 	buf.WriteInt32(task.GetAcceptedTime());	// time we accepted it
 	buf.WriteString(leader_name);	// leader's name
 	task.SerializeMembers(buf, false);	// everyone but leader
@@ -395,8 +409,8 @@ bool SharedTaskManager::LoadSharedTaskState()
 {
 	// one may think we should clean up expired tasks, but we don't just in case world is booting back up after a crash
 	// we will clean them up in the normal process loop so zones get told to clean up
-	std::string query =
-	    "SELECT `id`, `task_id`, `accepted_time`, `is_locked`, `is_completed` FROM `shared_task_state`";
+	std::string query = "SELECT `id`, `task_id`, `accepted_time`, `instance_id`, `is_locked`, `is_completed` FROM "
+			    "`shared_task_state`";
 	auto results = database.QueryDatabase(query);
 
 	if (results.Success() && results.RowCount() > 0) {
@@ -409,8 +423,9 @@ bool SharedTaskManager::LoadSharedTaskState()
 			task.SetID(id);
 			task.SetTaskID(atoi(row[1]));
 			task.SetAcceptedTime(atoi(row[2]));
-			task.SetLocked(atoi(row[3]) != 0);
-			task.SetCompleted(atoi(row[4]) != 0);
+			task.SetInstanceID(atoi(row[3]));
+			task.SetLocked(atoi(row[4]) != 0);
+			task.SetCompleted(atoi(row[5]) != 0);
 		}
 	}
 
@@ -504,6 +519,45 @@ void SharedTaskManager::Process()
 {
 }
 
+int SharedTaskManager::CreateInstance(uint32 zone_id, uint32 zone_version, uint32 duration)
+{
+	uint16 id = 0;
+	if (!database.GetUnusedInstanceID(id))
+		return -1;
+
+	if (duration == 0)
+		duration = 6 * 60 * 60; // 6 hours
+
+	if (!database.CreateInstance(id, zone_id, zone_version, duration))
+		return -1;
+
+	return id;
+}
+
+bool SharedTaskManager::AddPlayerToInstance(uint32 instance_id, int32 character_id)
+{
+	return database.AddClientToInstance(instance_id, character_id);
+}
+
+/*
+ * Adds a player to the shared task, manages some "on join" shit
+ * This pretty much needs to be called on an live player, need char_id
+ */
+void SharedTask::AddMember(std::string name, ClientListEntry *cle, int char_id, bool leader)
+{
+	members.update = true;
+	members.list.push_back({name, cle, char_id, leader});
+	if (leader)
+		leader_name = name;
+	if (char_id == 0)
+		return;
+	if (instance_id)
+		shared_tasks.AddPlayerToInstance(instance_id, char_id);
+	auto it = std::find(char_ids.begin(), char_ids.end(), char_id);
+	if (it == char_ids.end())
+		char_ids.push_back(char_id);
+}
+
 /*
  * When a player leaves world they will tell us to clean up their pointer
  * This is NOT leaving the shared task, just crashed or something
@@ -561,9 +615,9 @@ void SharedTask::Save()
 	fmt::basic_memory_buffer<char> out; // queries where we loop over stuff
 
 	if (task_state.Updated) {
-		query = fmt::format("REPLACE INTO shared_task_state (id, task_id, accepted_time, is_locked, "
-				    "is_completed) VALUES ({}, {}, {}, {:d}. {:d})",
-				    id, task_id, GetAcceptedTime(), locked, completed);
+		query = fmt::format("REPLACE INTO shared_task_state (id, task_id, accepted_time, instance_id, "
+				    "is_locked, is_completed) VALUES ({}, {}, {}, {}, {:d}. {:d})",
+				    id, task_id, GetAcceptedTime(), instance_id, locked, completed);
 		auto res = database.QueryDatabase(query);
 		if (!res.Success())
 			Log(Logs::General, Logs::Error, ERR_MYSQLERROR, res.ErrorMessage().c_str());

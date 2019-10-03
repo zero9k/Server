@@ -1980,10 +1980,11 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p)
 		int id = pack->ReadUInt32();
 		int task_id = pack->ReadUInt32();
 		int taskmaster_id = pack->ReadUInt32();
+		int instance_id = pack->ReadUInt32();
 		int accepted_time = pack->ReadUInt32();
-		char name[64] = { 0 };
+		std::string name;
 		pack->ReadString(name);
-		auto client = entity_list.GetClientByName(name);
+		auto client = entity_list.GetClientByName(name.c_str());
 		if (client) { // guess we just do nothing if they're not here
 			std::vector<std::string> members;
 			int count = pack->ReadUInt32();
@@ -1991,7 +1992,7 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p)
 				pack->ReadString(name);
 				members.push_back(name);
 			}
-			client->AssignSharedTask(task_id, taskmaster_id, id, accepted_time, members);
+			client->AssignSharedTask(task_id, taskmaster_id, id, instance_id, accepted_time, members);
 		} else {
 			// TODO: something failed, tell world to clean up
 		}

@@ -111,6 +111,9 @@ public:
 	inline int GetID() const { return id; }
 	inline int GetTaskID() const { return task_id; }
 
+	inline uint32 GetInstanceID() const { return instance_id; }
+	inline void SetInstanceID(int in) { instance_id = in; }
+
 	inline void SetCompleted(bool in) { completed = in; }
 	inline bool GetCompleted() const { return completed; }
 
@@ -139,6 +142,7 @@ public:
 private:
 	int id;
 	int task_id;
+	uint32 instance_id; // ID of our instance, if we have one
 	std::vector<SharedTaskMember> members;
 	std::string leader_name;
 	ClientTaskInformation activity;
@@ -192,7 +196,7 @@ public:
 	int CompletedTasksInSet(int TaskSetID);
 	bool HasSlotForTask(TaskInformation *task);
 	// shared task related functions
-	void AcceptNewSharedTask(Client *c, int TaskID, int NPCID, int id, int accepted_time, std::vector<std::string> &members);
+	void AcceptNewSharedTask(Client *c, int TaskID, int NPCID, int id, int instance_id, int accepted_time, std::vector<std::string> &members);
 	void AddToSharedTask(Client *c, int TaskID);
 	void RequestSharedTask(Client *c, int TaskID, int NPCID, bool enforce_level_requirement = false);
 
@@ -287,6 +291,12 @@ public:
 	SharedTaskState *LoadSharedTask(int id); // loads the shared task state
 	SharedTaskState *CreateSharedTask(int id, int task_id);
 	SharedTaskState *GetSharedTask(int id);
+
+	inline const TaskInformation *GetTaskInformation(int task_id) const {
+		if (task_id >= MAXTASKS)
+			return nullptr;
+		return Tasks[task_id];
+	}
 
 private:
 	TaskGoalListManager GoalListManager;
