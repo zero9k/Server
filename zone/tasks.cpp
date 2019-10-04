@@ -3817,8 +3817,9 @@ void ClientTaskState::AcceptNewSharedTask(Client *c, int TaskID, int NPCID, int 
 					  std::vector<std::string> &members)
 {
 	Log(Logs::General, Logs::Tasks,
-	    "AcceptNewSharedTask for %s TaskID %d NPCID %d shared task ID %d accepted_time %d member count %d",
-	    c->GetName(), TaskID, NPCID, id, accepted_time, members.size());
+	    "AcceptNewSharedTask for %s TaskID %d NPCID %d shared task ID %d instance ID %d accepted_time %d member "
+	    "count %d",
+	    c->GetName(), TaskID, NPCID, id, instance_id, accepted_time, members.size());
 	// all of this data should have been verified already
 	// first we need to create the new SharedTaskState
 	auto task_state = taskmanager->CreateSharedTask(id, TaskID);
