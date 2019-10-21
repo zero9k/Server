@@ -1493,17 +1493,23 @@ void Mob::SendHPUpdate(bool skip_self /*= false*/, bool force_update_all /*= fal
 	}
 }
 
-void Mob::StopMoving() {
+void Mob::StopMoving()
+{
 	StopNavigation();
-	if (moved)
+
+	if (moved) {
 		moved = false;
+	}
 }
 
-void Mob::StopMoving(float new_heading) {
+void Mob::StopMoving(float new_heading)
+{
 	StopNavigation();
 	RotateTo(new_heading);
-	if (moved)
+
+	if (moved) {
 		moved = false;
+	}
 }
 
 void Mob::SentPositionPacket(float dx, float dy, float dz, float dh, int anim, bool send_to_self)
@@ -1730,7 +1736,11 @@ void Mob::SendIllusionPacket(
 	uint32 new_drakkin_tattoo;
 	uint32 new_drakkin_details;
 
-	race = (in_race) ? in_race : GetBaseRace();
+	race = in_race;
+	if (race == 0)
+		{
+		race = (use_model) ? use_model : GetBaseRace();
+		}
 
 	if (in_gender != 0xFF)
 		{
@@ -2684,6 +2694,27 @@ bool Mob::PlotPositionAroundTarget(Mob* target, float &x_dest, float &y_dest, fl
 	return Result;
 }
 
+bool Mob::PlotPositionOnArcInFrontOfTarget(Mob* target, float& x_dest, float& y_dest, float& z_dest, float distance, float min_deg, float max_deg)
+{
+
+
+	return false;
+}
+
+bool Mob::PlotPositionOnArcBehindTarget(Mob* target, float& x_dest, float& y_dest, float& z_dest, float distance)
+{
+
+
+	return false;
+}
+
+bool Mob::PlotPositionBehindMeFacingTarget(Mob* target, float& x_dest, float& y_dest, float& z_dest, float min_dist, float max_dist)
+{
+
+
+	return false;
+}
+
 bool Mob::HateSummon() {
 	// check if mob has ability to summon
 	// 97% is the offical % that summoning starts on live, not 94
@@ -3176,6 +3207,10 @@ void Mob::SetTarget(Mob *mob)
 		if (this->CastToClient()->admin > 200) {
 			this->DisplayInfo(mob);
 		}
+
+#ifdef BOTS
+		CastToClient()->SetBotPrecombat(false); // Any change in target will nullify this flag (target == mob checked above)
+#endif
 	}
 
 	if (IsPet() && GetOwner() && GetOwner()->IsClient()) {

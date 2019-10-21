@@ -284,7 +284,7 @@ bool Mob::CheckHitChance(Mob* other, DamageHitInfo &hit)
 	bool lua_ret = false;
 	bool ignoreDefault = false;
 	lua_ret = LuaParser::Instance()->CheckHitChance(this, other, hit, ignoreDefault);
-	
+
 	if(ignoreDefault) {
 		return lua_ret;
 	}
@@ -324,7 +324,7 @@ bool Mob::AvoidDamage(Mob *other, DamageHitInfo &hit)
 	bool lua_ret = false;
 	bool ignoreDefault = false;
 	lua_ret = LuaParser::Instance()->AvoidDamage(this, other, hit, ignoreDefault);
-	
+
 	if (ignoreDefault) {
 		return lua_ret;
 	}
@@ -866,7 +866,7 @@ int Mob::GetBestMeleeSkill()
 	{	EQEmu::skills::Skill1HBlunt,
 	  	EQEmu::skills::Skill1HSlashing,
 		EQEmu::skills::Skill2HBlunt,
-		EQEmu::skills::Skill2HSlashing,	
+		EQEmu::skills::Skill2HSlashing,
 		EQEmu::skills::SkillHandtoHand,
 		EQEmu::skills::Skill1HPiercing,
 		EQEmu::skills::Skill2HPiercing,
@@ -879,7 +879,7 @@ int Mob::GetBestMeleeSkill()
 		value = GetSkill(meleeSkills[i]);
 		bestSkill = std::max(value, bestSkill);
 	}
-		
+
 	return bestSkill;
 	}
 
@@ -892,7 +892,7 @@ int Mob::offense(EQEmu::skills::SkillType skill)
 		case EQEmu::skills::SkillArchery:
 		case EQEmu::skills::SkillThrowing:
 			stat_bonus = GetDEX();
-			break;	
+			break;
 
 		// Mobs with no weapons default to H2H.
 		// Since H2H is capped at 100 for many many classes,
@@ -943,7 +943,7 @@ void Mob::MeleeMitigation(Mob *attacker, DamageHitInfo &hit, ExtraAttackOptions 
 #ifdef LUA_EQEMU
 	bool ignoreDefault = false;
 	LuaParser::Instance()->MeleeMitigation(this, attacker, hit, opts, ignoreDefault);
-	
+
 	if (ignoreDefault) {
 		return;
 	}
@@ -1735,7 +1735,7 @@ bool Client::Death(Mob* killerMob, int32 damage, uint16 spell, EQEmu::skills::Sk
 	if (!RuleB(Character, UseDeathExpLossMult)) {
 		exploss = (int)(GetLevel() * (GetLevel() / 18.0) * 12000);
 	}
-	
+
 	if (RuleB(Zone, LevelBasedEXPMods)) {
 		// Death in levels with xp_mod (such as hell levels) was resulting
 		// in losing more that appropriate since the loss was the same but
@@ -2720,18 +2720,22 @@ void Mob::AddToHateList(Mob* other, uint32 hate /*= 0*/, int32 damage /*= 0*/, b
 #ifdef BOTS
 	// if other is a bot, add the bots client to the hate list
 	while (other->IsBot()) {
+
 		auto other_ = other->CastToBot();
-		if (!other_ || !other_->GetBotOwner())
+		if (!other_ || !other_->GetBotOwner()) {
 			break;
+		}
 
 		auto owner_ = other_->GetBotOwner()->CastToClient();
-		if (!owner_ || owner_->IsDead() || !owner_->InZone()) // added isdead and inzone checks to avoid issues in AddAutoXTarget(...) below
+		if (!owner_ || owner_->IsDead() || !owner_->InZone()) { // added isdead and inzone checks to avoid issues in AddAutoXTarget(...) below
 			break;
+		}
 
 		if (owner_->GetFeigned()) {
 			AddFeignMemory(owner_);
 		}
 		else if (!hate_list.IsEntOnHateList(owner_)) {
+
 			hate_list.AddEntToHateList(owner_, 0, 0, false, true);
 			owner_->AddAutoXTarget(this); // this was being called on dead/out-of-zone clients
 		}
@@ -4092,11 +4096,16 @@ void Mob::TrySpellProc(const EQEmu::ItemInstance *inst, const EQEmu::ItemData *w
 	if (!weapon && hand == EQEmu::invslot::slotRange && GetSpecialAbility(SPECATK_RANGED_ATK))
 		rangedattk = true;
 
+	int16 poison_slot=-1;
+
 	for (uint32 i = 0; i < MAX_PROCS; i++) {
 		if (IsPet() && hand != EQEmu::invslot::slotPrimary) //Pets can only proc spell procs from their primay hand (ie; beastlord pets)
 			continue; // If pets ever can proc from off hand, this will need to change
 
-					  // Not ranged
+		if (!weapon || (SpellProcs[i].base_spellID == POISON_PROC && weapon->ItemType != EQEmu::item::ItemType1HPiercing))
+			continue; // Old school poison will only proc with 1HP equipped.
+
+		// Not ranged
 		if (!rangedattk) {
 			// Perma procs (AAs)
 			if (PermaProcs[i].spellID != SPELL_UNKNOWN) {
@@ -4111,6 +4120,11 @@ void Mob::TrySpellProc(const EQEmu::ItemInstance *inst, const EQEmu::ItemData *w
 
 			// Spell procs (buffs)
 			if (SpellProcs[i].spellID != SPELL_UNKNOWN) {
+				if (SpellProcs[i].base_spellID == POISON_PROC) {
+					poison_slot=i;
+					continue; // Process the poison proc last per @mackal
+				}
+
 				float chance = ProcChance * (static_cast<float>(SpellProcs[i].chance) / 100.0f);
 				if (zone->random.Roll(chance)) {
 					LogCombat("Spell proc [{}] procing spell [{}] ([{}] percent chance)", i, SpellProcs[i].spellID, chance);
@@ -4137,6 +4151,21 @@ void Mob::TrySpellProc(const EQEmu::ItemInstance *inst, const EQEmu::ItemData *w
 				else {
 					LogCombat("Ranged proc [{}] failed to proc [{}] ([{}] percent chance)", i, RangedProcs[i].spellID, chance);
 				}
+			}
+		}
+	}
+
+	if (poison_slot > -1) {
+		bool one_shot = !RuleB(Combat, UseExtendedPoisonProcs);
+		float chance = (one_shot) ? 100.0f : ProcChance * (static_cast<float>(SpellProcs[poison_slot].chance) / 100.0f);
+		uint16 spell_id = SpellProcs[poison_slot].spellID;
+
+		if (zone->random.Roll(chance)) {
+			LogCombat("Poison proc [{}] procing spell [{}] ([{}] percent chance)", poison_slot, spell_id, chance);
+			SendBeginCast(spell_id, 0);
+			ExecWeaponProc(nullptr, spell_id, on, SpellProcs[poison_slot].level_override);
+			if (one_shot) {
+				RemoveProcFromWeapon(spell_id);
 			}
 		}
 	}
@@ -4675,7 +4704,7 @@ void Mob::ApplyDamageTable(DamageHitInfo &hit)
 #ifdef LUA_EQEMU
 	bool ignoreDefault = false;
 	LuaParser::Instance()->ApplyDamageTable(this, hit, ignoreDefault);
-	
+
 	if (ignoreDefault) {
 		return;
 	}
