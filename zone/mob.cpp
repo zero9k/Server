@@ -128,6 +128,7 @@ Mob::Mob(
 	SetMoving(false);
 	moved            = false;
 	m_RewindLocation = glm::vec3();
+	m_RelativePosition = glm::vec4();
 
 	name[0] = 0;
 	orig_name[0] = 0;
@@ -452,6 +453,10 @@ Mob::Mob(
 	PrimaryAggro = false;
 	AssistAggro = false;
 	npc_assist_cap = 0;
+
+#ifdef BOTS
+	m_manual_follow = false;
+#endif
 }
 
 Mob::~Mob()
@@ -1208,7 +1213,7 @@ void Mob::FillSpawnStruct(NewSpawn_Struct* ns, Mob* ForWho)
 		// Changing the second string made no visible difference
 		sprintf(ns->spawn.DestructibleName2, "%s", ns->spawn.name);
 		// Putting a string in the final one that was previously empty had no visible effect.
-		sprintf(ns->spawn.DestructibleString, "");
+		ns->spawn.DestructibleString[0] = '\0';
 
 		// Sets damage appearance level of the object.
 		ns->spawn.DestructibleAppearance = luclinface; // Was 0x00000000
@@ -4445,10 +4450,11 @@ void Mob::DoKnockback(Mob *caster, uint32 pushback, uint32 pushup)
 		spu->delta_y	= FloatToEQ13(static_cast<float>(new_y));
 		spu->delta_z	= FloatToEQ13(static_cast<float>(pushup));
 		spu->heading	= FloatToEQ12(GetHeading());
-		spu->padding0002	=0;
-		spu->padding0006	=7;
-		spu->padding0014	=0x7f;
-		spu->padding0018	=0x5df27;
+		// for ref: these were not passed on to other 5 clients while on Titanium standard (change to RoF2 standard: 11/16/2019)
+		//eq->padding0002 = 0;
+		//eq->padding0006 = 0x7;
+		//eq->padding0014 = 0x7F;
+		//eq->padding0018 = 0x5dF27;
 		spu->animation = 0;
 		spu->delta_heading = FloatToEQ10(0);
 		outapp_push->priority = 6;
@@ -4828,7 +4834,24 @@ void Mob::RemoveNimbusEffect(int effectid)
 }
 
 bool Mob::IsBoat() const {
-	return (race == 72 || race == 73 || race == 114 || race == 404 || race == 550 || race == 551 || race == 552);
+
+	return (
+		race == RACE_SHIP_72 ||
+		race == RACE_LAUNCH_73 ||
+		race == RACE_GHOST_SHIP_114 ||
+		race == RACE_SHIP_404 ||
+		race == RACE_MERCHANT_SHIP_550 ||
+		race == RACE_PIRATE_SHIP_551 ||
+		race == RACE_GHOST_SHIP_552
+	);
+}
+
+bool Mob::IsControllableBoat() const {
+
+	return (
+		race == RACE_BOAT_141 ||
+		race == RACE_ROWBOAT_502
+	);
 }
 
 void Mob::SetBodyType(bodyType new_body, bool overwrite_orig) {

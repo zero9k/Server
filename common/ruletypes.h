@@ -572,7 +572,7 @@ RULE_CATEGORY_END()
 
 #ifdef BOTS
 RULE_CATEGORY(Bots)
-RULE_INT(Bots, AAExpansion, 8, "Bots get AAs through this expansion")
+RULE_INT(Bots, BotExpansionSettings, 16383, "Sets the expansion settings for bot use. Defaults to all expansions enabled up to TSS")
 RULE_BOOL(Bots, AllowCamelCaseNames, false, "Allows the use of 'MyBot' type names")
 RULE_INT(Bots, CommandSpellRank, 1, "Filters bot command spells by rank (1, 2 and 3 are valid filters - any other number allows all ranks)")
 RULE_INT(Bots, CreationLimit, 150, "Number of bots that each account can create")
@@ -599,6 +599,9 @@ RULE_INT(Bots, AllowedGenders, 0x3, "Bitmask of allowed bot genders")
 RULE_BOOL(Bots, AllowOwnerOptionAltCombat, true, "When option is enabled, bots will use an auto-/shared-aggro combat model")
 RULE_BOOL(Bots, AllowOwnerOptionAutoDefend, true, "When option is enabled, bots will defend their owner on enemy aggro")
 RULE_REAL(Bots, LeashDistance, 562500.0f, "Distance a bot is allowed to travel from leash owner before being pulled back (squared value)")
+RULE_BOOL(Bots, AllowApplyPoisonCommand, true, "Allows the use of the bot command 'applypoison'")
+RULE_BOOL(Bots, AllowApplyPotionCommand, true, "Allows the use of the bot command 'applypotion'")
+RULE_BOOL(Bots, RestrictApplyPotionToRogue, true, "Restricts the bot command 'applypotion' to rogue-usable potions (i.e., poisons)")
 RULE_CATEGORY_END()
 #endif
 
@@ -628,6 +631,7 @@ RULE_INT(Merchant, PricePenaltyPct, 4, "Determines maximum price penalty from ha
 RULE_REAL(Merchant, ChaBonusMod, 3.45, "Determines CHA cap, from 104 CHA. 3.45 is 132 CHA at apprehensive. 0.34 is 400 CHA at apprehensive")
 RULE_REAL(Merchant, ChaPenaltyMod, 1.52, "Determines CHA bottom, up to 102 CHA. 1.52 is 37 CHA at apprehensive. 0.98 is 0 CHA at apprehensive")
 RULE_BOOL(Merchant, EnableAltCurrencySell, true, "Enables the ability to resell items to alternate currency merchants")
+RULE_BOOL(Merchant, AllowCorpse, false, "Can merchants generate a corpse")
 RULE_CATEGORY_END()
 
 RULE_CATEGORY(Bazaar)
