@@ -14,7 +14,7 @@ SET(world_sources
 	lfplist.cpp
 	login_server.cpp
 	login_server_list.cpp
-	net.cpp
+	main.cpp
 	queryserv.cpp
 	shared_tasks.cpp
 	ucs.cpp
@@ -23,6 +23,7 @@ SET(world_sources
 	wguild_mgr.cpp
 	world_config.cpp
 	world_console_connection.cpp
+	world_server_command_handler.cpp
 	worlddb.cpp
 	zonelist.cpp
 	zoneserver.cpp
@@ -53,6 +54,7 @@ SET(world_headers
 	world_config.h
 	world_console_connection.h
 	world_tcp_connection.h
+	world_server_command_handler.h
 	worlddb.h
 	zonelist.h
 	zoneserver.h

@@ -1,3 +1,4 @@
+
 /*	EQEMu: Everquest Server Emulator
 	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemu.org)
 
@@ -168,6 +169,10 @@ public:
 	inline virtual bool InZone() const { return true; }
 
 	void DisplayInfo(Mob *mob);
+
+	std::unordered_map<uint16, Mob *> close_mobs;
+	Timer mob_scan_close;
+	Timer mob_check_moving_timer;
 
 	//Somewhat sorted: needs documenting!
 
@@ -490,8 +495,8 @@ public:
 	inline Mob* GetTarget() const { return target; }
 	virtual void SetTarget(Mob* mob);
 	inline bool HasTargetReflection() const { return (target && target != this && target->target == this); }
-	virtual inline float GetHPRatio() const { return max_hp == 0 ? 0 : ((float)current_hp/max_hp*100); }
-	virtual inline int GetIntHPRatio() const { return max_hp == 0 ? 0 : static_cast<int>(current_hp * 100 / max_hp); }
+	virtual inline float GetHPRatio() const { return max_hp == 0 ? 0 : ((float) current_hp / max_hp * 100); }
+	virtual inline int GetIntHPRatio() const { return max_hp == 0 ? 0 : static_cast<int>(GetHPRatio()); }
 	inline int32 GetAC() const { return AC; }
 	inline virtual int32 GetATK() const { return ATK + itembonuses.ATK + spellbonuses.ATK; }
 	inline virtual int32 GetATKBonus() const { return itembonuses.ATK + spellbonuses.ATK; }
@@ -968,7 +973,7 @@ public:
 	void SetEntityVariable(const char *id, const char *m_var);
 	bool EntityVariableExists(const char *id);
 
-	void AI_Event_Engaged(Mob* attacker, bool iYellForHelp = true);
+	void AI_Event_Engaged(Mob* attacker, bool yell_for_help = true);
 	void AI_Event_NoLongerEngaged();
 
 	FACTION_VALUE GetSpecialFactionCon(Mob* iOther);

@@ -4264,6 +4264,12 @@ void bot_command_pull(Client *c, const Seperator *sep)
 		return;
 	}
 
+	if (target_mob->IsNPC() && target_mob->GetHateList().size()) {
+
+		c->Message(m_fail, "Your current target is already engaged!");
+		return;
+	}
+
 	Bot* bot_puller = nullptr;
 	for (auto bot_iter : sbl) {
 
@@ -5839,23 +5845,12 @@ void bot_subcommand_bot_surname(Client *c, const Seperator *sep)
 	std::string bot_surname = sep->arg[1];
 	bot_surname = (bot_surname == "-remove") ? "" : bot_surname;
 	std::replace(bot_surname.begin(), bot_surname.end(), '_', ' ');
+
 	my_bot->SetSurname(bot_surname);
 	if (!database.botdb.SaveBot(my_bot)) {
 		c->Message(Chat::Red, BotDatabase::fail::SaveBot());
-		return;
 	}
 	else {
-		auto outapp = new EQApplicationPacket(OP_GMLastName, sizeof(GMLastName_Struct));
-		GMLastName_Struct * gmn = (GMLastName_Struct*)outapp->pBuffer;
-		strcpy(gmn->name, my_bot->GetCleanName());
-		strcpy(gmn->gmname, my_bot->GetCleanName());
-		strcpy(gmn->lastname, my_bot->GetSurname().c_str());
-		gmn->unknown[0] = 1;
-		gmn->unknown[1] = 1;
-		gmn->unknown[2] = 1;
-		gmn->unknown[3] = 1;
-		entity_list.QueueClients(my_bot->CastToClient(), outapp);
-		safe_delete(outapp);
 		c->Message(Chat::Yellow, "Bot Surname Saved.");
 	}
 }
@@ -5878,13 +5873,12 @@ void bot_subcommand_bot_title(Client *c, const Seperator *sep)
 	std::string bot_title = sep->arg[1];
 	bot_title = (bot_title == "-remove") ? "" : bot_title;
 	std::replace(bot_title.begin(), bot_title.end(), '_', ' ');
+
 	my_bot->SetTitle(bot_title);
 	if (!database.botdb.SaveBot(my_bot)) {
 		c->Message(Chat::Red, BotDatabase::fail::SaveBot());
-		return;
 	}
 	else {
-		my_bot->CastToClient()->SetAATitle(my_bot->GetTitle().c_str());
 		c->Message(Chat::Yellow, "Bot Title Saved.");
 	}
 }
@@ -5907,13 +5901,12 @@ void bot_subcommand_bot_suffix(Client *c, const Seperator *sep)
 	std::string bot_suffix = sep->arg[1];
 	bot_suffix = (bot_suffix == "-remove") ? "" : bot_suffix;
 	std::replace(bot_suffix.begin(), bot_suffix.end(), '_', ' ');
+
 	my_bot->SetSuffix(bot_suffix);
 	if (!database.botdb.SaveBot(my_bot)) {
 		c->Message(Chat::Red, BotDatabase::fail::SaveBot());
-		return;
 	}
 	else {
-		my_bot->CastToClient()->SetTitleSuffix(my_bot->GetSuffix().c_str());
 		c->Message(Chat::Yellow, "Bot Suffix Saved.");
 	}
 }
@@ -6158,7 +6151,7 @@ void bot_subcommand_bot_stop_melee_level(Client *c, const Seperator *sep)
 		return;
 	if (helper_is_help_or_usage(sep->arg[1])) {
 		c->Message(m_usage, "usage: <target_bot> %s [current | reset | sync | value: 0-255]", sep->arg[0]);
-		c->Message(m_note, "note: Only caster and spell-casting fighter class bots may be modified");
+		c->Message(m_note, "note: Only caster or hybrid class bots may be modified");
 		c->Message(m_note, "note: Use [reset] to set stop melee level to server rule");
 		c->Message(m_note, "note: Use [sync] to set stop melee level to current bot level");
 		return;
@@ -6169,8 +6162,8 @@ void bot_subcommand_bot_stop_melee_level(Client *c, const Seperator *sep)
 		c->Message(m_fail, "You must <target> a bot that you own to use this command");
 		return;
 	}
-	if (!IsCasterClass(my_bot->GetClass()) && !IsSpellFighterClass(my_bot->GetClass())) {
-		c->Message(m_fail, "You must <target> a caster or spell-casting fighter class bot to use this command");
+	if (!IsCasterClass(my_bot->GetClass()) && !IsHybridClass(my_bot->GetClass())) {
+		c->Message(m_fail, "You must <target> a caster or hybrid class bot to use this command");
 		return;
 	}
 

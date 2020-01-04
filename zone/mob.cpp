@@ -116,7 +116,9 @@ Mob::Mob(
 	m_specialattacks(eSpecialAttacks::None),
 	attack_anim_timer(1000),
 	position_update_melee_push_timer(500),
-	hate_list_cleanup_timer(6000)
+	hate_list_cleanup_timer(6000),
+	mob_scan_close(6000),
+	mob_check_moving_timer(1000)
 {
 	mMovementManager = &MobMovementManager::Get();
 	mMovementManager->AddMob(this);
@@ -465,34 +467,41 @@ Mob::~Mob()
 
 	AI_Stop();
 	if (GetPet()) {
-		if (GetPet()->Charmed())
+		if (GetPet()->Charmed()) {
 			GetPet()->BuffFadeByEffect(SE_Charm);
-		else
+		}
+		else {
 			SetPet(0);
+		}
 	}
 
 	EQApplicationPacket app;
 	CreateDespawnPacket(&app, !IsCorpse());
-	Corpse* corpse = entity_list.GetCorpseByID(GetID());
-	if(!corpse || (corpse && !corpse->IsPlayerCorpse()))
+	Corpse *corpse = entity_list.GetCorpseByID(GetID());
+	if (!corpse || (corpse && !corpse->IsPlayerCorpse())) {
 		entity_list.QueueClients(this, &app, true);
+	}
 
 	entity_list.RemoveFromTargets(this, true);
 
-	if(trade) {
+	if (trade) {
 		Mob *with = trade->With();
-		if(with && with->IsClient()) {
+		if (with && with->IsClient()) {
 			with->CastToClient()->FinishTrade(with);
 			with->trade->Reset();
 		}
 		delete trade;
 	}
 
-	if(HasTempPetsActive()){
+	if (HasTempPetsActive()) {
 		entity_list.DestroyTempPets(this);
 	}
+	
 	entity_list.UnMarkNPC(GetID());
 	UninitializeBuffSlots();
+
+	entity_list.RemoveMobFromCloseLists(this);
+	close_mobs.clear();
 
 #ifdef BOTS
 	LeaveHealRotationTargetPool();
@@ -598,7 +607,7 @@ int Mob::_GetWalkSpeed() const {
 	runspeedcap += itembonuses.IncreaseRunSpeedCap + spellbonuses.IncreaseRunSpeedCap + aabonuses.IncreaseRunSpeedCap;
 	aa_mod += aabonuses.BaseMovementSpeed;
 
-	if (IsClient()) {
+	if (IsClient() && CastToClient()->GetHorseId()) {
 		Mob *horse = entity_list.GetMob(CastToClient()->GetHorseId());
 		if (horse) {
 			speed_mod = horse->GetBaseRunspeed();
@@ -656,7 +665,7 @@ int Mob::_GetRunSpeed() const {
 		{
 			speed_mod = 325;
 		}
-		else
+		else if (CastToClient()->GetHorseId())
 		{
 			Mob* horse = entity_list.GetMob(CastToClient()->GetHorseId());
 			if(horse)

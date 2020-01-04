@@ -433,15 +433,61 @@ void Bot::SetBotSpellID(uint32 newSpellID) {
 }
 
 void  Bot::SetSurname(std::string bot_surname) {
+
 	_surname = bot_surname.substr(0, 31);
+
+	if (spawned) {
+
+		auto outapp = new EQApplicationPacket(OP_GMLastName, sizeof(GMLastName_Struct));
+		GMLastName_Struct* gmn = (GMLastName_Struct*)outapp->pBuffer;
+
+		strcpy(gmn->name, GetCleanName());
+		strcpy(gmn->gmname, GetCleanName());
+		strcpy(gmn->lastname, GetSurname().c_str());
+		gmn->unknown[0] = 1;
+		gmn->unknown[1] = 1;
+		gmn->unknown[2] = 1;
+		gmn->unknown[3] = 1;
+
+		entity_list.QueueClients(this, outapp);
+		safe_delete(outapp);
+	}
 }
 
 void  Bot::SetTitle(std::string bot_title) {
-		_title = bot_title.substr(0, 31);
+
+	_title = bot_title.substr(0, 31);
+
+	if (spawned) {
+
+		auto outapp = new EQApplicationPacket(OP_SetTitleReply, sizeof(SetTitleReply_Struct));
+		SetTitleReply_Struct* strs = (SetTitleReply_Struct*)outapp->pBuffer;
+
+		strs->is_suffix = 0;
+		strn0cpy(strs->title, _title.c_str(), sizeof(strs->title));
+		strs->entity_id = GetID();
+
+		entity_list.QueueClients(this, outapp, false);
+		safe_delete(outapp);
+	}
 }
 
 void  Bot::SetSuffix(std::string bot_suffix) {
-		_suffix = bot_suffix.substr(0, 31);
+
+	_suffix = bot_suffix.substr(0, 31);
+
+	if (spawned) {
+
+		auto outapp = new EQApplicationPacket(OP_SetTitleReply, sizeof(SetTitleReply_Struct));
+		SetTitleReply_Struct* strs = (SetTitleReply_Struct*)outapp->pBuffer;
+
+		strs->is_suffix = 1;
+		strn0cpy(strs->title, _suffix.c_str(), sizeof(strs->title));
+		strs->entity_id = GetID();
+
+		entity_list.QueueClients(this, outapp, false);
+		safe_delete(outapp);
+	}
 }
 
 uint32 Bot::GetBotArcheryRange() {
@@ -2435,7 +2481,7 @@ void Bot::SetTarget(Mob* mob) {
 }
 
 void Bot::SetStopMeleeLevel(uint8 level) {
-	if (IsCasterClass(GetClass()) || IsSpellFighterClass(GetClass()))
+	if (IsCasterClass(GetClass()) || IsHybridClass(GetClass()))
 		_stopMeleeLevel = level;
 	else
 		_stopMeleeLevel = 255;
@@ -2460,10 +2506,10 @@ void Bot::SetHoldMode() {
 // AI Processing for the Bot object
 
 constexpr float MAX_CASTER_DISTANCE[PLAYER_CLASS_COUNT] = {
-	0, (34 * 34), (24 * 24), (28 * 28), (26 * 26), (42 * 42), 0, 0, 0, (38 * 38), (54 * 54), (48 * 48), (52 * 52), (50 * 50), (30 * 30), 0
-//  W      C          P          R          S          D      M  B  R      S          N          W          M          E          B      B
-//  A      L          A          N          H          R      N  R  O      H          E          I          A          N          S      E
-//  R      R          L          G          D          U      K  D  G      M          C          Z          G          C          T      R
+    0, (34 * 34), (24 * 24), (28 * 28), (26 * 26), (42 * 42), 0, (30 * 30), 0, (38 * 38), (54 * 54), (48 * 48), (52 * 52), (50 * 50), (32 * 32), 0
+//  W      C          P          R          S          D      M      B      R      S          N          W          M          E          B      B
+//  A      L          A          N          H          R      N      R      O      H          E          I          A          N          S      E
+//  R      R          L          G          D          U      K      D      G      M          C          Z          G          C          T      R
 };
 
 void Bot::AI_Process()
@@ -2779,7 +2825,7 @@ void Bot::AI_Process()
 
 				return;
 			}
-			else if (HasTargetReflection()) {
+			else if (GetTarget()->GetHateList().size()) {
 
 				WipeHateList();
 				SetTarget(nullptr);
@@ -3344,7 +3390,7 @@ void Bot::AI_Process()
 					BotRangedAttack(tar);
 				}
 			}
-			else if (!IsBotArcher() && (IsBotNonSpellFighter() || GetLevel() < GetStopMeleeLevel())) {
+			else if (!IsBotArcher() && GetLevel() < GetStopMeleeLevel()) {
 
 				// We can't fight if we don't have a target, are stun/mezzed or dead..
 				// Stop attacking if the target is enraged
