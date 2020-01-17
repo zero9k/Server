@@ -911,6 +911,8 @@ void Client::CompleteConnect()
 	entity_list.RefreshClientXTargets(this);
 
 	worldserver.RequestTellQueue(GetName());
+
+	entity_list.ScanCloseMobs(close_mobs, this);
 }
 
 // connecting opcode handlers
@@ -8303,7 +8305,18 @@ void Client::Handle_OP_ItemLinkClick(const EQApplicationPacket *app)
 			if (GetTarget() && GetTarget()->IsNPC()) {
 				if (silentsaylink) {
 					parse->EventNPC(EVENT_SAY, GetTarget()->CastToNPC(), this, response.c_str(), 0);
-					parse->EventPlayer(EVENT_SAY, this, response.c_str(), 0);
+
+					if (response[0] == '#' && parse->PlayerHasQuestSub(EVENT_COMMAND)) {
+						parse->EventPlayer(EVENT_COMMAND, this, response.c_str(), 0);
+					}
+#ifdef BOTS
+					else if (response[0] == '^' && parse->PlayerHasQuestSub(EVENT_BOT_COMMAND)) {
+						parse->EventPlayer(EVENT_BOT_COMMAND, this, response.c_str(), 0);
+					}
+#endif
+					else {
+						parse->EventPlayer(EVENT_SAY, this, response.c_str(), 0);
+					}
 				}
 				else {
 					Message(Chat::LightGray, "You say, '%s'", response.c_str());
@@ -8313,7 +8326,17 @@ void Client::Handle_OP_ItemLinkClick(const EQApplicationPacket *app)
 			}
 			else {
 				if (silentsaylink) {
-					parse->EventPlayer(EVENT_SAY, this, response.c_str(), 0);
+					if (response[0] == '#' && parse->PlayerHasQuestSub(EVENT_COMMAND)) {
+						parse->EventPlayer(EVENT_COMMAND, this, response.c_str(), 0);
+					}
+#ifdef BOTS
+					else if (response[0] == '^' && parse->PlayerHasQuestSub(EVENT_BOT_COMMAND)) {
+						parse->EventPlayer(EVENT_BOT_COMMAND, this, response.c_str(), 0);
+					}
+#endif
+					else {
+						parse->EventPlayer(EVENT_SAY, this, response.c_str(), 0);
+					}
 				}
 				else {
 					Message(Chat::LightGray, "You say, '%s'", response.c_str());

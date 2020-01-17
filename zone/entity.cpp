@@ -2657,7 +2657,12 @@ void EntityList::ScanCloseMobs(std::unordered_map<uint16, Mob *> &close_mobs, Mo
 		}
 	}
 
-	LogAIScanClose("Close List Size [{}] for mob [{}]", close_mobs.size(), scanning_mob->GetCleanName());
+	LogAIScanClose(
+		"[{}] Scanning Close List | list_size [{}] moving [{}]",
+		scanning_mob->GetCleanName(),
+		close_mobs.size(),
+		scanning_mob->IsMoving() ? "true" : "false"
+	);
 }
 
 bool EntityList::RemoveMerc(uint16 delete_id)
@@ -4958,10 +4963,10 @@ void EntityList::GetTargetsForConeArea(Mob *start, float min_radius, float radiu
 			continue;
 		}
 		// check PC/NPC only flag 1 = PCs, 2 = NPCs
-		if (pcnpc == 1 && !ptr->IsClient() && !ptr->IsMerc()) {
+		if (pcnpc == 1 && !ptr->IsClient() && !ptr->IsMerc() && !ptr->IsBot()) {
 			++it;
 			continue;
-		} else if (pcnpc == 2 && (ptr->IsClient() || ptr->IsMerc())) {
+		} else if (pcnpc == 2 && (ptr->IsClient() || ptr->IsMerc() || ptr->IsBot())) {
 			++it;
 			continue;
 		}
