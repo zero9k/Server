@@ -3981,6 +3981,11 @@ struct TaskHistoryReplyData2_Struct {
 	uint32	unknown16;
 };
 
+// do we really need to? just name, depends on only 1 shared task per player to work I guess :P
+struct TaskAddPlayer_Struct {
+	char	name[64];
+};
+
 enum { VoiceMacroTell = 1, VoiceMacroGroup = 2, VoiceMacroRaid = 3 };
 
 struct VoiceMacroIn_Struct {
