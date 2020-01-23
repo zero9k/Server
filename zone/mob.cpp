@@ -503,6 +503,8 @@ Mob::~Mob()
 	UninitializeBuffSlots();
 
 	entity_list.RemoveMobFromCloseLists(this);
+	entity_list.RemoveAuraFromMobs(this);
+
 	close_mobs.clear();
 
 #ifdef BOTS
@@ -1369,7 +1371,7 @@ void Mob::SendHPUpdate(bool skip_self /*= false*/, bool force_update_all /*= fal
 		}
 	}
 
-	int8 current_hp_percent = static_cast<int8>(max_hp == 0 ? 0 : static_cast<int>(current_hp * 100 / max_hp));
+	auto current_hp_percent = GetIntHPRatio();
 
 	Log(Logs::General,
 		Logs::HPUpdate,
