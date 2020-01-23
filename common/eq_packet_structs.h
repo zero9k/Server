@@ -3982,7 +3982,10 @@ struct TaskHistoryReplyData2_Struct {
 };
 
 // do we really need to? just name, depends on only 1 shared task per player to work I guess :P
-struct TaskAddPlayer_Struct {
+// Used for a few different task related packets
+// If you ever need to change this because a packet changes, MAKE SURE ALL NEED IT
+// Create a new one for that OP if not all are compatible with change
+struct TaskPlayerName_Struct {
 	char	name[64];
 };
 
