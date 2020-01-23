@@ -3989,6 +3989,14 @@ struct TaskPlayerName_Struct {
 	char	name[64];
 };
 
+// need capture to figure out unknowns
+struct TaskMemberInvite_Struct {
+	uint32	unknown00; // probably some internal book keeping shit I guess, who knows! client ignores it!
+	uint32	unknown04; // is saved into the struct, probably task ID? sent back in response
+	char	task_name[64];
+	char	name[64];
+};
+
 enum { VoiceMacroTell = 1, VoiceMacroGroup = 2, VoiceMacroRaid = 3 };
 
 struct VoiceMacroIn_Struct {
