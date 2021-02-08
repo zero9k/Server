@@ -18,6 +18,7 @@
 
 #include "../common/global_define.h"
 #include "../common/eqemu_logsys.h"
+#include "expedition.h"
 #include "masterentity.h"
 #include "npc_ai.h"
 #include "../common/packet_functions.h"
@@ -58,8 +59,12 @@ Group::Group(uint32 gid)
 	}
 
 	if(gid != 0) {
-		if(!LearnMembers())
+		if(!LearnMembers()) {
 			SetID(0);
+		}
+		if(GetLeader() != nullptr) {
+			SetOldLeaderName(GetLeaderName());
+		}
 	}
 	for(int i = 0; i < MAX_MARKED_NPCS; ++i)
 		MarkedNPCs[i] = 0;
@@ -77,6 +82,8 @@ Group::Group(Mob* leader)
 	members[0] = leader;
 	leader->SetGrouped(true);
 	SetLeader(leader);
+	SetOldLeaderName(leader->GetName());
+	Log(Logs::Detail, Logs::Group, "Group:Group() Setting OldLeader to: %s and Leader to: %s", GetOldLeaderName(), leader->GetName());
 	AssistTargetID = 0;
 	TankTargetID = 0;
 	PullerTargetID = 0;
@@ -407,7 +414,7 @@ void Group::SendHPManaEndPacketsTo(Mob *member)
 				safe_delete_array(hpapp.pBuffer);
 				hpapp.size = 0;
 
-				if (member->CastToClient()->ClientVersion() >= EQEmu::versions::ClientVersion::SoD) {
+				if (member->CastToClient()->ClientVersion() >= EQ::versions::ClientVersion::SoD) {
 					outapp.SetOpcode(OP_MobManaUpdate);
 
 					MobManaUpdate_Struct *mana_update = (MobManaUpdate_Struct *)outapp.pBuffer;
@@ -438,7 +445,7 @@ void Group::SendHPPacketsFrom(Mob *member)
 	for(i = 0; i < MAX_GROUP_MEMBERS; i++) {
 		if(members[i] && members[i] != member && members[i]->IsClient()) {
 			members[i]->CastToClient()->QueuePacket(&hp_app);
-			if (members[i]->CastToClient()->ClientVersion() >= EQEmu::versions::ClientVersion::SoD) {
+			if (members[i]->CastToClient()->ClientVersion() >= EQ::versions::ClientVersion::SoD) {
 				outapp.SetOpcode(OP_MobManaUpdate);
 				MobManaUpdate_Struct *mana_update = (MobManaUpdate_Struct *)outapp.pBuffer;
 				mana_update->spawn_id = member->GetID();
@@ -463,7 +470,7 @@ void Group::SendManaPacketFrom(Mob *member)
 	uint32 i;
 	for (i = 0; i < MAX_GROUP_MEMBERS; i++) {
 		if (members[i] && members[i] != member && members[i]->IsClient()) {
-			if (members[i]->CastToClient()->ClientVersion() >= EQEmu::versions::ClientVersion::SoD) {
+			if (members[i]->CastToClient()->ClientVersion() >= EQ::versions::ClientVersion::SoD) {
 				outapp.SetOpcode(OP_MobManaUpdate);
 				MobManaUpdate_Struct *mana_update = (MobManaUpdate_Struct *)outapp.pBuffer;
 				mana_update->spawn_id = member->GetID();
@@ -484,7 +491,7 @@ void Group::SendEndurancePacketFrom(Mob* member)
 	uint32 i;
 	for (i = 0; i < MAX_GROUP_MEMBERS; i++) {
 		if (members[i] && members[i] != member && members[i]->IsClient()) {
-			if (members[i]->CastToClient()->ClientVersion() >= EQEmu::versions::ClientVersion::SoD) {
+			if (members[i]->CastToClient()->ClientVersion() >= EQ::versions::ClientVersion::SoD) {
 				MobEnduranceUpdate_Struct *endurance_update = (MobEnduranceUpdate_Struct *)outapp.pBuffer;
 				endurance_update->spawn_id = member->GetID();
 				endurance_update->endurance = member->GetEndurancePercent();
@@ -497,6 +504,9 @@ void Group::SendEndurancePacketFrom(Mob* member)
 //updates a group member's client pointer when they zone in
 //if the group was in the zone already
 bool Group::UpdatePlayer(Mob* update){
+
+	if (!update)
+		return false;
 
 	bool updateSuccess = false;
 
@@ -600,39 +610,61 @@ void Group::SendGroupJoinOOZ(Mob* NewMember) {
 
 }
 
-bool Group::DelMemberOOZ(const char *Name) {
+bool Group::DelMemberOOZ(const char *Name, bool checkleader) {
 
-	if(!Name) return false;
+	if (!Name) return false;
 
+	bool removed = false;
 	// If a member out of zone has disbanded, clear out their name.
-	//
-	for(unsigned int i = 0; i < MAX_GROUP_MEMBERS; i++) {
-		if(!strcasecmp(Name, membername[i]))
+	for (unsigned int i = 0; i < MAX_GROUP_MEMBERS; i++) {
+		if (!strcasecmp(Name, membername[i])) {
 			// This shouldn't be called if the member is in this zone.
-			if(!members[i]) {
-				if(!strncmp(GetLeaderName(), Name, 64))
-				{
+			if (!members[i]) {
+				if (!strncmp(GetLeaderName(), Name, 64)) {
 					//TODO: Transfer leadership if leader disbands OOZ.
 					UpdateGroupAAs();
 				}
 
-				memset(membername[i], 0, 64);
-				MemberRoles[i] = 0;
-				if(GroupCount() < 3)
-				{
+				if (GroupCount() < 3) {
 					UnDelegateMarkNPC(NPCMarkerName.c_str());
-					if (GetLeader() && GetLeader()->IsClient() && GetLeader()->CastToClient()->ClientVersion() < EQEmu::versions::ClientVersion::SoD) {
-							UnDelegateMainAssist(MainAssistName.c_str());
+					if (GetLeader() && GetLeader()->IsClient() &&
+						GetLeader()->CastToClient()->ClientVersion() < EQ::versions::ClientVersion::SoD) {
+						UnDelegateMainAssist(MainAssistName.c_str());
 					}
 					ClearAllNPCMarks();
 				}
-				if (Name == mentoree_name)
+				if (Name == mentoree_name) {
 					ClearGroupMentor();
-				return true;
+				}
+
+				memset(membername[i], 0, 64);
+				MemberRoles[i] = 0;
+				removed = true;
+				Log(Logs::Detail, Logs::Group, "DelMemberOOZ: Removed Member: %s", Name);
+				break;
 			}
+		}
 	}
 
-	return false;
+	if (GroupCount() < 2) {
+		DisbandGroup();
+		return true;
+	}
+
+	if (checkleader) {
+		Log(Logs::Detail, Logs::Group, "DelMemberOOZ: Checking leader...");
+		if (strcmp(GetOldLeaderName(), Name) == 0 && GroupCount() >= 2) {
+			for (uint32 nl = 0; nl < MAX_GROUP_MEMBERS; nl++) {
+				if (members[nl]) {
+					if (members[nl]->IsClient()) {
+						ChangeLeader(members[nl]);
+						break;
+					}
+				}
+			}
+		}
+	}
+	return removed;
 }
 
 bool Group::DelMember(Mob* oldmember, bool ignoresender)
@@ -640,16 +672,6 @@ bool Group::DelMember(Mob* oldmember, bool ignoresender)
 	if (oldmember == nullptr)
 	{
 		return false;
-	}
-
-	// TODO: fix this shit
-	// okay, so there is code below that tries to handle this. It does not.
-	// So instead of figuring it out now, lets just disband the group so the client doesn't
-	// sit there with a broken group and there isn't any group leader shuffling going on
-	// since the code below doesn't work.
-	if (oldmember == GetLeader()) {
-		DisbandGroup();
-		return true;
 	}
 
 	for (uint32 i = 0; i < MAX_GROUP_MEMBERS; i++)
@@ -660,43 +682,35 @@ bool Group::DelMember(Mob* oldmember, bool ignoresender)
 			membername[i][0] = '\0';
 			memset(membername[i],0,64);
 			MemberRoles[i] = 0;
+			Log(Logs::Detail, Logs::Group, "DelMember: Removed Member: %s", oldmember->GetCleanName());
 			break;
 		}
 	}
 
-	/* This may seem pointless but the case above does not cover the following situation:
-	 * Group has Leader a, member b, member c
-	 * b and c are out of zone
-	 * a disconnects/quits
-	 * b or c zone back in and disconnects/quits
-	 * a is still "leader" from GetLeader()'s perspective and will crash the zone when we DelMember(b)
-	 * Ultimately we should think up a better solution to this.
-	 */
-	if(oldmember == GetLeader())
+	if(GroupCount() < 2)
 	{
-		SetLeader(nullptr);
+		DisbandGroup();
+		return true;
 	}
 
-	//handle leader quitting group gracefully
-	if (oldmember == GetLeader() && GroupCount() >= 2)
+	// If the leader has quit and we have 2 or more players left in group, we want to first check the zone the old leader was in for a new leader.
+	// If a suitable replacement cannot be found, we need to go out of zone. If checkleader remains true after this method completes, another
+	// loop will be run in DelMemberOOZ.
+	bool checkleader = true;
+	if (strcmp(GetOldLeaderName(),oldmember->GetCleanName()) == 0 && GroupCount() >= 2)
 	{
 		for(uint32 nl = 0; nl < MAX_GROUP_MEMBERS; nl++)
 		{
-			if(members[nl]) 
+			if(members[nl])
 			{
 				if (members[nl]->IsClient())
 				{
 					ChangeLeader(members[nl]);
+					checkleader = false;
 					break;
 				}
 			}
 		}
-	}
-	
-	if (!GetLeaderName())
-	{
-		DisbandGroup();
-		return true;
 	}
 
 	auto pack = new ServerPacket(ServerOP_GroupLeave, sizeof(ServerGroupLeave_Struct));
@@ -705,6 +719,7 @@ bool Group::DelMember(Mob* oldmember, bool ignoresender)
 	gl->zoneid = zone->GetZoneID();
 	gl->instance_id = zone->GetInstanceID();
 	strcpy(gl->member_name, oldmember->GetCleanName());
+	gl->checkleader = checkleader;
 	worldserver.SendPacket(pack);
 	safe_delete(pack);
 
@@ -786,7 +801,7 @@ bool Group::DelMember(Mob* oldmember, bool ignoresender)
 	if(GroupCount() < 3)
 	{
 		UnDelegateMarkNPC(NPCMarkerName.c_str());
-		if (GetLeader() && GetLeader()->IsClient() && GetLeader()->CastToClient()->ClientVersion() < EQEmu::versions::ClientVersion::SoD) {
+		if (GetLeader() && GetLeader()->IsClient() && GetLeader()->CastToClient()->ClientVersion() < EQ::versions::ClientVersion::SoD) {
 			UnDelegateMainAssist(MainAssistName.c_str());
 		}
 		ClearAllNPCMarks();
@@ -796,6 +811,7 @@ bool Group::DelMember(Mob* oldmember, bool ignoresender)
 	Bot::UpdateGroupCastingRoles(this);
 #endif
 
+	safe_delete(outapp);
 	return true;
 }
 
@@ -1009,6 +1025,7 @@ void Group::DisbandGroup(bool joinraid) {
 		Leader->UpdateLFP();
 	}
 
+	SetLeader(nullptr);
 	safe_delete(outapp);
 }
 
@@ -1682,7 +1699,7 @@ void Group::NotifyMainTank(Client *c, uint8 toggle)
 	if(!MainTankName.size())
 		return;
 
-	if (c->ClientVersion() < EQEmu::versions::ClientVersion::SoD)
+	if (c->ClientVersion() < EQ::versions::ClientVersion::SoD)
 	{
 		if(toggle)
 			c->Message(Chat::White, "%s is now Main Tank.", MainTankName.c_str());
@@ -1722,7 +1739,7 @@ void Group::NotifyMainAssist(Client *c, uint8 toggle)
 	if(!MainAssistName.size())
 		return;
 
-	if (c->ClientVersion() < EQEmu::versions::ClientVersion::SoD)
+	if (c->ClientVersion() < EQ::versions::ClientVersion::SoD)
 	{
 		auto outapp = new EQApplicationPacket(OP_DelegateAbility, sizeof(DelegateAbility_Struct));
 
@@ -1777,7 +1794,7 @@ void Group::NotifyPuller(Client *c, uint8 toggle)
 	if(!PullerName.size())
 		return;
 
-	if (c->ClientVersion() < EQEmu::versions::ClientVersion::SoD)
+	if (c->ClientVersion() < EQ::versions::ClientVersion::SoD)
 	{
 		if(toggle)
 			c->Message(Chat::White, "%s is now Puller.", PullerName.c_str());
@@ -2325,17 +2342,16 @@ void Group::ChangeLeader(Mob* newleader)
 	// this changes the current group leader, notifies other members, and updates leadship AA
 
 	// if the new leader is invalid, do nothing
-	if (!newleader || !newleader->IsClient())
+	if (!newleader) {
 		return;
-
-	Mob* oldleader = GetLeader();
+	}
 
 	auto outapp = new EQApplicationPacket(OP_GroupUpdate, sizeof(GroupJoin_Struct));
 	GroupJoin_Struct* gu = (GroupJoin_Struct*) outapp->pBuffer;
 	gu->action = groupActMakeLeader;
 
 	strcpy(gu->membername, newleader->GetName());
-	strcpy(gu->yourname, oldleader->GetName());
+	strcpy(gu->yourname, GetOldLeaderName());
 	SetLeader(newleader);
 	database.SetGroupLeaderName(GetID(), newleader->GetName());
 	UpdateGroupAAs();
@@ -2343,13 +2359,26 @@ void Group::ChangeLeader(Mob* newleader)
 	for (uint32 i = 0; i < MAX_GROUP_MEMBERS; i++) {
 		if (members[i] && members[i]->IsClient())
 		{
-			if (members[i]->CastToClient()->ClientVersion() >= EQEmu::versions::ClientVersion::SoD)
+			if (members[i]->CastToClient()->ClientVersion() >= EQ::versions::ClientVersion::SoD)
 				members[i]->CastToClient()->SendGroupLeaderChangePacket(newleader->GetName());
 
 			members[i]->CastToClient()->QueuePacket(outapp);
+			Log(Logs::Detail, Logs::Group, "ChangeLeader(): Local leader update packet sent to: %s .", members[i]->GetName());
 		}
 	}
 	safe_delete(outapp);
+
+	Log(Logs::Detail, Logs::Group, "ChangeLeader(): Old Leader is: %s New leader is: %s", GetOldLeaderName(), newleader->GetName());
+
+	ServerPacket* pack = new ServerPacket(ServerOP_ChangeGroupLeader, sizeof(ServerGroupLeader_Struct));
+	ServerGroupLeader_Struct* fgu = (ServerGroupLeader_Struct*)pack->pBuffer;
+	fgu->zoneid = zone->GetZoneID();
+	fgu->gid = GetID();
+	strcpy(fgu->leader_name, newleader->GetName());
+	strcpy(fgu->oldleader_name, GetOldLeaderName());
+	worldserver.SendPacket(pack);
+
+	SetOldLeaderName(newleader->GetName());
 }
 
 const char *Group::GetClientNameByIndex(uint8 index)
@@ -2498,4 +2527,25 @@ void Group::QueueClients(Mob *sender, const EQApplicationPacket *app, bool ack_r
 			}
 		}
 	}
+}
+
+bool Group::DoesAnyMemberHaveExpeditionLockout(
+	const std::string& expedition_name, const std::string& event_name, int max_check_count)
+{
+	if (max_check_count <= 0)
+	{
+		max_check_count = MAX_GROUP_MEMBERS;
+	}
+
+	for (int i = 0; i < MAX_GROUP_MEMBERS && i < max_check_count; ++i)
+	{
+		if (membername[i][0])
+		{
+			if (Expedition::HasLockoutByCharacterName(membername[i], expedition_name, event_name))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }

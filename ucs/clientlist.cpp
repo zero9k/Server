@@ -235,7 +235,7 @@ std::vector<std::string> ParseRecipients(std::string RecipientString) {
 
 static void ProcessMailTo(Client *c, std::string MailMessage) {
 
-	LogInfo("MAILTO: From [{}], [{}]", c->MailBoxName().c_str(), MailMessage.c_str());
+	LogDebug("MAILTO: From [{}], [{}]", c->MailBoxName().c_str(), MailMessage.c_str());
 
 	std::vector<std::string> Recipients;
 
@@ -304,7 +304,7 @@ static void ProcessMailTo(Client *c, std::string MailMessage) {
 
 		if (!database.SendMail(Recipient, c->MailBoxName(), Subject, Body, RecipientsString)) {
 
-			LogInfo("Failed in SendMail([{}], [{}], [{}], [{}])", Recipient.c_str(),
+			LogError("Failed in SendMail([{}], [{}], [{}], [{}])", Recipient.c_str(),
 				c->MailBoxName().c_str(), Subject.c_str(), RecipientsString.c_str());
 
 			int PacketLength = 10 + Recipient.length() + Subject.length();
@@ -523,7 +523,7 @@ Client::Client(std::shared_ptr<EQStreamInterface> eqs) {
 	GlobalChatLimiterTimer = new Timer(RuleI(Chat, IntervalDurationMS));
 
 	TypeOfConnection = ConnectionTypeUnknown;
-	ClientVersion_ = EQEmu::versions::ClientVersion::Unknown;
+	ClientVersion_ = EQ::versions::ClientVersion::Unknown;
 
 	UnderfootOrLater = false;
 }
@@ -554,6 +554,17 @@ void Client::CloseConnection() {
 	ClientStream->Close();
 
 	ClientStream->ReleaseFromUse();
+}
+
+void Clientlist::CheckForStaleConnectionsAll()
+{
+	LogDebug("Checking for stale connections");
+
+	auto it = ClientChatConnections.begin();
+	while (it != ClientChatConnections.end()) {
+		(*it)->SendKeepAlive();
+		++it;
+	}
 }
 
 void Clientlist::CheckForStaleConnections(Client *c) {
@@ -634,10 +645,12 @@ void Clientlist::Process()
 				//
 				std::string::size_type LastPeriod = MailBoxString.find_last_of(".");
 
-				if (LastPeriod == std::string::npos)
+				if (LastPeriod == std::string::npos) {
 					CharacterName = MailBoxString;
-				else
+				}
+				else {
 					CharacterName = MailBoxString.substr(LastPeriod + 1);
+				}
 
 				LogInfo("Received login for user [{}] with key [{}]",
 					MailBox, Key);
@@ -652,8 +665,9 @@ void Clientlist::Process()
 
 				database.GetAccountStatus((*it));
 
-				if ((*it)->GetConnectionType() == ConnectionTypeCombined)
+				if ((*it)->GetConnectionType() == ConnectionTypeCombined) {
 					(*it)->SendFriends();
+				}
 
 				(*it)->SendMailBoxes();
 
@@ -865,13 +879,19 @@ void Clientlist::CloseAllConnections() {
 void Client::AddCharacter(int CharID, const char *CharacterName, int Level) {
 
 	if (!CharacterName) return;
-	LogInfo("Adding character [{}] with ID [{}] for [{}]", CharacterName, CharID, GetName().c_str());
+
+	LogDebug("Adding character [{}] with ID [{}] for [{}]", CharacterName, CharID, GetName().c_str());
+
 	CharacterEntry NewCharacter;
 	NewCharacter.CharID = CharID;
 	NewCharacter.Name = CharacterName;
 	NewCharacter.Level = Level;
 
 	Characters.push_back(NewCharacter);
+}
+
+void Client::SendKeepAlive() {
+	QueuePacket(new EQApplicationPacket(OP_SessionReady, 0));
 }
 
 void Client::SendMailBoxes() {
@@ -930,7 +950,7 @@ void Client::AddToChannelList(ChatChannel *JoinedChannel) {
 	for (int i = 0; i < MAX_JOINED_CHANNELS; i++)
 		if (JoinedChannels[i] == nullptr) {
 			JoinedChannels[i] = JoinedChannel;
-			LogInfo("Added Channel [{}] to slot [{}] for [{}]", JoinedChannel->GetName().c_str(), i + 1, GetName().c_str());
+			LogDebug("Added Channel [{}] to slot [{}] for [{}]", JoinedChannel->GetName().c_str(), i + 1, GetName().c_str());
 			return;
 		}
 }
@@ -2143,54 +2163,54 @@ void Client::SetConnectionType(char c) {
 
 	switch (c)
 	{
-	case EQEmu::versions::ucsTitaniumChat:
+	case EQ::versions::ucsTitaniumChat:
 	{
 		TypeOfConnection = ConnectionTypeChat;
-		ClientVersion_ = EQEmu::versions::ClientVersion::Titanium;
+		ClientVersion_ = EQ::versions::ClientVersion::Titanium;
 		LogInfo("Connection type is Chat (Titanium)");
 		break;
 	}
-	case EQEmu::versions::ucsTitaniumMail:
+	case EQ::versions::ucsTitaniumMail:
 	{
 		TypeOfConnection = ConnectionTypeMail;
-		ClientVersion_ = EQEmu::versions::ClientVersion::Titanium;
+		ClientVersion_ = EQ::versions::ClientVersion::Titanium;
 		LogInfo("Connection type is Mail (Titanium)");
 		break;
 	}
-	case EQEmu::versions::ucsSoFCombined:
+	case EQ::versions::ucsSoFCombined:
 	{
 		TypeOfConnection = ConnectionTypeCombined;
-		ClientVersion_ = EQEmu::versions::ClientVersion::SoF;
+		ClientVersion_ = EQ::versions::ClientVersion::SoF;
 		LogInfo("Connection type is Combined (SoF)");
 		break;
 	}
-	case EQEmu::versions::ucsSoDCombined:
+	case EQ::versions::ucsSoDCombined:
 	{
 		TypeOfConnection = ConnectionTypeCombined;
-		ClientVersion_ = EQEmu::versions::ClientVersion::SoD;
+		ClientVersion_ = EQ::versions::ClientVersion::SoD;
 		LogInfo("Connection type is Combined (SoD)");
 		break;
 	}
-	case EQEmu::versions::ucsUFCombined:
+	case EQ::versions::ucsUFCombined:
 	{
 		TypeOfConnection = ConnectionTypeCombined;
-		ClientVersion_ = EQEmu::versions::ClientVersion::UF;
+		ClientVersion_ = EQ::versions::ClientVersion::UF;
 		UnderfootOrLater = true;
 		LogInfo("Connection type is Combined (Underfoot)");
 		break;
 	}
-	case EQEmu::versions::ucsRoFCombined:
+	case EQ::versions::ucsRoFCombined:
 	{
 		TypeOfConnection = ConnectionTypeCombined;
-		ClientVersion_ = EQEmu::versions::ClientVersion::RoF;
+		ClientVersion_ = EQ::versions::ClientVersion::RoF;
 		UnderfootOrLater = true;
 		LogInfo("Connection type is Combined (RoF)");
 		break;
 	}
-	case EQEmu::versions::ucsRoF2Combined:
+	case EQ::versions::ucsRoF2Combined:
 	{
 		TypeOfConnection = ConnectionTypeCombined;
-		ClientVersion_ = EQEmu::versions::ClientVersion::RoF2;
+		ClientVersion_ = EQ::versions::ClientVersion::RoF2;
 		UnderfootOrLater = true;
 		LogInfo("Connection type is Combined (RoF2)");
 		break;
@@ -2198,7 +2218,7 @@ void Client::SetConnectionType(char c) {
 	default:
 	{
 		TypeOfConnection = ConnectionTypeUnknown;
-		ClientVersion_ = EQEmu::versions::ClientVersion::Unknown;
+		ClientVersion_ = EQ::versions::ClientVersion::Unknown;
 		LogInfo("Connection type is unknown");
 	}
 	}
@@ -2346,18 +2366,17 @@ void Client::SendFriends() {
 	}
 }
 
-std::string Client::MailBoxName() {
+std::string Client::MailBoxName()
+{
+	if ((Characters.empty()) || (CurrentMailBox > (Characters.size() - 1))) {
+		LogDebug("MailBoxName() called with CurrentMailBox set to [{}] and Characters.size() is [{}]",
+				 CurrentMailBox, Characters.size());
 
-	if ((Characters.empty()) || (CurrentMailBox > (Characters.size() - 1)))
-	{
-		LogInfo("MailBoxName() called with CurrentMailBox set to [{}] and Characters.size() is [{}]",
-			CurrentMailBox, Characters.size());
-
-		return "";
+		return std::string();
 	}
 
-	LogInfo("MailBoxName() called with CurrentMailBox set to [{}] and Characters.size() is [{}]",
-		CurrentMailBox, Characters.size());
+	LogDebug("MailBoxName() called with CurrentMailBox set to [{}] and Characters.size() is [{}]",
+			 CurrentMailBox, Characters.size());
 
 	return Characters[CurrentMailBox].Name;
 

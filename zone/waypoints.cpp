@@ -118,7 +118,7 @@ void NPC::ResumeWandering()
 		{	// we were paused by a quest
 			AI_walking_timer->Disable();
 			SetGrid(0 - GetGrid());
-			if (cur_wp == EQEmu::WaypointStatus::QuestControlGrid)
+			if (cur_wp == EQ::WaypointStatus::QuestControlGrid)
 			{	// got here by a MoveTo()
 				cur_wp = save_wp;
 				UpdateWaypoint(cur_wp);	// have him head to last destination from here
@@ -184,7 +184,7 @@ void NPC::MoveTo(const glm::vec4 &position, bool saveguardspot)
 		AI_walking_timer->Disable();    // disable timer in case he is paused at a wp
 		if (cur_wp >= 0) {    // we've not already done a MoveTo()
 			save_wp = cur_wp;    // save the current waypoint
-			cur_wp  = EQEmu::WaypointStatus::QuestControlGrid;
+			cur_wp  = EQ::WaypointStatus::QuestControlGrid;
 		}
 		LogAI("MoveTo [{}], pausing regular grid wandering. Grid [{}], save_wp [{}]",
 			to_string(static_cast<glm::vec3>(position)).c_str(),
@@ -194,7 +194,7 @@ void NPC::MoveTo(const glm::vec4 &position, bool saveguardspot)
 	else {    // not on a grid
 		roamer  = true;
 		save_wp = 0;
-		cur_wp  = EQEmu::WaypointStatus::QuestControlNoGrid;
+		cur_wp  = EQ::WaypointStatus::QuestControlNoGrid;
 		LogAI("MoveTo [{}] without a grid", to_string(static_cast<glm::vec3>(position)).c_str());
 	}
 
@@ -308,13 +308,12 @@ void NPC::CalculateNewWaypoint()
 	{
 		bool on_center = Waypoints[cur_wp].centerpoint;
 		std::vector<wplist> random_waypoints;
-		for (auto &w : Waypoints)
+		for (auto &wpl : Waypoints)
 		{
-			wplist wpl = w;
 			if (wpl.index != cur_wp &&
 				((on_center && !wpl.centerpoint) || (!on_center && wpl.centerpoint)))
 			{
-				random_waypoints.push_back(w);
+				random_waypoints.push_back(wpl);
 			}
 		}
 
@@ -385,8 +384,47 @@ void NPC::CalculateNewWaypoint()
 		{
 			if (cur_wp == patrol) // reutilizing patrol member instead of making new member for this wander type; here we use it to save a random waypoint
 			{
+				if (!Waypoints[cur_wp].centerpoint)
+				{
+					// if we have arrived at a waypoint that is NOT a centerpoint, then check for the existence of any centerpoint waypoint
+					// if any exists then randomly go to it otherwise go to one that exist.
+					std::vector<wplist> random_centerpoints;
+					for (auto& wpl : Waypoints)
+					{
+						if (wpl.index != cur_wp && wpl.centerpoint)
+						{
+							random_centerpoints.push_back(wpl);
+						}
+					}
+
+					if (random_centerpoints.size() == 1)
+					{
+						patrol = random_centerpoints[0].index;
+						break;
+					}
+					else if (random_centerpoints.size() > 1)
+					{
+						int windex = zone->random.Roll0(random_centerpoints.size());
+						patrol = random_centerpoints[windex].index;
+						break;
+					}
+				}
+
 				while (patrol == cur_wp)
-					patrol = zone->random.Int(0, Waypoints.size() - 1);
+				{
+					// Setting a negative number in pause of the select waypoints will NOT be included in the group of waypoints to be random.
+					// This will cause the NPC to not stop and pause in any of the waypoints that is not part of random waypoints.
+					std::vector<wplist> random_waypoints;
+					for (auto& wpl : Waypoints)
+					{
+						if (wpl.index != cur_wp && wpl.pause >= 0 && !wpl.centerpoint)
+						{
+							random_waypoints.push_back(wpl);
+						}
+					}
+					int windex = zone->random.Roll0(random_waypoints.size());
+					patrol = random_waypoints[windex].index;
+				}
 			}
 			if (patrol > cur_wp)
 				cur_wp = cur_wp + 1;
@@ -561,62 +599,54 @@ void Mob::StopNavigation() {
 	mMovementManager->StopNavigation(this);
 }
 
-void NPC::AssignWaypoints(int32 grid, int start_wp)
+void NPC::AssignWaypoints(int32 grid_id, int start_wp)
 {
-	if (grid == 0)
+	if (grid_id == 0)
 		return; // grid ID 0 not supported
 
-	if (grid < 0) {
+	if (grid_id < 0) {
 		// Allow setting negative grid values for pausing pathing
-		this->CastToNPC()->SetGrid(grid);
+		this->CastToNPC()->SetGrid(grid_id);
 		return;
 	}
 
 	Waypoints.clear();
 	roamer = false;
 
-	// Retrieve the wander and pause types for this grid
-	std::string query = StringFormat("SELECT `type`, `type2` FROM `grid` WHERE `id` = %i AND `zoneid` = %i", grid,
-		zone->GetZoneID());
-	auto results = database.QueryDatabase(query);
-	if (!results.Success()) {
+	auto grid_entry = GridRepository::GetGrid(zone->zone_grids, grid_id);
+	if (grid_entry.id == 0) {
 		return;
 	}
 
-	if (results.RowCount() == 0)
-		return;
+	wandertype = grid_entry.type;
+	pausetype  = grid_entry.type2;
 
-	auto row = results.begin();
-
-	wandertype = atoi(row[0]);
-	pausetype = atoi(row[1]);
-
-	SetGrid(grid);	// Assign grid number
-
-					// Retrieve all waypoints for this grid
-	query = StringFormat("SELECT `x`,`y`,`z`,`pause`,`heading`, `centerpoint` "
-		"FROM grid_entries WHERE `gridid` = %i AND `zoneid` = %i "
-		"ORDER BY `number`", grid, zone->GetZoneID());
-	results = database.QueryDatabase(query);
-	if (!results.Success()) {
-		return;
-	}
+	SetGrid(grid_id);	// Assign grid number
 
 	roamer = true;
 	max_wp = 0;	// Initialize it; will increment it for each waypoint successfully added to the list
 
-	for (auto row = results.begin(); row != results.end(); ++row, ++max_wp)
-	{
-		wplist newwp;
-		newwp.index = max_wp;
-		newwp.x = atof(row[0]);
-		newwp.y = atof(row[1]);
-		newwp.z = atof(row[2]);
+	for (auto &entry : zone->zone_grid_entries) {
+		if (entry.gridid == grid_id) {
+			wplist new_waypoint{};
+			new_waypoint.index       = max_wp;
+			new_waypoint.x           = entry.x;
+			new_waypoint.y           = entry.y;
+			new_waypoint.z           = entry.z;
+			new_waypoint.pause       = entry.pause;
+			new_waypoint.heading     = entry.heading;
+			new_waypoint.centerpoint = entry.centerpoint;
 
-		newwp.pause = atoi(row[3]);
-		newwp.heading = atof(row[4]);
-		newwp.centerpoint = atobool(row[5]);
-		Waypoints.push_back(newwp);
+			LogPathing(
+				"Loading Grid [{}] number [{}] name [{}]",
+				grid_id,
+				entry.number,
+				GetCleanName()
+			);
+
+			Waypoints.push_back(new_waypoint);
+			max_wp++;
+		}
 	}
 
 	cur_wp = start_wp;
@@ -628,8 +658,9 @@ void NPC::AssignWaypoints(int32 grid, int start_wp)
 		patrol = cur_wp;
 	}
 
-	if (wandertype == GridRandom10 || wandertype == GridRandom || wandertype == GridRand5LoS)
+	if (wandertype == GridRandom10 || wandertype == GridRandom || wandertype == GridRand5LoS) {
 		CalculateNewWaypoint();
+	}
 
 }
 
@@ -737,7 +768,7 @@ void Mob::FixZ(int32 z_find_offset /*= 5*/, bool fix_client_z /*= false*/) {
 	if (IsClient() && !fix_client_z) {
 		return;
 	}
-	
+
 	if (flymode == GravityBehavior::Flying) {
 		return;
 	}
@@ -771,7 +802,7 @@ void Mob::FixZ(int32 z_find_offset /*= 5*/, bool fix_client_z /*= false*/) {
 float Mob::GetZOffset() const {
 	float offset = 3.125f;
 
-	switch (race) {
+	switch (GetModel()) {
 		case RACE_BASILISK_436:
 			offset = 0.577f;
 			break;
@@ -1148,7 +1179,7 @@ int ZoneDatabase::GetRandomWaypointLocFromGrid(glm::vec4 &loc, uint16 zoneid, in
 
 	std::string query = StringFormat("SELECT `x`,`y`,`z`,`heading` "
 		"FROM grid_entries WHERE `gridid` = %i AND `zoneid` = %u ORDER BY `number`", grid, zone->GetZoneID());
-	auto results = database.QueryDatabase(query);
+	auto results = content_db.QueryDatabase(query);
 	if (!results.Success()) {
 		Log(Logs::General, Logs::Error, "MySQL Error while trying get random waypoint loc from grid %i in zoneid %u;  %s", grid, zoneid, results.ErrorMessage().c_str());
 		return 0;

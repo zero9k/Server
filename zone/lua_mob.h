@@ -92,6 +92,8 @@ public:
 	int GetBaseGender();
 	int GetDeity();
 	int GetRace();
+	const char *GetClassName();
+	const char *GetRaceName();
 	int GetGender();
 	int GetTexture();
 	int GetHelmTexture();
@@ -124,6 +126,7 @@ public:
 	int SetMana(int mana);
 	double GetManaRatio();
 	int GetAC();
+	int GetDisplayAC();
 	int GetATK();
 	int GetSTR();
 	int GetSTA();

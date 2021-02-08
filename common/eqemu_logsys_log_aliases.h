@@ -161,6 +161,16 @@
         OutF(LogSys, Logs::Detail, Logs::Doors, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
 } while (0)
 
+#define LogGroup(message, ...) do {\
+    if (LogSys.log_settings[Logs::Group].is_category_enabled == 1)\
+        OutF(LogSys, Logs::General, Logs::Group, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogGroupDetail(message, ...) do {\
+    if (LogSys.log_settings[Logs::Group].is_category_enabled == 1)\
+        OutF(LogSys, Logs::Detail, Logs::Group, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
 #define LogGuilds(message, ...) do {\
     if (LogSys.log_settings[Logs::Guilds].is_category_enabled == 1)\
         OutF(LogSys, Logs::General, Logs::Guilds, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
@@ -561,6 +571,71 @@
         OutF(LogSys, Logs::Detail, Logs::Aura, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
 } while (0)
 
+#define LogHotReload(message, ...) do {\
+    if (LogSys.log_settings[Logs::HotReload].is_category_enabled == 1)\
+        OutF(LogSys, Logs::General, Logs::HotReload, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogHotReloadDetail(message, ...) do {\
+    if (LogSys.log_settings[Logs::HotReload].is_category_enabled == 1)\
+        OutF(LogSys, Logs::Detail, Logs::HotReload, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogMerchants(message, ...) do {\
+    if (LogSys.log_settings[Logs::Merchants].is_category_enabled == 1)\
+        OutF(LogSys, Logs::General, Logs::Merchants, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogMerchantsDetail(message, ...) do {\
+    if (LogSys.log_settings[Logs::Merchants].is_category_enabled == 1)\
+        OutF(LogSys, Logs::Detail, Logs::Merchants, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogZonePoints(message, ...) do {\
+    if (LogSys.log_settings[Logs::ZonePoints].is_category_enabled == 1)\
+        OutF(LogSys, Logs::General, Logs::ZonePoints, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogZonePointsDetail(message, ...) do {\
+    if (LogSys.log_settings[Logs::ZonePoints].is_category_enabled == 1)\
+        OutF(LogSys, Logs::Detail, Logs::ZonePoints, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogLoot(message, ...) do {\
+    if (LogSys.log_settings[Logs::Loot].is_category_enabled == 1)\
+        OutF(LogSys, Logs::General, Logs::Loot, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogLootDetail(message, ...) do {\
+    if (LogSys.log_settings[Logs::Loot].is_category_enabled == 1)\
+        OutF(LogSys, Logs::Detail, Logs::Loot, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogExpeditions(message, ...) do {\
+    if (LogSys.log_settings[Logs::Expeditions].is_category_enabled == 1)\
+        OutF(LogSys, Logs::General, Logs::Expeditions, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogExpeditionsModerate(message, ...) do {\
+    if (LogSys.log_settings[Logs::Expeditions].is_category_enabled == 1)\
+        OutF(LogSys, Logs::Moderate, Logs::Expeditions, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogExpeditionsDetail(message, ...) do {\
+    if (LogSys.log_settings[Logs::Expeditions].is_category_enabled == 1)\
+        OutF(LogSys, Logs::Detail, Logs::Expeditions, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogDynamicZones(message, ...) do {\
+    if (LogSys.log_settings[Logs::DynamicZones].is_category_enabled == 1)\
+        OutF(LogSys, Logs::General, Logs::DynamicZones, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
+#define LogDynamicZonesDetail(message, ...) do {\
+    if (LogSys.log_settings[Logs::DynamicZones].is_category_enabled == 1)\
+        OutF(LogSys, Logs::Detail, Logs::DynamicZones, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
+} while (0)
+
 #define Log(debug_level, log_category, message, ...) do {\
     if (LogSys.log_settings[log_category].is_category_enabled == 1)\
         LogSys.Out(debug_level, log_category, __FILE__, __func__, __LINE__, message, ##__VA_ARGS__);\
@@ -652,6 +727,12 @@
 } while (0)
 
 #define LogDoorsDetail(message, ...) do {\
+} while (0)
+
+#define LogGroup(message, ...) do {\
+} while (0)
+
+#define LogGroupDetail(message, ...) do {\
 } while (0)
 
 #define LogGuilds(message, ...) do {\
@@ -892,6 +973,39 @@
 } while (0)
 
 #define LogAuraDetail(message, ...) do {\
+} while (0)
+
+#define LogHotReload(message, ...) do {\
+} while (0)
+
+#define LogHotReloadDetail(message, ...) do {\
+} while (0)
+
+#define LogMerchants(message, ...) do {\
+} while (0)
+
+#define LogMerchantsDetail(message, ...) do {\
+} while (0)
+
+#define LogZonePoints(message, ...) do {\
+} while (0)
+
+#define LogZonePointsDetail(message, ...) do {\
+} while (0)
+
+#define LogExpeditions(message, ...) do {\
+} while (0)
+
+#define LogExpeditionsModerate(message, ...) do {\
+} while (0)
+
+#define LogExpeditionsDetail(message, ...) do {\
+} while (0)
+
+#define LogDynamicZones(message, ...) do {\
+} while (0)
+
+#define LogDynamicZonesDetail(message, ...) do {\
 } while (0)
 
 #define Log(debug_level, log_category, message, ...) do {\

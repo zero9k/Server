@@ -117,7 +117,8 @@ bool NPC::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes, bool bInnates
 				(
 				 (spells[AIspells[i].spellid].targettype == ST_HateList || spells[AIspells[i].spellid].targettype == ST_AETargetHateList) ||
 				 (
-				  (spells[AIspells[i].spellid].targettype==ST_AECaster || spells[AIspells[i].spellid].targettype==ST_AEBard)
+				  // note: I think this check is actually wrong and we should be checking range instead in all cases, BUT if range is 0, range check is skipped? Works for now
+				  (spells[AIspells[i].spellid].targettype==ST_AECaster || spells[AIspells[i].spellid].targettype==ST_AEBard || spells[AIspells[i].spellid].targettype==ST_AEClientV1)
 				  && dist2 <= spells[AIspells[i].spellid].aoerange*spells[AIspells[i].spellid].aoerange
 				 ) ||
 				 dist2 <= spells[AIspells[i].spellid].range*spells[AIspells[i].spellid].range
@@ -144,7 +145,7 @@ bool NPC::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes, bool bInnates
 							int min_hp = AIspells[i].min_hp; // well 0 is default, so no special case here
 							int max_hp = AIspells[i].max_hp ? AIspells[i].max_hp : RuleI(Spells, AI_HealHPPct);
 
-							if (EQEmu::ValueWithin(hp_ratio, min_hp, max_hp) || (tar->IsClient() && hp_ratio <= 99)) { // not sure about client bit, leaving it
+							if (EQ::ValueWithin(hp_ratio, min_hp, max_hp) || (tar->IsClient() && hp_ratio <= 99)) { // not sure about client bit, leaving it
 								uint32 tempTime = 0;
 								AIDoSpellCast(i, tar, mana_cost, &tempTime);
 								tar->SetDontHealMeBefore(tempTime);
@@ -375,7 +376,7 @@ bool NPC::AIDoSpellCast(uint8 i, Mob* tar, int32 mana_cost, uint32* oDontDoAgain
 #endif
 	casting_spell_AIindex = i;
 
-	return CastSpell(AIspells[i].spellid, tar->GetID(), EQEmu::spells::CastingSlot::Gem2, AIspells[i].manacost == -2 ? 0 : -1, mana_cost, oDontDoAgainBefore, -1, -1, 0, &(AIspells[i].resist_adjust));
+	return CastSpell(AIspells[i].spellid, tar->GetID(), EQ::spells::CastingSlot::Gem2, AIspells[i].manacost == -2 ? 0 : -1, mana_cost, oDontDoAgainBefore, -1, -1, 0, &(AIspells[i].resist_adjust));
 }
 
 void Mob::AI_Init()
@@ -441,7 +442,11 @@ void Mob::AI_Start(uint32 iMoveDelay) {
 	AI_movement_timer       = std::unique_ptr<Timer>(new Timer(AImovement_duration));
 	AI_target_check_timer   = std::unique_ptr<Timer>(new Timer(AItarget_check_duration));
 	AI_feign_remember_timer = std::unique_ptr<Timer>(new Timer(AIfeignremember_delay));
-	AI_scan_door_open_timer = std::unique_ptr<Timer>(new Timer(AI_scan_door_open_interval));
+	AI_scan_door_open_timer = std::make_unique<Timer>(AI_scan_door_open_interval);
+
+	if (GetBodyType() == BT_Animal && !RuleB(NPC, AnimalsOpenDoors)) {
+		SetCanOpenDoors(false);
+	}
 
 	if(!RuleB(Aggro, NPCAggroMaxDistanceEnabled)) {
 		hate_list_cleanup_timer.Disable();
@@ -449,7 +454,7 @@ void Mob::AI_Start(uint32 iMoveDelay) {
 
 	if (CastToNPC()->WillAggroNPCs())
 		AI_scan_area_timer = std::unique_ptr<Timer>(new Timer(RandomTimer(RuleI(NPC, NPCToNPCAggroTimerMin), RuleI(NPC, NPCToNPCAggroTimerMax))));
-	
+
 	AI_check_signal_timer = std::unique_ptr<Timer>(new Timer(AI_check_signal_timer_delay));
 
 
@@ -635,11 +640,11 @@ void Client::AI_SpellCast()
 	}
 
 	uint32 spell_to_cast = 0xFFFFFFFF;
-	EQEmu::spells::CastingSlot slot_to_use = EQEmu::spells::CastingSlot::Item;
+	EQ::spells::CastingSlot slot_to_use = EQ::spells::CastingSlot::Item;
 	if(valid_spells.size() == 1)
 	{
 		spell_to_cast = valid_spells[0];
-		slot_to_use = static_cast<EQEmu::spells::CastingSlot>(slots[0]);
+		slot_to_use = static_cast<EQ::spells::CastingSlot>(slots[0]);
 	}
 	else if(valid_spells.empty())
 	{
@@ -649,7 +654,7 @@ void Client::AI_SpellCast()
 	{
 		uint32 idx = zone->random.Int(0, (valid_spells.size()-1));
 		spell_to_cast = valid_spells[idx];
-		slot_to_use = static_cast<EQEmu::spells::CastingSlot>(slots[idx]);
+		slot_to_use = static_cast<EQ::spells::CastingSlot>(slots[idx]);
 	}
 
 	if(IsMezSpell(spell_to_cast) || IsFearSpell(spell_to_cast))
@@ -747,6 +752,13 @@ void Client::AI_Process()
 						RunTo(m_FearWalkTarget.x, m_FearWalkTarget.y, m_FearWalkTarget.z);
 					}
 				}
+				if (RuleB(Character, ProcessFearedProximity) && proximity_timer.Check()) {
+					entity_list.ProcessMove(this, glm::vec3(GetX(), GetY(), GetZ()));
+					if (RuleB(TaskSystem, EnableTaskSystem) && RuleB(TaskSystem, EnableTaskProximity))
+						ProcessTaskProximities(GetX(), GetY(), GetZ());
+
+					m_Proximity = glm::vec3(GetX(), GetY(), GetZ());
+				}
 				return;
 			}
 
@@ -796,7 +808,7 @@ void Client::AI_Process()
 			if (GetTarget() && !IsStunned() && !IsMezzed() && !GetFeigned()) {
 				if (attack_timer.Check()) {
 					// Should charmed clients not be procing?
-					DoAttackRounds(GetTarget(), EQEmu::invslot::slotPrimary);
+					DoAttackRounds(GetTarget(), EQ::invslot::slotPrimary);
 				}
 			}
 
@@ -804,7 +816,7 @@ void Client::AI_Process()
 				if (attack_dw_timer.Check()) {
 					if (CheckDualWield()) {
 						// Should charmed clients not be procing?
-						DoAttackRounds(GetTarget(), EQEmu::invslot::slotSecondary);
+						DoAttackRounds(GetTarget(), EQ::invslot::slotSecondary);
 					}
 				}
 			}
@@ -876,49 +888,49 @@ void Mob::ProcessForcedMovement()
 	if (AI_movement_timer->Check()) {
 		bool bPassed = true;
 		glm::vec3 normal;
-	
+
 		// no zone map = fucked
 		if (zone->HasMap()) {
 			// in front
 			m_CollisionBox[0].x = m_Position.x + 3.0f * g_Math.FastSin(0.0f);
 			m_CollisionBox[0].y = m_Position.y + 3.0f * g_Math.FastCos(0.0f);
 			m_CollisionBox[0].z = m_Position.z;
-	
+
 			// 45 right front
 			m_CollisionBox[1].x = m_Position.x + 3.0f * g_Math.FastSin(64.0f);
 			m_CollisionBox[1].y = m_Position.y + 3.0f * g_Math.FastCos(64.0f);
 			m_CollisionBox[1].z = m_Position.z;
-	
+
 			// to right
 			m_CollisionBox[2].x = m_Position.x + 3.0f * g_Math.FastSin(128.0f);
 			m_CollisionBox[2].y = m_Position.y + 3.0f * g_Math.FastCos(128.0f);
 			m_CollisionBox[2].z = m_Position.z;
-	
+
 			// 45 right back
 			m_CollisionBox[3].x = m_Position.x + 3.0f * g_Math.FastSin(192.0f);
 			m_CollisionBox[3].y = m_Position.y + 3.0f * g_Math.FastCos(192.0f);
 			m_CollisionBox[3].z = m_Position.z;
-	
+
 			// behind
 			m_CollisionBox[4].x = m_Position.x + 3.0f * g_Math.FastSin(256.0f);
 			m_CollisionBox[4].y = m_Position.y + 3.0f * g_Math.FastCos(256.0f);
 			m_CollisionBox[4].z = m_Position.z;
-	
+
 			// 45 left back
 			m_CollisionBox[5].x = m_Position.x + 3.0f * g_Math.FastSin(320.0f);
 			m_CollisionBox[5].y = m_Position.y + 3.0f * g_Math.FastCos(320.0f);
 			m_CollisionBox[5].z = m_Position.z;
-	
+
 			// to left
 			m_CollisionBox[6].x = m_Position.x + 3.0f * g_Math.FastSin(384.0f);
 			m_CollisionBox[6].y = m_Position.y + 3.0f * g_Math.FastCos(384.0f);
 			m_CollisionBox[6].z = m_Position.z;
-	
+
 			// 45 left front
 			m_CollisionBox[7].x = m_Position.x + 3.0f * g_Math.FastSin(448.0f);
 			m_CollisionBox[7].y = m_Position.y + 3.0f * g_Math.FastCos(448.0f);
 			m_CollisionBox[7].z = m_Position.z;
-	
+
 			// collision happened, need to move along the wall
 			float distance = 0.0f, shortest = std::numeric_limits<float>::infinity();
 			glm::vec3 tmp_nrm;
@@ -932,7 +944,7 @@ void Mob::ProcessForcedMovement()
 				}
 			}
 		}
-	
+
 		if (bPassed) {
 			ForcedMovement = 0;
 			Teleport(m_Position + m_Delta);
@@ -970,23 +982,25 @@ void Mob::AI_Process() {
 		engaged = false;
 	}
 
-	if (moving) {
+	if (moving && CanOpenDoors()) {
 		if (AI_scan_door_open_timer->Check()) {
-
 			auto      &door_list = entity_list.GetDoorsList();
 			for (auto itr : door_list) {
 				Doors *door = itr.second;
 
-				if (door->GetKeyItem())
+				if (door->GetKeyItem()) {
 					continue;
+				}
 
-				if (door->GetLockpick())
+				if (door->GetLockpick()) {
 					continue;
+				}
 
-				if (door->IsDoorOpen())
+				if (door->IsDoorOpen()) {
 					continue;
+				}
 
-				float distance                = DistanceSquared(this->m_Position, door->GetPosition());
+				float distance                = DistanceSquared(m_Position, door->GetPosition());
 				float distance_scan_door_open = 20;
 
 				if (distance <= (distance_scan_door_open * distance_scan_door_open)) {
@@ -995,8 +1009,9 @@ void Mob::AI_Process() {
 					 * Make sure we're opening a door within height relevance and not platforms
 					 * above or below
 					 */
-					if (std::abs(this->m_Position.z - door->GetPosition().z) > 10)
+					if (std::abs(this->m_Position.z - door->GetPosition().z) > 10) {
 						continue;
+					}
 
 					door->ForceOpen(this);
 				}
@@ -1152,7 +1167,7 @@ void Mob::AI_Process() {
 				//try main hand first
 				if (attack_timer.Check()) {
 					DoMainHandAttackRounds(target);
-					TriggerDefensiveProcs(target, EQEmu::invslot::slotPrimary, false);
+					TriggerDefensiveProcs(target, EQ::invslot::slotPrimary, false);
 
 					bool specialed = false; // NPCs can only do one of these a round
 					if (GetSpecialAbility(SPECATK_FLURRY)) {
@@ -1312,7 +1327,10 @@ void Mob::AI_Process() {
 						FaceTarget();
 					}
 				}
-				else if (AI_movement_timer->Check() && target) {
+				// mob/npc waits until call for help complete, others can move
+				else if (AI_movement_timer->Check() && target &&
+						(GetOwnerID() || IsBot() ||
+						CastToNPC()->GetCombatEvent())) {
 					if (!IsRooted()) {
 						LogAI("Pursuing [{}] while engaged", target->GetName());
 						RunTo(target->GetX(), target->GetY(), target->GetZ());
@@ -1542,10 +1560,10 @@ void NPC::AI_DoMovement() {
 		// Check if we're already moving to a WP
 		// If so, if we're not moving we have arrived and need to set delay
 
-		if (GetCWP() == EQEmu::WaypointStatus::RoamBoxPauseInProgress && !IsMoving()) {
+		if (GetCWP() == EQ::WaypointStatus::RoamBoxPauseInProgress && !IsMoving()) {
 			// We have arrived
 
-			int roambox_move_delay = EQEmu::ClampLower(GetRoamboxDelay(), GetRoamboxMinDelay());
+			int roambox_move_delay = EQ::ClampLower(GetRoamboxDelay(), GetRoamboxMinDelay());
 			int move_delay_max     = (roambox_move_delay > 0 ? roambox_move_delay : (int) GetRoamboxMinDelay() * 4);
 			int random_timer       = RandomTimer(
 				GetRoamboxMinDelay(),
@@ -1572,8 +1590,8 @@ void NPC::AI_DoMovement() {
 			auto move_x = static_cast<float>(zone->random.Real(-roambox_distance, roambox_distance));
 			auto move_y = static_cast<float>(zone->random.Real(-roambox_distance, roambox_distance));
 
-			roambox_destination_x = EQEmu::Clamp((GetX() + move_x), roambox_min_x, roambox_max_x);
-			roambox_destination_y = EQEmu::Clamp((GetY() + move_y), roambox_min_y, roambox_max_y);
+			roambox_destination_x = EQ::Clamp((GetX() + move_x), roambox_min_x, roambox_max_x);
+			roambox_destination_y = EQ::Clamp((GetY() + move_y), roambox_min_y, roambox_max_y);
 
 			/**
 			 * If our roambox was configured with large distances, chances of hitting the min or max end of
@@ -1594,11 +1612,12 @@ void NPC::AI_DoMovement() {
 			 * if the roam box was sloppily configured
 			 */
 			if (!this->GetWasSpawnedInWater()) {
+				roambox_destination_z = GetGroundZ(roambox_destination_x, roambox_destination_y);
 				if (zone->HasMap() && zone->HasWaterMap()) {
 					auto position = glm::vec3(
 						roambox_destination_x,
 						roambox_destination_y,
-						(m_Position.z - 15)
+						roambox_destination_z
 					);
 
 					/**
@@ -1618,6 +1637,19 @@ void NPC::AI_DoMovement() {
 					}
 				}
 			}
+			else { // Mob was in water, make sure new spot is in water also
+				roambox_destination_z = m_Position.z;
+				auto position = glm::vec3(
+					roambox_destination_x,
+					roambox_destination_y,
+					m_Position.z + 15
+				);
+				if (zone->HasWaterMap() && !zone->watermap->InLiquid(position)) {
+					roambox_destination_x = m_SpawnPoint.x;
+					roambox_destination_y = m_SpawnPoint.y;
+					roambox_destination_z = m_SpawnPoint.z;
+				}
+			}
 
 			PathfinderOptions opts;
 			opts.smooth_path = true;
@@ -1632,7 +1664,7 @@ void NPC::AI_DoMovement() {
 				glm::vec3(
 					roambox_destination_x,
 					roambox_destination_y,
-					GetGroundZ(roambox_destination_x, roambox_destination_y)
+					roambox_destination_z
 				),
 				partial,
 				stuck,
@@ -1647,8 +1679,6 @@ void NPC::AI_DoMovement() {
 				);
 				return;
 			}
-
-			roambox_destination_z = 0;
 
 			Log(
 				Logs::General,
@@ -1665,7 +1695,7 @@ void NPC::AI_DoMovement() {
 				roambox_destination_z
 			);
 
-			SetCurrentWP(EQEmu::WaypointStatus::RoamBoxPauseInProgress);
+			SetCurrentWP(EQ::WaypointStatus::RoamBoxPauseInProgress);
 			NavigateTo(roambox_destination_x, roambox_destination_y, roambox_destination_z);
 		}
 
@@ -1679,7 +1709,7 @@ void NPC::AI_DoMovement() {
 
 		int32 gridno = CastToNPC()->GetGrid();
 
-		if (gridno > 0 || cur_wp == EQEmu::WaypointStatus::QuestControlNoGrid) {
+		if (gridno > 0 || cur_wp == EQ::WaypointStatus::QuestControlNoGrid) {
 			if (pause_timer_complete == true) { // time to pause at wp is over
 				AI_SetupNextWaypoint();
 			}    // endif (pause_timer_complete==true)
@@ -1700,7 +1730,9 @@ void NPC::AI_DoMovement() {
 							// reached our randomly selected destination; force a pause
 							if (cur_wp_pause == 0)
 							{
-								if (Waypoints.size() > 0 && Waypoints[0].pause)
+								if (Waypoints.size() >= cur_wp && Waypoints[cur_wp].pause)
+									cur_wp_pause = Waypoints[cur_wp].pause;
+								else if (Waypoints.size() > 0 && Waypoints[0].pause)
 									cur_wp_pause = Waypoints[0].pause;
 								else
 									cur_wp_pause = 38;
@@ -1718,7 +1750,7 @@ void NPC::AI_DoMovement() {
 					if (cur_wp_pause > 0 && m_CurrentWayPoint.w >= 0.0) {
 						RotateTo(m_CurrentWayPoint.w);
 					}
-							
+
 					//kick off event_waypoint arrive
 					char temp[16];
 					sprintf(temp, "%d", cur_wp);
@@ -1729,10 +1761,10 @@ void NPC::AI_DoMovement() {
 					// as that is where roamer is unset and we don't want
 					// the next trip through to move again based on grid stuff.
 					doMove = false;
-					if (cur_wp == EQEmu::WaypointStatus::QuestControlNoGrid) {
+					if (cur_wp == EQ::WaypointStatus::QuestControlNoGrid) {
 						AI_SetupNextWaypoint();
 					}
-		
+
 					// wipe feign memory since we reached our first waypoint
 					if (cur_wp == 1)
 						ClearFeignMemory();
@@ -1750,7 +1782,7 @@ void NPC::AI_DoMovement() {
 						m_CurrentWayPoint.y,
 						m_CurrentWayPoint.z
 					);
-		
+
 				}
 			}
 		}        // endif (gridno > 0)
@@ -1759,15 +1791,15 @@ void NPC::AI_DoMovement() {
 			if (pause_timer_complete == true) { // time to pause has ended
 				SetGrid(0 - GetGrid()); // revert to AI control
 				LogPathing("Quest pathing is finished. Resuming on grid [{}]", GetGrid());
-		
+
 				SetAppearance(eaStanding, false);
-		
+
 				CalculateNewWaypoint();
 			}
 		}
 
 	}
-	else if (IsGuarding()) {	
+	else if (IsGuarding()) {
 		bool at_gp = IsPositionEqualWithinCertainZ(m_Position, m_GuardPoint, 15.0f);
 
 		if (at_gp) {
@@ -1821,24 +1853,28 @@ void NPC::AI_SetupNextWaypoint() {
 	}
 	else {
 		pause_timer_complete = false;
-		LogPathing("We are departing waypoint [{}]", cur_wp);
+		LogPathingDetail(
+			"[{}] departing waypoint [{}]",
+			GetCleanName(),
+			cur_wp
+		);
 		//if we were under quest control (with no grid), we are done now..
-		if (cur_wp == EQEmu::WaypointStatus::QuestControlNoGrid) {
+		if (cur_wp == EQ::WaypointStatus::QuestControlNoGrid) {
 			LogPathing("Non-grid quest mob has reached its quest ordered waypoint. Leaving pathing mode");
 			roamer = false;
 			cur_wp = 0;
 		}
-		
+
 		SetAppearance(eaStanding, false);
-		
+
 		entity_list.OpenDoorsNear(this);
-		
+
 		if (!DistractedFromGrid) {
 			//kick off event_waypoint depart
 			char temp[16];
 			sprintf(temp, "%d", cur_wp);
 			parse->EventNPC(EVENT_WAYPOINT_DEPART, CastToNPC(), nullptr, temp, 0);
-		
+
 			//setup our next waypoint, if we are still on our normal grid
 			//remember that the quest event above could have done anything it wanted with our grid
 			if (GetGrid() > 0) {
@@ -1908,7 +1944,7 @@ void Mob::AI_Event_NoLongerEngaged() {
 		time_until_can_move += minLastFightingDelayMoving;
 	else
 		time_until_can_move += zone->random.Int(minLastFightingDelayMoving, maxLastFightingDelayMoving);
-	
+
 	StopNavigation();
 	ClearRampage();
 
@@ -2100,7 +2136,7 @@ bool Mob::Flurry(ExtraAttackOptions *opts)
 		int num_attacks = GetSpecialAbilityParam(SPECATK_FLURRY, 1);
 		num_attacks = num_attacks > 0 ? num_attacks : RuleI(Combat, MaxFlurryHits);
 		for (int i = 0; i < num_attacks; i++)
-			Attack(target, EQEmu::invslot::slotPrimary, false, false, false, opts);
+			Attack(target, EQ::invslot::slotPrimary, false, false, false, opts);
 	}
 	return true;
 }
@@ -2464,12 +2500,12 @@ bool NPC::AI_AddNPCSpells(uint32 iDBSpellsID) {
 		AIautocastspell_timer->Disable();
 		return false;
 	}
-	DBnpcspells_Struct* spell_list = database.GetNPCSpells(iDBSpellsID);
+	DBnpcspells_Struct* spell_list = content_db.GetNPCSpells(iDBSpellsID);
 	if (!spell_list) {
 		AIautocastspell_timer->Disable();
 		return false;
 	}
-	DBnpcspells_Struct* parentlist = database.GetNPCSpells(spell_list->parent_list);
+	DBnpcspells_Struct* parentlist = content_db.GetNPCSpells(spell_list->parent_list);
 #if MobAI_DEBUG_Spells >= 10
 	std::string debug_msg = StringFormat("Loading NPCSpells onto %s: dbspellsid=%u, level=%u", this->GetName(), iDBSpellsID, this->GetLevel());
 	if (spell_list) {
@@ -2636,13 +2672,13 @@ bool NPC::AI_AddNPCSpellsEffects(uint32 iDBSpellsEffectsID) {
 	if (iDBSpellsEffectsID == 0)
 		return false;
 
-	DBnpcspellseffects_Struct* spell_effects_list = database.GetNPCSpellsEffects(iDBSpellsEffectsID);
+	DBnpcspellseffects_Struct* spell_effects_list = content_db.GetNPCSpellsEffects(iDBSpellsEffectsID);
 
 	if (!spell_effects_list) {
 		return false;
 	}
 
-	DBnpcspellseffects_Struct* parentlist = database.GetNPCSpellsEffects(spell_effects_list->parent_list);
+	DBnpcspellseffects_Struct* parentlist = content_db.GetNPCSpellsEffects(spell_effects_list->parent_list);
 
 	uint32 i;
 #if MobAI_DEBUG_Spells >= 10

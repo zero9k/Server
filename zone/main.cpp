@@ -1,45 +1,39 @@
-/*	EQEMu: Everquest Server Emulator
-Copyright (C) 2001-2016 EQEMu Development Team (http://eqemu.org)
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY except by those people which sell it, which
-are required to give you total support for your newly bought product;
-without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-*/
+/**
+ * EQEmulator: Everquest Server Emulator
+ * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY except by those people which sell it, which
+ * are required to give you total support for your newly bought product;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ */
 
 #define DONT_SHARED_OPCODES
 #define PLATFORM_ZONE 1
 
 #include "../common/global_define.h"
-#include "../common/features.h"
-#include "../common/queue.h"
 #include "../common/timer.h"
 #include "../common/eq_packet_structs.h"
 #include "../common/mutex.h"
-#include "../common/version.h"
-#include "../common/packet_dump_file.h"
 #include "../common/opcodemgr.h"
 #include "../common/guilds.h"
 #include "../common/eq_stream_ident.h"
 #include "../common/patches/patches.h"
 #include "../common/rulesys.h"
 #include "../common/profanity_manager.h"
-#include "../common/misc_functions.h"
 #include "../common/string_util.h"
-#include "../common/platform.h"
 #include "../common/crash.h"
-#include "../common/ipc_mutex.h"
 #include "../common/memory_mapped_file.h"
-#include "../common/eqemu_exception.h"
 #include "../common/spdat.h"
 #include "../common/eqemu_logsys.h"
 
@@ -53,30 +47,23 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #ifdef BOTS
 #include "bot_command.h"
 #endif
-#include "zone_config.h"
+#include "zonedb.h"
+#include "zone_store.h"
 #include "titles.h"
 #include "guild_mgr.h"
-#include "tasks.h"
+#include "task_manager.h"
 #include "quest_parser_collection.h"
 #include "embparser.h"
 #include "lua_parser.h"
 #include "questmgr.h"
 #include "npc_scale_manager.h"
 
-#include "../common/event/event_loop.h"
-#include "../common/event/timer.h"
 #include "../common/net/eqstream.h"
-#include "../common/net/servertalk_server.h"
+#include "../common/content/world_content_service.h"
 
-#include <iostream>
-#include <string>
-#include <fstream>
 #include <stdlib.h>
-#include <stdio.h>
 #include <signal.h>
 #include <time.h>
-#include <ctime>
-#include <thread>
 #include <chrono>
 
 #ifdef _CRTDBG_MAP_ALLOC
@@ -90,23 +77,31 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #else
 #include <pthread.h>
 #include "../common/unix.h"
+#include "zone_store.h"
+
 #endif
 
 volatile bool RunLoops = true;
+#ifdef __FreeBSD__
+#include <pthread_np.h>
+#endif
+
 extern volatile bool is_zone_loaded;
 
 EntityList entity_list;
 WorldServer worldserver;
+ZoneStore zone_store;
 uint32 numclients = 0;
 char errorname[32];
 extern Zone* zone;
 npcDecayTimes_Struct npcCorpseDecayTimes[100];
 TitleManager title_manager;
-QueryServ *QServ = 0;
-TaskManager *taskmanager = 0;
+QueryServ *QServ          = 0;
+TaskManager *task_manager = 0;
 NpcScaleManager *npc_scale_manager;
 QuestParserCollection *parse = 0;
 EQEmuLogSys LogSys;
+WorldContentService content_service;
 const SPDat_Spell_Struct* spells;
 int32 SPDAT_RECORDS = -1;
 const ZoneConfig *Config;
@@ -237,6 +232,25 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
+	/**
+	 * Multi-tenancy: Content Database
+	 */
+	if (!Config->ContentDbHost.empty()) {
+		if (!content_db.Connect(
+			Config->ContentDbHost.c_str() ,
+			Config->ContentDbUsername.c_str(),
+			Config->ContentDbPassword.c_str(),
+			Config->ContentDbName.c_str(),
+			Config->ContentDbPort,
+			"content"
+		)) {
+			LogError("Cannot continue without a content database connection");
+			return 1;
+		}
+	} else {
+		content_db.SetMysql(database.getMySQL());
+	}
+
 	/* Register Log System and Settings */
 	LogSys.SetGMSayHandler(&Zone::GMSayHookCallBackProcess);
 	database.LoadLogSettings(LogSys.log_settings);
@@ -290,7 +304,8 @@ int main(int argc, char** argv) {
 	}
 
 	LogInfo("Loading zone names");
-	database.LoadZoneNames();
+
+	zone_store.LoadZones();
 
 	LogInfo("Loading items");
 	if (!database.LoadItems(hotfix_name)) {
@@ -299,7 +314,7 @@ int main(int argc, char** argv) {
 	}
 
 	LogInfo("Loading npc faction lists");
-	if (!database.LoadNPCFactionLists(hotfix_name)) {
+	if (!content_db.LoadNPCFactionLists(hotfix_name)) {
 		LogError("Loading npcs faction lists failed!");
 		return 1;
 	}
@@ -330,24 +345,24 @@ int main(int argc, char** argv) {
 	guild_mgr.LoadGuilds();
 
 	LogInfo("Loading factions");
-	database.LoadFactionData();
+	content_db.LoadFactionData();
 
 	LogInfo("Loading titles");
 	title_manager.LoadTitles();
 
 	LogInfo("Loading tributes");
-	database.LoadTributes();
+	content_db.LoadTributes();
 
 	LogInfo("Loading corpse timers");
 	database.GetDecayTimes(npcCorpseDecayTimes);
 
 	LogInfo("Loading profanity list");
-	if (!EQEmu::ProfanityManager::LoadProfanityList(&database))
+	if (!EQ::ProfanityManager::LoadProfanityList(&database))
 		LogError("Loading profanity list failed!");
 
 	LogInfo("Loading commands");
 	int retval = command_init();
-	if (retval<0)
+	if (retval < 0)
 		LogError("Command loading failed");
 	else
 		LogInfo("{} commands loaded", retval);
@@ -370,9 +385,13 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		EQEmu::InitializeDynamicLookups();
+		EQ::InitializeDynamicLookups();
 		LogInfo("Initialized dynamic dictionary entries");
 	}
+
+	content_service.SetExpansionContext();
+
+	ZoneStore::LoadContentFlags();
 
 #ifdef BOTS
 	LogInfo("Loading bot commands");
@@ -388,9 +407,8 @@ int main(int argc, char** argv) {
 #endif
 
 	if (RuleB(TaskSystem, EnableTaskSystem)) {
-		Log(Logs::General, Logs::Tasks, "[INIT] Loading Tasks");
-		taskmanager = new TaskManager;
-		taskmanager->LoadTasks();
+		task_manager = new TaskManager;
+		task_manager->LoadTasks();
 	}
 
 	parse = new QuestParserCollection();
@@ -423,17 +441,19 @@ int main(int argc, char** argv) {
 	if (!strlen(zone_name) || !strcmp(zone_name, ".")) {
 		LogInfo("Entering sleep mode");
 	}
-	else if (!Zone::Bootup(database.GetZoneID(zone_name), instance_id, true)) {
+	else if (!Zone::Bootup(ZoneID(zone_name), instance_id, true)) {
 		LogError("Zone Bootup failed :: Zone::Bootup");
-		zone = 0;
+		zone = nullptr;
 	}
 
 	//register all the patches we have avaliable with the stream identifier.
 	EQStreamIdentifier stream_identifier;
 	RegisterAllPatches(stream_identifier);
 
-#ifndef WIN32
+#ifdef __linux__
 	LogDebug("Main thread running with thread id [{}]", pthread_self());
+#elif defined(__FreeBSD__)
+	LogDebug("Main thread running with thread id [{}]", pthread_getthreadid_np());
 #endif
 
 	bool worldwasconnected       = worldserver.Connected();
@@ -543,6 +563,7 @@ int main(int argc, char** argv) {
 		if (InterserverTimer.Check()) {
 			InterserverTimer.Start();
 			database.ping();
+			content_db.ping();
 			entity_list.UpdateWho();
 		}
 	};
@@ -566,7 +587,7 @@ int main(int argc, char** argv) {
 	if (zone != 0)
 		Zone::Shutdown(true);
 	//Fix for Linux world server problem.
-	safe_delete(taskmanager);
+	safe_delete(task_manager);
 	command_deinit();
 #ifdef BOTS
 	bot_command_deinit();
@@ -577,19 +598,19 @@ int main(int argc, char** argv) {
 	return 0;
 }
 
+void Shutdown()
+{
+	Zone::Shutdown(true);
+	LogInfo("Shutting down...");
+	LogSys.CloseFileLogs();
+	EQ::EventLoop::Get().Shutdown();
+}
+
 void CatchSignal(int sig_num) {
 #ifdef _WINDOWS
 	LogInfo("Recieved signal: [{}]", sig_num);
 #endif
-	RunLoops = false;
-}
-
-void Shutdown()
-{
-	Zone::Shutdown(true);
-	RunLoops = false;
-	LogInfo("Shutting down...");
-	LogSys.CloseFileLogs();
+	Shutdown();
 }
 
 /* Update Window Title with relevant information */

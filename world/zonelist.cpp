@@ -27,10 +27,11 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include "../common/json/json.h"
 #include "../common/event_sub.h"
 #include "web_interface.h"
+#include "world_store.h"
 
 extern uint32 numzones;
 extern bool holdzones;
-extern EQEmu::Random emu_random;
+extern EQ::Random emu_random;
 extern WebInterfaceList web_interface;
 volatile bool UCSServerAvailable_ = false;
 void CatchSignal(int sig_num);
@@ -39,7 +40,6 @@ ZSList::ZSList()
 {
 	NextID = 1;
 	CurGroupID = 1;
-	LastAllocatedPort = 0;
 	memset(pLockedZones, 0, sizeof(pLockedZones));
 
 	m_tick.reset(new EQ::Timer(5000, true, std::bind(&ZSList::OnTick, this, std::placeholders::_1)));
@@ -76,7 +76,12 @@ void ZSList::Remove(const std::string &uuid)
 	auto iter = zone_server_list.begin();
 	while (iter != zone_server_list.end()) {
 		if ((*iter)->GetUUID().compare(uuid) == 0) {
+			auto port = (*iter)->GetCPort();
 			zone_server_list.erase(iter);
+
+			if (port != 0) {
+				m_ports_free.push_back(port);
+			}
 			return;
 		}
 		iter++;
@@ -239,6 +244,14 @@ bool ZSList::SetLockedZone(uint16 iZoneID, bool iLock) {
 	return false;
 }
 
+void ZSList::Init()
+{
+	const WorldConfig* Config = WorldConfig::get();
+	for (uint16 i = Config->ZonePortLow; i <= Config->ZonePortHigh; ++i) {
+		m_ports_free.push_back(i);
+	}
+}
+
 bool ZSList::IsZoneLocked(uint16 iZoneID) {
 	for (auto &zone : pLockedZones) {
 		if (zone == iZoneID)
@@ -251,7 +264,7 @@ void ZSList::ListLockedZones(const char* to, WorldTCPConnection* connection) {
 	int x = 0;
 	for (auto &zone : pLockedZones) {
 		if (zone) {
-			connection->SendEmoteMessageRaw(to, 0, 0, 0, database.GetZoneName(zone, true));
+			connection->SendEmoteMessageRaw(to, 0, 0, 0, ZoneName(zone, true));
 			x++;
 		}
 	}
@@ -517,7 +530,7 @@ void ZSList::SOPZoneBootup(const char* adminname, uint32 ZoneServerID, const cha
 	ZoneServer* zs = 0;
 	ZoneServer* zs2 = 0;
 	uint32 zoneid;
-	if (!(zoneid = database.GetZoneID(zonename)))
+	if (!(zoneid = ZoneID(zonename)))
 		SendEmoteMessage(adminname, 0, 0, 0, "Error: SOP_ZoneBootup: zone '%s' not found in 'zone' table. Typo protection=ON.", zonename);
 	else {
 		if (ZoneServerID != 0)
@@ -577,30 +590,15 @@ void ZSList::RebootZone(const char* ip1, uint16 port, const char* ip2, uint32 sk
 	safe_delete_array(tmp);
 }
 
-uint16	ZSList::GetAvailableZonePort()
+uint16 ZSList::GetAvailableZonePort()
 {
-	const WorldConfig *Config = WorldConfig::get();
-	int i;
-	uint16 port = 0;
-
-	if (LastAllocatedPort == 0)
-		i = Config->ZonePortLow;
-	else
-		i = LastAllocatedPort + 1;
-
-	while (i != LastAllocatedPort && port == 0) {
-		if (i>Config->ZonePortHigh)
-			i = Config->ZonePortLow;
-
-		if (!FindByPort(i)) {
-			port = i;
-			break;
-		}
-		i++;
+	if (m_ports_free.empty()) {
+		return 0;
 	}
-	LastAllocatedPort = port;
 
-	return port;
+	auto first = m_ports_free.front();
+	m_ports_free.pop_front();
+	return first;
 }
 
 uint32 ZSList::TriggerBootup(uint32 iZoneID, uint32 iInstanceID) {
