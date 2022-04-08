@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_SPELLS_NEW_REPOSITORY_H
@@ -31,6 +14,7 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BaseSpellsNewRepository {
 public:
@@ -216,8 +200,8 @@ public:
 		int         pvpresistcalc;
 		int         pvpresistcap;
 		int         spell_category;
-		int         field181;
-		int         field182;
+		int         pvp_duration;
+		int         pvp_duration_cap;
 		int         pcnpc_only_flag;
 		int         cast_not_standing;
 		int         can_mgb;
@@ -463,8 +447,251 @@ public:
 			"pvpresistcalc",
 			"pvpresistcap",
 			"spell_category",
-			"field181",
-			"field182",
+			"pvp_duration",
+			"pvp_duration_cap",
+			"pcnpc_only_flag",
+			"cast_not_standing",
+			"can_mgb",
+			"nodispell",
+			"npc_category",
+			"npc_usefulness",
+			"MinResist",
+			"MaxResist",
+			"viral_targets",
+			"viral_timer",
+			"nimbuseffect",
+			"ConeStartAngle",
+			"ConeStopAngle",
+			"sneaking",
+			"not_extendable",
+			"field198",
+			"field199",
+			"suspendable",
+			"viral_range",
+			"songcap",
+			"field203",
+			"field204",
+			"no_block",
+			"field206",
+			"spellgroup",
+			"rank",
+			"field209",
+			"field210",
+			"CastRestriction",
+			"allowrest",
+			"InCombat",
+			"OutofCombat",
+			"field215",
+			"field216",
+			"field217",
+			"aemaxtargets",
+			"maxtargets",
+			"field220",
+			"field221",
+			"field222",
+			"field223",
+			"persistdeath",
+			"field225",
+			"field226",
+			"min_dist",
+			"min_dist_mod",
+			"max_dist",
+			"max_dist_mod",
+			"min_range",
+			"field232",
+			"field233",
+			"field234",
+			"field235",
+			"field236",
+		};
+	}
+
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
+			"name",
+			"player_1",
+			"teleport_zone",
+			"you_cast",
+			"other_casts",
+			"cast_on_you",
+			"cast_on_other",
+			"spell_fades",
+			"range",
+			"aoerange",
+			"pushback",
+			"pushup",
+			"cast_time",
+			"recovery_time",
+			"recast_time",
+			"buffdurationformula",
+			"buffduration",
+			"AEDuration",
+			"mana",
+			"effect_base_value1",
+			"effect_base_value2",
+			"effect_base_value3",
+			"effect_base_value4",
+			"effect_base_value5",
+			"effect_base_value6",
+			"effect_base_value7",
+			"effect_base_value8",
+			"effect_base_value9",
+			"effect_base_value10",
+			"effect_base_value11",
+			"effect_base_value12",
+			"effect_limit_value1",
+			"effect_limit_value2",
+			"effect_limit_value3",
+			"effect_limit_value4",
+			"effect_limit_value5",
+			"effect_limit_value6",
+			"effect_limit_value7",
+			"effect_limit_value8",
+			"effect_limit_value9",
+			"effect_limit_value10",
+			"effect_limit_value11",
+			"effect_limit_value12",
+			"max1",
+			"max2",
+			"max3",
+			"max4",
+			"max5",
+			"max6",
+			"max7",
+			"max8",
+			"max9",
+			"max10",
+			"max11",
+			"max12",
+			"icon",
+			"memicon",
+			"components1",
+			"components2",
+			"components3",
+			"components4",
+			"component_counts1",
+			"component_counts2",
+			"component_counts3",
+			"component_counts4",
+			"NoexpendReagent1",
+			"NoexpendReagent2",
+			"NoexpendReagent3",
+			"NoexpendReagent4",
+			"formula1",
+			"formula2",
+			"formula3",
+			"formula4",
+			"formula5",
+			"formula6",
+			"formula7",
+			"formula8",
+			"formula9",
+			"formula10",
+			"formula11",
+			"formula12",
+			"LightType",
+			"goodEffect",
+			"Activated",
+			"resisttype",
+			"effectid1",
+			"effectid2",
+			"effectid3",
+			"effectid4",
+			"effectid5",
+			"effectid6",
+			"effectid7",
+			"effectid8",
+			"effectid9",
+			"effectid10",
+			"effectid11",
+			"effectid12",
+			"targettype",
+			"basediff",
+			"skill",
+			"zonetype",
+			"EnvironmentType",
+			"TimeOfDay",
+			"classes1",
+			"classes2",
+			"classes3",
+			"classes4",
+			"classes5",
+			"classes6",
+			"classes7",
+			"classes8",
+			"classes9",
+			"classes10",
+			"classes11",
+			"classes12",
+			"classes13",
+			"classes14",
+			"classes15",
+			"classes16",
+			"CastingAnim",
+			"TargetAnim",
+			"TravelType",
+			"SpellAffectIndex",
+			"disallow_sit",
+			"deities0",
+			"deities1",
+			"deities2",
+			"deities3",
+			"deities4",
+			"deities5",
+			"deities6",
+			"deities7",
+			"deities8",
+			"deities9",
+			"deities10",
+			"deities11",
+			"deities12",
+			"deities13",
+			"deities14",
+			"deities15",
+			"deities16",
+			"field142",
+			"field143",
+			"new_icon",
+			"spellanim",
+			"uninterruptable",
+			"ResistDiff",
+			"dot_stacking_exempt",
+			"deleteable",
+			"RecourseLink",
+			"no_partial_resist",
+			"field152",
+			"field153",
+			"short_buff_box",
+			"descnum",
+			"typedescnum",
+			"effectdescnum",
+			"effectdescnum2",
+			"npc_no_los",
+			"field160",
+			"reflectable",
+			"bonushate",
+			"field163",
+			"field164",
+			"ldon_trap",
+			"EndurCost",
+			"EndurTimerIndex",
+			"IsDiscipline",
+			"field169",
+			"field170",
+			"field171",
+			"field172",
+			"HateAdded",
+			"EndurUpkeep",
+			"numhitstype",
+			"numhits",
+			"pvpresistbase",
+			"pvpresistcalc",
+			"pvpresistcap",
+			"spell_category",
+			"pvp_duration",
+			"pvp_duration_cap",
 			"pcnpc_only_flag",
 			"cast_not_standing",
 			"can_mgb",
@@ -527,19 +754,9 @@ public:
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -551,7 +768,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -561,7 +778,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -750,8 +967,8 @@ public:
 		entry.pvpresistcalc        = 100;
 		entry.pvpresistcap         = -150;
 		entry.spell_category       = -99;
-		entry.field181             = 7;
-		entry.field182             = 65;
+		entry.pvp_duration         = 0;
+		entry.pvp_duration_cap     = 0;
 		entry.pcnpc_only_flag      = 0;
 		entry.cast_not_standing    = 0;
 		entry.can_mgb              = 0;
@@ -1022,8 +1239,8 @@ public:
 			entry.pvpresistcalc        = atoi(row[178]);
 			entry.pvpresistcap         = atoi(row[179]);
 			entry.spell_category       = atoi(row[180]);
-			entry.field181             = atoi(row[181]);
-			entry.field182             = atoi(row[182]);
+			entry.pvp_duration         = atoi(row[181]);
+			entry.pvp_duration_cap     = atoi(row[182]);
 			entry.pcnpc_only_flag      = atoi(row[183]);
 			entry.cast_not_standing    = atoi(row[184]);
 			entry.can_mgb              = atoi(row[185]);
@@ -1292,8 +1509,8 @@ public:
 		update_values.push_back(columns[178] + " = " + std::to_string(spells_new_entry.pvpresistcalc));
 		update_values.push_back(columns[179] + " = " + std::to_string(spells_new_entry.pvpresistcap));
 		update_values.push_back(columns[180] + " = " + std::to_string(spells_new_entry.spell_category));
-		update_values.push_back(columns[181] + " = " + std::to_string(spells_new_entry.field181));
-		update_values.push_back(columns[182] + " = " + std::to_string(spells_new_entry.field182));
+		update_values.push_back(columns[181] + " = " + std::to_string(spells_new_entry.pvp_duration));
+		update_values.push_back(columns[182] + " = " + std::to_string(spells_new_entry.pvp_duration_cap));
 		update_values.push_back(columns[183] + " = " + std::to_string(spells_new_entry.pcnpc_only_flag));
 		update_values.push_back(columns[184] + " = " + std::to_string(spells_new_entry.cast_not_standing));
 		update_values.push_back(columns[185] + " = " + std::to_string(spells_new_entry.can_mgb));
@@ -1550,8 +1767,8 @@ public:
 		insert_values.push_back(std::to_string(spells_new_entry.pvpresistcalc));
 		insert_values.push_back(std::to_string(spells_new_entry.pvpresistcap));
 		insert_values.push_back(std::to_string(spells_new_entry.spell_category));
-		insert_values.push_back(std::to_string(spells_new_entry.field181));
-		insert_values.push_back(std::to_string(spells_new_entry.field182));
+		insert_values.push_back(std::to_string(spells_new_entry.pvp_duration));
+		insert_values.push_back(std::to_string(spells_new_entry.pvp_duration_cap));
 		insert_values.push_back(std::to_string(spells_new_entry.pcnpc_only_flag));
 		insert_values.push_back(std::to_string(spells_new_entry.cast_not_standing));
 		insert_values.push_back(std::to_string(spells_new_entry.can_mgb));
@@ -1816,8 +2033,8 @@ public:
 			insert_values.push_back(std::to_string(spells_new_entry.pvpresistcalc));
 			insert_values.push_back(std::to_string(spells_new_entry.pvpresistcap));
 			insert_values.push_back(std::to_string(spells_new_entry.spell_category));
-			insert_values.push_back(std::to_string(spells_new_entry.field181));
-			insert_values.push_back(std::to_string(spells_new_entry.field182));
+			insert_values.push_back(std::to_string(spells_new_entry.pvp_duration));
+			insert_values.push_back(std::to_string(spells_new_entry.pvp_duration_cap));
 			insert_values.push_back(std::to_string(spells_new_entry.pcnpc_only_flag));
 			insert_values.push_back(std::to_string(spells_new_entry.cast_not_standing));
 			insert_values.push_back(std::to_string(spells_new_entry.can_mgb));
@@ -2086,8 +2303,8 @@ public:
 			entry.pvpresistcalc        = atoi(row[178]);
 			entry.pvpresistcap         = atoi(row[179]);
 			entry.spell_category       = atoi(row[180]);
-			entry.field181             = atoi(row[181]);
-			entry.field182             = atoi(row[182]);
+			entry.pvp_duration         = atoi(row[181]);
+			entry.pvp_duration_cap     = atoi(row[182]);
 			entry.pcnpc_only_flag      = atoi(row[183]);
 			entry.cast_not_standing    = atoi(row[184]);
 			entry.can_mgb              = atoi(row[185]);
@@ -2347,8 +2564,8 @@ public:
 			entry.pvpresistcalc        = atoi(row[178]);
 			entry.pvpresistcap         = atoi(row[179]);
 			entry.spell_category       = atoi(row[180]);
-			entry.field181             = atoi(row[181]);
-			entry.field182             = atoi(row[182]);
+			entry.pvp_duration         = atoi(row[181]);
+			entry.pvp_duration_cap     = atoi(row[182]);
 			entry.pcnpc_only_flag      = atoi(row[183]);
 			entry.cast_not_standing    = atoi(row[184]);
 			entry.can_mgb              = atoi(row[185]);

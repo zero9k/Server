@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_PETS_REPOSITORY_H
@@ -31,10 +14,12 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BasePetsRepository {
 public:
 	struct Pets {
+		int         id;
 		std::string type;
 		int         petpower;
 		int         npcID;
@@ -47,12 +32,28 @@ public:
 
 	static std::string PrimaryKey()
 	{
-		return std::string("petpower");
+		return std::string("id");
 	}
 
 	static std::vector<std::string> Columns()
 	{
 		return {
+			"id",
+			"type",
+			"petpower",
+			"npcID",
+			"temp",
+			"petcontrol",
+			"petnaming",
+			"monsterflag",
+			"equipmentset",
+		};
+	}
+
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
 			"type",
 			"petpower",
 			"npcID",
@@ -69,19 +70,9 @@ public:
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -93,7 +84,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -103,7 +94,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -111,6 +102,7 @@ public:
 	{
 		Pets entry{};
 
+		entry.id           = 0;
 		entry.type         = "";
 		entry.petpower     = 0;
 		entry.npcID        = 0;
@@ -129,7 +121,7 @@ public:
 	)
 	{
 		for (auto &pets : petss) {
-			if (pets.petpower == pets_id) {
+			if (pets.id == pets_id) {
 				return pets;
 			}
 		}
@@ -154,14 +146,15 @@ public:
 		if (results.RowCount() == 1) {
 			Pets entry{};
 
-			entry.type         = row[0] ? row[0] : "";
-			entry.petpower     = atoi(row[1]);
-			entry.npcID        = atoi(row[2]);
-			entry.temp         = atoi(row[3]);
-			entry.petcontrol   = atoi(row[4]);
-			entry.petnaming    = atoi(row[5]);
-			entry.monsterflag  = atoi(row[6]);
-			entry.equipmentset = atoi(row[7]);
+			entry.id           = atoi(row[0]);
+			entry.type         = row[1] ? row[1] : "";
+			entry.petpower     = atoi(row[2]);
+			entry.npcID        = atoi(row[3]);
+			entry.temp         = atoi(row[4]);
+			entry.petcontrol   = atoi(row[5]);
+			entry.petnaming    = atoi(row[6]);
+			entry.monsterflag  = atoi(row[7]);
+			entry.equipmentset = atoi(row[8]);
 
 			return entry;
 		}
@@ -195,14 +188,14 @@ public:
 
 		auto columns = Columns();
 
-		update_values.push_back(columns[0] + " = '" + EscapeString(pets_entry.type) + "'");
-		update_values.push_back(columns[1] + " = " + std::to_string(pets_entry.petpower));
-		update_values.push_back(columns[2] + " = " + std::to_string(pets_entry.npcID));
-		update_values.push_back(columns[3] + " = " + std::to_string(pets_entry.temp));
-		update_values.push_back(columns[4] + " = " + std::to_string(pets_entry.petcontrol));
-		update_values.push_back(columns[5] + " = " + std::to_string(pets_entry.petnaming));
-		update_values.push_back(columns[6] + " = " + std::to_string(pets_entry.monsterflag));
-		update_values.push_back(columns[7] + " = " + std::to_string(pets_entry.equipmentset));
+		update_values.push_back(columns[1] + " = '" + EscapeString(pets_entry.type) + "'");
+		update_values.push_back(columns[2] + " = " + std::to_string(pets_entry.petpower));
+		update_values.push_back(columns[3] + " = " + std::to_string(pets_entry.npcID));
+		update_values.push_back(columns[4] + " = " + std::to_string(pets_entry.temp));
+		update_values.push_back(columns[5] + " = " + std::to_string(pets_entry.petcontrol));
+		update_values.push_back(columns[6] + " = " + std::to_string(pets_entry.petnaming));
+		update_values.push_back(columns[7] + " = " + std::to_string(pets_entry.monsterflag));
+		update_values.push_back(columns[8] + " = " + std::to_string(pets_entry.equipmentset));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -210,7 +203,7 @@ public:
 				TableName(),
 				implode(", ", update_values),
 				PrimaryKey(),
-				pets_entry.petpower
+				pets_entry.id
 			)
 		);
 
@@ -224,6 +217,7 @@ public:
 	{
 		std::vector<std::string> insert_values;
 
+		insert_values.push_back(std::to_string(pets_entry.id));
 		insert_values.push_back("'" + EscapeString(pets_entry.type) + "'");
 		insert_values.push_back(std::to_string(pets_entry.petpower));
 		insert_values.push_back(std::to_string(pets_entry.npcID));
@@ -242,7 +236,7 @@ public:
 		);
 
 		if (results.Success()) {
-			pets_entry.petpower = results.LastInsertedID();
+			pets_entry.id = results.LastInsertedID();
 			return pets_entry;
 		}
 
@@ -261,6 +255,7 @@ public:
 		for (auto &pets_entry: pets_entries) {
 			std::vector<std::string> insert_values;
 
+			insert_values.push_back(std::to_string(pets_entry.id));
 			insert_values.push_back("'" + EscapeString(pets_entry.type) + "'");
 			insert_values.push_back(std::to_string(pets_entry.petpower));
 			insert_values.push_back(std::to_string(pets_entry.npcID));
@@ -302,14 +297,15 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			Pets entry{};
 
-			entry.type         = row[0] ? row[0] : "";
-			entry.petpower     = atoi(row[1]);
-			entry.npcID        = atoi(row[2]);
-			entry.temp         = atoi(row[3]);
-			entry.petcontrol   = atoi(row[4]);
-			entry.petnaming    = atoi(row[5]);
-			entry.monsterflag  = atoi(row[6]);
-			entry.equipmentset = atoi(row[7]);
+			entry.id           = atoi(row[0]);
+			entry.type         = row[1] ? row[1] : "";
+			entry.petpower     = atoi(row[2]);
+			entry.npcID        = atoi(row[3]);
+			entry.temp         = atoi(row[4]);
+			entry.petcontrol   = atoi(row[5]);
+			entry.petnaming    = atoi(row[6]);
+			entry.monsterflag  = atoi(row[7]);
+			entry.equipmentset = atoi(row[8]);
 
 			all_entries.push_back(entry);
 		}
@@ -334,14 +330,15 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			Pets entry{};
 
-			entry.type         = row[0] ? row[0] : "";
-			entry.petpower     = atoi(row[1]);
-			entry.npcID        = atoi(row[2]);
-			entry.temp         = atoi(row[3]);
-			entry.petcontrol   = atoi(row[4]);
-			entry.petnaming    = atoi(row[5]);
-			entry.monsterflag  = atoi(row[6]);
-			entry.equipmentset = atoi(row[7]);
+			entry.id           = atoi(row[0]);
+			entry.type         = row[1] ? row[1] : "";
+			entry.petpower     = atoi(row[2]);
+			entry.npcID        = atoi(row[3]);
+			entry.temp         = atoi(row[4]);
+			entry.petcontrol   = atoi(row[5]);
+			entry.petnaming    = atoi(row[6]);
+			entry.monsterflag  = atoi(row[7]);
+			entry.equipmentset = atoi(row[8]);
 
 			all_entries.push_back(entry);
 		}

@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_LOGIN_ACCOUNTS_REPOSITORY_H
@@ -31,6 +14,7 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BaseLoginAccountsRepository {
 public:
@@ -41,9 +25,9 @@ public:
 		std::string account_email;
 		std::string source_loginserver;
 		std::string last_ip_address;
-		std::string last_login_date;
-		std::string created_at;
-		std::string updated_at;
+		time_t      last_login_date;
+		time_t      created_at;
+		time_t      updated_at;
 	};
 
 	static std::string PrimaryKey()
@@ -66,24 +50,29 @@ public:
 		};
 	}
 
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
+			"account_name",
+			"account_password",
+			"account_email",
+			"source_loginserver",
+			"last_ip_address",
+			"UNIX_TIMESTAMP(last_login_date)",
+			"UNIX_TIMESTAMP(created_at)",
+			"UNIX_TIMESTAMP(updated_at)",
+		};
+	}
+
 	static std::string ColumnsRaw()
 	{
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -95,7 +84,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -105,7 +94,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -121,7 +110,7 @@ public:
 		entry.last_ip_address    = "";
 		entry.last_login_date    = 0;
 		entry.created_at         = 0;
-		entry.updated_at         = current_timestamp();
+		entry.updated_at         = std::time(nullptr);
 
 		return entry;
 	}
@@ -163,9 +152,9 @@ public:
 			entry.account_email      = row[3] ? row[3] : "";
 			entry.source_loginserver = row[4] ? row[4] : "";
 			entry.last_ip_address    = row[5] ? row[5] : "";
-			entry.last_login_date    = row[6] ? row[6] : "";
-			entry.created_at         = row[7] ? row[7] : "";
-			entry.updated_at         = row[8] ? row[8] : "";
+			entry.last_login_date    = strtoll(row[6] ? row[6] : "-1", nullptr, 10);
+			entry.created_at         = strtoll(row[7] ? row[7] : "-1", nullptr, 10);
+			entry.updated_at         = strtoll(row[8] ? row[8] : "-1", nullptr, 10);
 
 			return entry;
 		}
@@ -205,9 +194,9 @@ public:
 		update_values.push_back(columns[3] + " = '" + EscapeString(login_accounts_entry.account_email) + "'");
 		update_values.push_back(columns[4] + " = '" + EscapeString(login_accounts_entry.source_loginserver) + "'");
 		update_values.push_back(columns[5] + " = '" + EscapeString(login_accounts_entry.last_ip_address) + "'");
-		update_values.push_back(columns[6] + " = '" + EscapeString(login_accounts_entry.last_login_date) + "'");
-		update_values.push_back(columns[7] + " = '" + EscapeString(login_accounts_entry.created_at) + "'");
-		update_values.push_back(columns[8] + " = '" + EscapeString(login_accounts_entry.updated_at) + "'");
+		update_values.push_back(columns[6] + " = FROM_UNIXTIME(" + (login_accounts_entry.last_login_date > 0 ? std::to_string(login_accounts_entry.last_login_date) : "null") + ")");
+		update_values.push_back(columns[7] + " = FROM_UNIXTIME(" + (login_accounts_entry.created_at > 0 ? std::to_string(login_accounts_entry.created_at) : "null") + ")");
+		update_values.push_back(columns[8] + " = FROM_UNIXTIME(" + (login_accounts_entry.updated_at > 0 ? std::to_string(login_accounts_entry.updated_at) : "null") + ")");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -235,9 +224,9 @@ public:
 		insert_values.push_back("'" + EscapeString(login_accounts_entry.account_email) + "'");
 		insert_values.push_back("'" + EscapeString(login_accounts_entry.source_loginserver) + "'");
 		insert_values.push_back("'" + EscapeString(login_accounts_entry.last_ip_address) + "'");
-		insert_values.push_back("'" + EscapeString(login_accounts_entry.last_login_date) + "'");
-		insert_values.push_back("'" + EscapeString(login_accounts_entry.created_at) + "'");
-		insert_values.push_back("'" + EscapeString(login_accounts_entry.updated_at) + "'");
+		insert_values.push_back("FROM_UNIXTIME(" + (login_accounts_entry.last_login_date > 0 ? std::to_string(login_accounts_entry.last_login_date) : "null") + ")");
+		insert_values.push_back("FROM_UNIXTIME(" + (login_accounts_entry.created_at > 0 ? std::to_string(login_accounts_entry.created_at) : "null") + ")");
+		insert_values.push_back("FROM_UNIXTIME(" + (login_accounts_entry.updated_at > 0 ? std::to_string(login_accounts_entry.updated_at) : "null") + ")");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -273,9 +262,9 @@ public:
 			insert_values.push_back("'" + EscapeString(login_accounts_entry.account_email) + "'");
 			insert_values.push_back("'" + EscapeString(login_accounts_entry.source_loginserver) + "'");
 			insert_values.push_back("'" + EscapeString(login_accounts_entry.last_ip_address) + "'");
-			insert_values.push_back("'" + EscapeString(login_accounts_entry.last_login_date) + "'");
-			insert_values.push_back("'" + EscapeString(login_accounts_entry.created_at) + "'");
-			insert_values.push_back("'" + EscapeString(login_accounts_entry.updated_at) + "'");
+			insert_values.push_back("FROM_UNIXTIME(" + (login_accounts_entry.last_login_date > 0 ? std::to_string(login_accounts_entry.last_login_date) : "null") + ")");
+			insert_values.push_back("FROM_UNIXTIME(" + (login_accounts_entry.created_at > 0 ? std::to_string(login_accounts_entry.created_at) : "null") + ")");
+			insert_values.push_back("FROM_UNIXTIME(" + (login_accounts_entry.updated_at > 0 ? std::to_string(login_accounts_entry.updated_at) : "null") + ")");
 
 			insert_chunks.push_back("(" + implode(",", insert_values) + ")");
 		}
@@ -315,9 +304,9 @@ public:
 			entry.account_email      = row[3] ? row[3] : "";
 			entry.source_loginserver = row[4] ? row[4] : "";
 			entry.last_ip_address    = row[5] ? row[5] : "";
-			entry.last_login_date    = row[6] ? row[6] : "";
-			entry.created_at         = row[7] ? row[7] : "";
-			entry.updated_at         = row[8] ? row[8] : "";
+			entry.last_login_date    = strtoll(row[6] ? row[6] : "-1", nullptr, 10);
+			entry.created_at         = strtoll(row[7] ? row[7] : "-1", nullptr, 10);
+			entry.updated_at         = strtoll(row[8] ? row[8] : "-1", nullptr, 10);
 
 			all_entries.push_back(entry);
 		}
@@ -348,9 +337,9 @@ public:
 			entry.account_email      = row[3] ? row[3] : "";
 			entry.source_loginserver = row[4] ? row[4] : "";
 			entry.last_ip_address    = row[5] ? row[5] : "";
-			entry.last_login_date    = row[6] ? row[6] : "";
-			entry.created_at         = row[7] ? row[7] : "";
-			entry.updated_at         = row[8] ? row[8] : "";
+			entry.last_login_date    = strtoll(row[6] ? row[6] : "-1", nullptr, 10);
+			entry.created_at         = strtoll(row[7] ? row[7] : "-1", nullptr, 10);
+			entry.updated_at         = strtoll(row[8] ? row[8] : "-1", nullptr, 10);
 
 			all_entries.push_back(entry);
 		}

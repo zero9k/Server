@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_ACCOUNT_REPOSITORY_H
@@ -31,6 +14,7 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BaseAccountRepository {
 public:
@@ -49,11 +33,14 @@ public:
 		std::string minilogin_ip;
 		int         hideme;
 		int         rulesflag;
-		std::string suspendeduntil;
+		time_t      suspendeduntil;
 		int         time_creation;
 		int         expansion;
 		std::string ban_reason;
 		std::string suspend_reason;
+		std::string crc_eqgame;
+		std::string crc_skillcaps;
+		std::string crc_basedata;
 	};
 
 	static std::string PrimaryKey()
@@ -83,6 +70,37 @@ public:
 			"expansion",
 			"ban_reason",
 			"suspend_reason",
+			"crc_eqgame",
+			"crc_skillcaps",
+			"crc_basedata",
+		};
+	}
+
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
+			"name",
+			"charname",
+			"sharedplat",
+			"password",
+			"status",
+			"ls_id",
+			"lsaccount_id",
+			"gmspeed",
+			"revoked",
+			"karma",
+			"minilogin_ip",
+			"hideme",
+			"rulesflag",
+			"UNIX_TIMESTAMP(suspendeduntil)",
+			"time_creation",
+			"expansion",
+			"ban_reason",
+			"suspend_reason",
+			"crc_eqgame",
+			"crc_skillcaps",
+			"crc_basedata",
 		};
 	}
 
@@ -91,19 +109,9 @@ public:
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -115,7 +123,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -125,7 +133,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -147,11 +155,14 @@ public:
 		entry.minilogin_ip   = "";
 		entry.hideme         = 0;
 		entry.rulesflag      = 0;
-		entry.suspendeduntil = "0000-00-00 00:00:00";
+		entry.suspendeduntil = 0;
 		entry.time_creation  = 0;
 		entry.expansion      = 0;
 		entry.ban_reason     = "";
 		entry.suspend_reason = "";
+		entry.crc_eqgame     = "";
+		entry.crc_skillcaps  = "";
+		entry.crc_basedata   = "";
 
 		return entry;
 	}
@@ -201,11 +212,14 @@ public:
 			entry.minilogin_ip   = row[11] ? row[11] : "";
 			entry.hideme         = atoi(row[12]);
 			entry.rulesflag      = atoi(row[13]);
-			entry.suspendeduntil = row[14] ? row[14] : "";
+			entry.suspendeduntil = strtoll(row[14] ? row[14] : "-1", nullptr, 10);
 			entry.time_creation  = atoi(row[15]);
 			entry.expansion      = atoi(row[16]);
 			entry.ban_reason     = row[17] ? row[17] : "";
 			entry.suspend_reason = row[18] ? row[18] : "";
+			entry.crc_eqgame     = row[19] ? row[19] : "";
+			entry.crc_skillcaps  = row[20] ? row[20] : "";
+			entry.crc_basedata   = row[21] ? row[21] : "";
 
 			return entry;
 		}
@@ -252,11 +266,14 @@ public:
 		update_values.push_back(columns[11] + " = '" + EscapeString(account_entry.minilogin_ip) + "'");
 		update_values.push_back(columns[12] + " = " + std::to_string(account_entry.hideme));
 		update_values.push_back(columns[13] + " = " + std::to_string(account_entry.rulesflag));
-		update_values.push_back(columns[14] + " = '" + EscapeString(account_entry.suspendeduntil) + "'");
+		update_values.push_back(columns[14] + " = FROM_UNIXTIME(" + (account_entry.suspendeduntil > 0 ? std::to_string(account_entry.suspendeduntil) : "null") + ")");
 		update_values.push_back(columns[15] + " = " + std::to_string(account_entry.time_creation));
 		update_values.push_back(columns[16] + " = " + std::to_string(account_entry.expansion));
 		update_values.push_back(columns[17] + " = '" + EscapeString(account_entry.ban_reason) + "'");
 		update_values.push_back(columns[18] + " = '" + EscapeString(account_entry.suspend_reason) + "'");
+		update_values.push_back(columns[19] + " = '" + EscapeString(account_entry.crc_eqgame) + "'");
+		update_values.push_back(columns[20] + " = '" + EscapeString(account_entry.crc_skillcaps) + "'");
+		update_values.push_back(columns[21] + " = '" + EscapeString(account_entry.crc_basedata) + "'");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -278,6 +295,7 @@ public:
 	{
 		std::vector<std::string> insert_values;
 
+		insert_values.push_back(std::to_string(account_entry.id));
 		insert_values.push_back("'" + EscapeString(account_entry.name) + "'");
 		insert_values.push_back("'" + EscapeString(account_entry.charname) + "'");
 		insert_values.push_back(std::to_string(account_entry.sharedplat));
@@ -291,11 +309,14 @@ public:
 		insert_values.push_back("'" + EscapeString(account_entry.minilogin_ip) + "'");
 		insert_values.push_back(std::to_string(account_entry.hideme));
 		insert_values.push_back(std::to_string(account_entry.rulesflag));
-		insert_values.push_back("'" + EscapeString(account_entry.suspendeduntil) + "'");
+		insert_values.push_back("FROM_UNIXTIME(" + (account_entry.suspendeduntil > 0 ? std::to_string(account_entry.suspendeduntil) : "null") + ")");
 		insert_values.push_back(std::to_string(account_entry.time_creation));
 		insert_values.push_back(std::to_string(account_entry.expansion));
 		insert_values.push_back("'" + EscapeString(account_entry.ban_reason) + "'");
 		insert_values.push_back("'" + EscapeString(account_entry.suspend_reason) + "'");
+		insert_values.push_back("'" + EscapeString(account_entry.crc_eqgame) + "'");
+		insert_values.push_back("'" + EscapeString(account_entry.crc_skillcaps) + "'");
+		insert_values.push_back("'" + EscapeString(account_entry.crc_basedata) + "'");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -325,6 +346,7 @@ public:
 		for (auto &account_entry: account_entries) {
 			std::vector<std::string> insert_values;
 
+			insert_values.push_back(std::to_string(account_entry.id));
 			insert_values.push_back("'" + EscapeString(account_entry.name) + "'");
 			insert_values.push_back("'" + EscapeString(account_entry.charname) + "'");
 			insert_values.push_back(std::to_string(account_entry.sharedplat));
@@ -338,11 +360,14 @@ public:
 			insert_values.push_back("'" + EscapeString(account_entry.minilogin_ip) + "'");
 			insert_values.push_back(std::to_string(account_entry.hideme));
 			insert_values.push_back(std::to_string(account_entry.rulesflag));
-			insert_values.push_back("'" + EscapeString(account_entry.suspendeduntil) + "'");
+			insert_values.push_back("FROM_UNIXTIME(" + (account_entry.suspendeduntil > 0 ? std::to_string(account_entry.suspendeduntil) : "null") + ")");
 			insert_values.push_back(std::to_string(account_entry.time_creation));
 			insert_values.push_back(std::to_string(account_entry.expansion));
 			insert_values.push_back("'" + EscapeString(account_entry.ban_reason) + "'");
 			insert_values.push_back("'" + EscapeString(account_entry.suspend_reason) + "'");
+			insert_values.push_back("'" + EscapeString(account_entry.crc_eqgame) + "'");
+			insert_values.push_back("'" + EscapeString(account_entry.crc_skillcaps) + "'");
+			insert_values.push_back("'" + EscapeString(account_entry.crc_basedata) + "'");
 
 			insert_chunks.push_back("(" + implode(",", insert_values) + ")");
 		}
@@ -390,11 +415,14 @@ public:
 			entry.minilogin_ip   = row[11] ? row[11] : "";
 			entry.hideme         = atoi(row[12]);
 			entry.rulesflag      = atoi(row[13]);
-			entry.suspendeduntil = row[14] ? row[14] : "";
+			entry.suspendeduntil = strtoll(row[14] ? row[14] : "-1", nullptr, 10);
 			entry.time_creation  = atoi(row[15]);
 			entry.expansion      = atoi(row[16]);
 			entry.ban_reason     = row[17] ? row[17] : "";
 			entry.suspend_reason = row[18] ? row[18] : "";
+			entry.crc_eqgame     = row[19] ? row[19] : "";
+			entry.crc_skillcaps  = row[20] ? row[20] : "";
+			entry.crc_basedata   = row[21] ? row[21] : "";
 
 			all_entries.push_back(entry);
 		}
@@ -433,11 +461,14 @@ public:
 			entry.minilogin_ip   = row[11] ? row[11] : "";
 			entry.hideme         = atoi(row[12]);
 			entry.rulesflag      = atoi(row[13]);
-			entry.suspendeduntil = row[14] ? row[14] : "";
+			entry.suspendeduntil = strtoll(row[14] ? row[14] : "-1", nullptr, 10);
 			entry.time_creation  = atoi(row[15]);
 			entry.expansion      = atoi(row[16]);
 			entry.ban_reason     = row[17] ? row[17] : "";
 			entry.suspend_reason = row[18] ? row[18] : "";
+			entry.crc_eqgame     = row[19] ? row[19] : "";
+			entry.crc_skillcaps  = row[20] ? row[20] : "";
+			entry.crc_basedata   = row[21] ? row[21] : "";
 
 			all_entries.push_back(entry);
 		}

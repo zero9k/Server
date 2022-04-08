@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_LOGIN_WORLD_SERVERS_REPOSITORY_H
@@ -31,6 +14,7 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BaseLoginWorldServersRepository {
 public:
@@ -40,7 +24,7 @@ public:
 		std::string short_name;
 		std::string tag_description;
 		int         login_server_list_type_id;
-		std::string last_login_date;
+		time_t      last_login_date;
 		std::string last_ip_address;
 		int         login_server_admin_id;
 		int         is_server_trusted;
@@ -68,24 +52,30 @@ public:
 		};
 	}
 
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
+			"long_name",
+			"short_name",
+			"tag_description",
+			"login_server_list_type_id",
+			"UNIX_TIMESTAMP(last_login_date)",
+			"last_ip_address",
+			"login_server_admin_id",
+			"is_server_trusted",
+			"note",
+		};
+	}
+
 	static std::string ColumnsRaw()
 	{
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -97,7 +87,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -107,7 +97,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -165,7 +155,7 @@ public:
 			entry.short_name                = row[2] ? row[2] : "";
 			entry.tag_description           = row[3] ? row[3] : "";
 			entry.login_server_list_type_id = atoi(row[4]);
-			entry.last_login_date           = row[5] ? row[5] : "";
+			entry.last_login_date           = strtoll(row[5] ? row[5] : "-1", nullptr, 10);
 			entry.last_ip_address           = row[6] ? row[6] : "";
 			entry.login_server_admin_id     = atoi(row[7]);
 			entry.is_server_trusted         = atoi(row[8]);
@@ -207,7 +197,7 @@ public:
 		update_values.push_back(columns[2] + " = '" + EscapeString(login_world_servers_entry.short_name) + "'");
 		update_values.push_back(columns[3] + " = '" + EscapeString(login_world_servers_entry.tag_description) + "'");
 		update_values.push_back(columns[4] + " = " + std::to_string(login_world_servers_entry.login_server_list_type_id));
-		update_values.push_back(columns[5] + " = '" + EscapeString(login_world_servers_entry.last_login_date) + "'");
+		update_values.push_back(columns[5] + " = FROM_UNIXTIME(" + (login_world_servers_entry.last_login_date > 0 ? std::to_string(login_world_servers_entry.last_login_date) : "null") + ")");
 		update_values.push_back(columns[6] + " = '" + EscapeString(login_world_servers_entry.last_ip_address) + "'");
 		update_values.push_back(columns[7] + " = " + std::to_string(login_world_servers_entry.login_server_admin_id));
 		update_values.push_back(columns[8] + " = " + std::to_string(login_world_servers_entry.is_server_trusted));
@@ -233,11 +223,12 @@ public:
 	{
 		std::vector<std::string> insert_values;
 
+		insert_values.push_back(std::to_string(login_world_servers_entry.id));
 		insert_values.push_back("'" + EscapeString(login_world_servers_entry.long_name) + "'");
 		insert_values.push_back("'" + EscapeString(login_world_servers_entry.short_name) + "'");
 		insert_values.push_back("'" + EscapeString(login_world_servers_entry.tag_description) + "'");
 		insert_values.push_back(std::to_string(login_world_servers_entry.login_server_list_type_id));
-		insert_values.push_back("'" + EscapeString(login_world_servers_entry.last_login_date) + "'");
+		insert_values.push_back("FROM_UNIXTIME(" + (login_world_servers_entry.last_login_date > 0 ? std::to_string(login_world_servers_entry.last_login_date) : "null") + ")");
 		insert_values.push_back("'" + EscapeString(login_world_servers_entry.last_ip_address) + "'");
 		insert_values.push_back(std::to_string(login_world_servers_entry.login_server_admin_id));
 		insert_values.push_back(std::to_string(login_world_servers_entry.is_server_trusted));
@@ -271,11 +262,12 @@ public:
 		for (auto &login_world_servers_entry: login_world_servers_entries) {
 			std::vector<std::string> insert_values;
 
+			insert_values.push_back(std::to_string(login_world_servers_entry.id));
 			insert_values.push_back("'" + EscapeString(login_world_servers_entry.long_name) + "'");
 			insert_values.push_back("'" + EscapeString(login_world_servers_entry.short_name) + "'");
 			insert_values.push_back("'" + EscapeString(login_world_servers_entry.tag_description) + "'");
 			insert_values.push_back(std::to_string(login_world_servers_entry.login_server_list_type_id));
-			insert_values.push_back("'" + EscapeString(login_world_servers_entry.last_login_date) + "'");
+			insert_values.push_back("FROM_UNIXTIME(" + (login_world_servers_entry.last_login_date > 0 ? std::to_string(login_world_servers_entry.last_login_date) : "null") + ")");
 			insert_values.push_back("'" + EscapeString(login_world_servers_entry.last_ip_address) + "'");
 			insert_values.push_back(std::to_string(login_world_servers_entry.login_server_admin_id));
 			insert_values.push_back(std::to_string(login_world_servers_entry.is_server_trusted));
@@ -318,7 +310,7 @@ public:
 			entry.short_name                = row[2] ? row[2] : "";
 			entry.tag_description           = row[3] ? row[3] : "";
 			entry.login_server_list_type_id = atoi(row[4]);
-			entry.last_login_date           = row[5] ? row[5] : "";
+			entry.last_login_date           = strtoll(row[5] ? row[5] : "-1", nullptr, 10);
 			entry.last_ip_address           = row[6] ? row[6] : "";
 			entry.login_server_admin_id     = atoi(row[7]);
 			entry.is_server_trusted         = atoi(row[8]);
@@ -352,7 +344,7 @@ public:
 			entry.short_name                = row[2] ? row[2] : "";
 			entry.tag_description           = row[3] ? row[3] : "";
 			entry.login_server_list_type_id = atoi(row[4]);
-			entry.last_login_date           = row[5] ? row[5] : "";
+			entry.last_login_date           = strtoll(row[5] ? row[5] : "-1", nullptr, 10);
 			entry.last_ip_address           = row[6] ? row[6] : "";
 			entry.login_server_admin_id     = atoi(row[7]);
 			entry.is_server_trusted         = atoi(row[8]);

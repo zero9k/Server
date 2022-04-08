@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_LOGIN_API_TOKENS_REPOSITORY_H
@@ -31,6 +14,7 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BaseLoginApiTokensRepository {
 public:
@@ -39,8 +23,8 @@ public:
 		std::string token;
 		int         can_write;
 		int         can_read;
-		std::string created_at;
-		std::string updated_at;
+		time_t      created_at;
+		time_t      updated_at;
 	};
 
 	static std::string PrimaryKey()
@@ -60,24 +44,26 @@ public:
 		};
 	}
 
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
+			"token",
+			"can_write",
+			"can_read",
+			"UNIX_TIMESTAMP(created_at)",
+			"UNIX_TIMESTAMP(updated_at)",
+		};
+	}
+
 	static std::string ColumnsRaw()
 	{
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -89,7 +75,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -99,7 +85,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -112,7 +98,7 @@ public:
 		entry.can_write  = 0;
 		entry.can_read   = 0;
 		entry.created_at = 0;
-		entry.updated_at = current_timestamp();
+		entry.updated_at = std::time(nullptr);
 
 		return entry;
 	}
@@ -152,8 +138,8 @@ public:
 			entry.token      = row[1] ? row[1] : "";
 			entry.can_write  = atoi(row[2]);
 			entry.can_read   = atoi(row[3]);
-			entry.created_at = row[4] ? row[4] : "";
-			entry.updated_at = row[5] ? row[5] : "";
+			entry.created_at = strtoll(row[4] ? row[4] : "-1", nullptr, 10);
+			entry.updated_at = strtoll(row[5] ? row[5] : "-1", nullptr, 10);
 
 			return entry;
 		}
@@ -190,8 +176,8 @@ public:
 		update_values.push_back(columns[1] + " = '" + EscapeString(login_api_tokens_entry.token) + "'");
 		update_values.push_back(columns[2] + " = " + std::to_string(login_api_tokens_entry.can_write));
 		update_values.push_back(columns[3] + " = " + std::to_string(login_api_tokens_entry.can_read));
-		update_values.push_back(columns[4] + " = '" + EscapeString(login_api_tokens_entry.created_at) + "'");
-		update_values.push_back(columns[5] + " = '" + EscapeString(login_api_tokens_entry.updated_at) + "'");
+		update_values.push_back(columns[4] + " = FROM_UNIXTIME(" + (login_api_tokens_entry.created_at > 0 ? std::to_string(login_api_tokens_entry.created_at) : "null") + ")");
+		update_values.push_back(columns[5] + " = FROM_UNIXTIME(" + (login_api_tokens_entry.updated_at > 0 ? std::to_string(login_api_tokens_entry.updated_at) : "null") + ")");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -213,11 +199,12 @@ public:
 	{
 		std::vector<std::string> insert_values;
 
+		insert_values.push_back(std::to_string(login_api_tokens_entry.id));
 		insert_values.push_back("'" + EscapeString(login_api_tokens_entry.token) + "'");
 		insert_values.push_back(std::to_string(login_api_tokens_entry.can_write));
 		insert_values.push_back(std::to_string(login_api_tokens_entry.can_read));
-		insert_values.push_back("'" + EscapeString(login_api_tokens_entry.created_at) + "'");
-		insert_values.push_back("'" + EscapeString(login_api_tokens_entry.updated_at) + "'");
+		insert_values.push_back("FROM_UNIXTIME(" + (login_api_tokens_entry.created_at > 0 ? std::to_string(login_api_tokens_entry.created_at) : "null") + ")");
+		insert_values.push_back("FROM_UNIXTIME(" + (login_api_tokens_entry.updated_at > 0 ? std::to_string(login_api_tokens_entry.updated_at) : "null") + ")");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -247,11 +234,12 @@ public:
 		for (auto &login_api_tokens_entry: login_api_tokens_entries) {
 			std::vector<std::string> insert_values;
 
+			insert_values.push_back(std::to_string(login_api_tokens_entry.id));
 			insert_values.push_back("'" + EscapeString(login_api_tokens_entry.token) + "'");
 			insert_values.push_back(std::to_string(login_api_tokens_entry.can_write));
 			insert_values.push_back(std::to_string(login_api_tokens_entry.can_read));
-			insert_values.push_back("'" + EscapeString(login_api_tokens_entry.created_at) + "'");
-			insert_values.push_back("'" + EscapeString(login_api_tokens_entry.updated_at) + "'");
+			insert_values.push_back("FROM_UNIXTIME(" + (login_api_tokens_entry.created_at > 0 ? std::to_string(login_api_tokens_entry.created_at) : "null") + ")");
+			insert_values.push_back("FROM_UNIXTIME(" + (login_api_tokens_entry.updated_at > 0 ? std::to_string(login_api_tokens_entry.updated_at) : "null") + ")");
 
 			insert_chunks.push_back("(" + implode(",", insert_values) + ")");
 		}
@@ -289,8 +277,8 @@ public:
 			entry.token      = row[1] ? row[1] : "";
 			entry.can_write  = atoi(row[2]);
 			entry.can_read   = atoi(row[3]);
-			entry.created_at = row[4] ? row[4] : "";
-			entry.updated_at = row[5] ? row[5] : "";
+			entry.created_at = strtoll(row[4] ? row[4] : "-1", nullptr, 10);
+			entry.updated_at = strtoll(row[5] ? row[5] : "-1", nullptr, 10);
 
 			all_entries.push_back(entry);
 		}
@@ -319,8 +307,8 @@ public:
 			entry.token      = row[1] ? row[1] : "";
 			entry.can_write  = atoi(row[2]);
 			entry.can_read   = atoi(row[3]);
-			entry.created_at = row[4] ? row[4] : "";
-			entry.updated_at = row[5] ? row[5] : "";
+			entry.created_at = strtoll(row[4] ? row[4] : "-1", nullptr, 10);
+			entry.updated_at = strtoll(row[5] ? row[5] : "-1", nullptr, 10);
 
 			all_entries.push_back(entry);
 		}

@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_HACKERS_REPOSITORY_H
@@ -31,6 +14,7 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BaseHackersRepository {
 public:
@@ -60,24 +44,26 @@ public:
 		};
 	}
 
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
+			"account",
+			"name",
+			"hacked",
+			"zone",
+			"date",
+		};
+	}
+
 	static std::string ColumnsRaw()
 	{
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -89,7 +75,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -99,7 +85,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -112,7 +98,7 @@ public:
 		entry.name    = "";
 		entry.hacked  = "";
 		entry.zone    = "";
-		entry.date    = current_timestamp();
+		entry.date    = std::time(nullptr);
 
 		return entry;
 	}
@@ -213,6 +199,7 @@ public:
 	{
 		std::vector<std::string> insert_values;
 
+		insert_values.push_back(std::to_string(hackers_entry.id));
 		insert_values.push_back("'" + EscapeString(hackers_entry.account) + "'");
 		insert_values.push_back("'" + EscapeString(hackers_entry.name) + "'");
 		insert_values.push_back("'" + EscapeString(hackers_entry.hacked) + "'");
@@ -247,6 +234,7 @@ public:
 		for (auto &hackers_entry: hackers_entries) {
 			std::vector<std::string> insert_values;
 
+			insert_values.push_back(std::to_string(hackers_entry.id));
 			insert_values.push_back("'" + EscapeString(hackers_entry.account) + "'");
 			insert_values.push_back("'" + EscapeString(hackers_entry.name) + "'");
 			insert_values.push_back("'" + EscapeString(hackers_entry.hacked) + "'");

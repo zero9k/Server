@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_EXPEDITIONS_REPOSITORY_H
@@ -31,19 +14,15 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BaseExpeditionsRepository {
 public:
 	struct Expeditions {
-		int         id;
-		std::string uuid;
-		int         dynamic_zone_id;
-		std::string expedition_name;
-		int         leader_id;
-		int         min_players;
-		int         max_players;
-		int         add_replay_on_join;
-		int         is_locked;
+		int id;
+		int dynamic_zone_id;
+		int add_replay_on_join;
+		int is_locked;
 	};
 
 	static std::string PrimaryKey()
@@ -55,12 +34,17 @@ public:
 	{
 		return {
 			"id",
-			"uuid",
 			"dynamic_zone_id",
-			"expedition_name",
-			"leader_id",
-			"min_players",
-			"max_players",
+			"add_replay_on_join",
+			"is_locked",
+		};
+	}
+
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
+			"dynamic_zone_id",
 			"add_replay_on_join",
 			"is_locked",
 		};
@@ -71,19 +55,9 @@ public:
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -95,7 +69,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -105,7 +79,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -114,12 +88,7 @@ public:
 		Expeditions entry{};
 
 		entry.id                 = 0;
-		entry.uuid               = "";
 		entry.dynamic_zone_id    = 0;
-		entry.expedition_name    = "";
-		entry.leader_id          = 0;
-		entry.min_players        = 0;
-		entry.max_players        = 0;
 		entry.add_replay_on_join = 1;
 		entry.is_locked          = 0;
 
@@ -158,14 +127,9 @@ public:
 			Expeditions entry{};
 
 			entry.id                 = atoi(row[0]);
-			entry.uuid               = row[1] ? row[1] : "";
-			entry.dynamic_zone_id    = atoi(row[2]);
-			entry.expedition_name    = row[3] ? row[3] : "";
-			entry.leader_id          = atoi(row[4]);
-			entry.min_players        = atoi(row[5]);
-			entry.max_players        = atoi(row[6]);
-			entry.add_replay_on_join = atoi(row[7]);
-			entry.is_locked          = atoi(row[8]);
+			entry.dynamic_zone_id    = atoi(row[1]);
+			entry.add_replay_on_join = atoi(row[2]);
+			entry.is_locked          = atoi(row[3]);
 
 			return entry;
 		}
@@ -199,14 +163,9 @@ public:
 
 		auto columns = Columns();
 
-		update_values.push_back(columns[1] + " = '" + EscapeString(expeditions_entry.uuid) + "'");
-		update_values.push_back(columns[2] + " = " + std::to_string(expeditions_entry.dynamic_zone_id));
-		update_values.push_back(columns[3] + " = '" + EscapeString(expeditions_entry.expedition_name) + "'");
-		update_values.push_back(columns[4] + " = " + std::to_string(expeditions_entry.leader_id));
-		update_values.push_back(columns[5] + " = " + std::to_string(expeditions_entry.min_players));
-		update_values.push_back(columns[6] + " = " + std::to_string(expeditions_entry.max_players));
-		update_values.push_back(columns[7] + " = " + std::to_string(expeditions_entry.add_replay_on_join));
-		update_values.push_back(columns[8] + " = " + std::to_string(expeditions_entry.is_locked));
+		update_values.push_back(columns[1] + " = " + std::to_string(expeditions_entry.dynamic_zone_id));
+		update_values.push_back(columns[2] + " = " + std::to_string(expeditions_entry.add_replay_on_join));
+		update_values.push_back(columns[3] + " = " + std::to_string(expeditions_entry.is_locked));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -228,12 +187,8 @@ public:
 	{
 		std::vector<std::string> insert_values;
 
-		insert_values.push_back("'" + EscapeString(expeditions_entry.uuid) + "'");
+		insert_values.push_back(std::to_string(expeditions_entry.id));
 		insert_values.push_back(std::to_string(expeditions_entry.dynamic_zone_id));
-		insert_values.push_back("'" + EscapeString(expeditions_entry.expedition_name) + "'");
-		insert_values.push_back(std::to_string(expeditions_entry.leader_id));
-		insert_values.push_back(std::to_string(expeditions_entry.min_players));
-		insert_values.push_back(std::to_string(expeditions_entry.max_players));
 		insert_values.push_back(std::to_string(expeditions_entry.add_replay_on_join));
 		insert_values.push_back(std::to_string(expeditions_entry.is_locked));
 
@@ -265,12 +220,8 @@ public:
 		for (auto &expeditions_entry: expeditions_entries) {
 			std::vector<std::string> insert_values;
 
-			insert_values.push_back("'" + EscapeString(expeditions_entry.uuid) + "'");
+			insert_values.push_back(std::to_string(expeditions_entry.id));
 			insert_values.push_back(std::to_string(expeditions_entry.dynamic_zone_id));
-			insert_values.push_back("'" + EscapeString(expeditions_entry.expedition_name) + "'");
-			insert_values.push_back(std::to_string(expeditions_entry.leader_id));
-			insert_values.push_back(std::to_string(expeditions_entry.min_players));
-			insert_values.push_back(std::to_string(expeditions_entry.max_players));
 			insert_values.push_back(std::to_string(expeditions_entry.add_replay_on_join));
 			insert_values.push_back(std::to_string(expeditions_entry.is_locked));
 
@@ -307,14 +258,9 @@ public:
 			Expeditions entry{};
 
 			entry.id                 = atoi(row[0]);
-			entry.uuid               = row[1] ? row[1] : "";
-			entry.dynamic_zone_id    = atoi(row[2]);
-			entry.expedition_name    = row[3] ? row[3] : "";
-			entry.leader_id          = atoi(row[4]);
-			entry.min_players        = atoi(row[5]);
-			entry.max_players        = atoi(row[6]);
-			entry.add_replay_on_join = atoi(row[7]);
-			entry.is_locked          = atoi(row[8]);
+			entry.dynamic_zone_id    = atoi(row[1]);
+			entry.add_replay_on_join = atoi(row[2]);
+			entry.is_locked          = atoi(row[3]);
 
 			all_entries.push_back(entry);
 		}
@@ -340,14 +286,9 @@ public:
 			Expeditions entry{};
 
 			entry.id                 = atoi(row[0]);
-			entry.uuid               = row[1] ? row[1] : "";
-			entry.dynamic_zone_id    = atoi(row[2]);
-			entry.expedition_name    = row[3] ? row[3] : "";
-			entry.leader_id          = atoi(row[4]);
-			entry.min_players        = atoi(row[5]);
-			entry.max_players        = atoi(row[6]);
-			entry.add_replay_on_join = atoi(row[7]);
-			entry.is_locked          = atoi(row[8]);
+			entry.dynamic_zone_id    = atoi(row[1]);
+			entry.add_replay_on_join = atoi(row[2]);
+			entry.is_locked          = atoi(row[3]);
 
 			all_entries.push_back(entry);
 		}

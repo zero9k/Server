@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_BUG_REPORTS_REPOSITORY_H
@@ -31,6 +14,7 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BaseBugReportsRepository {
 public:
@@ -62,9 +46,9 @@ public:
 		int         _unknown_value;
 		std::string bug_report;
 		std::string system_info;
-		std::string report_datetime;
+		time_t      report_datetime;
 		int         bug_status;
-		std::string last_review;
+		time_t      last_review;
 		std::string last_reviewer;
 		std::string reviewer_notes;
 	};
@@ -112,24 +96,52 @@ public:
 		};
 	}
 
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
+			"zone",
+			"client_version_id",
+			"client_version_name",
+			"account_id",
+			"character_id",
+			"character_name",
+			"reporter_spoof",
+			"category_id",
+			"category_name",
+			"reporter_name",
+			"ui_path",
+			"pos_x",
+			"pos_y",
+			"pos_z",
+			"heading",
+			"time_played",
+			"target_id",
+			"target_name",
+			"optional_info_mask",
+			"_can_duplicate",
+			"_crash_bug",
+			"_target_info",
+			"_character_flags",
+			"_unknown_value",
+			"bug_report",
+			"system_info",
+			"UNIX_TIMESTAMP(report_datetime)",
+			"bug_status",
+			"UNIX_TIMESTAMP(last_review)",
+			"last_reviewer",
+			"reviewer_notes",
+		};
+	}
+
 	static std::string ColumnsRaw()
 	{
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -141,7 +153,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -151,7 +163,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -186,9 +198,9 @@ public:
 		entry._unknown_value      = 0;
 		entry.bug_report          = "";
 		entry.system_info         = "";
-		entry.report_datetime     = current_timestamp();
+		entry.report_datetime     = std::time(nullptr);
 		entry.bug_status          = 0;
-		entry.last_review         = current_timestamp();
+		entry.last_review         = std::time(nullptr);
 		entry.last_reviewer       = "None";
 		entry.reviewer_notes      = "";
 
@@ -253,9 +265,9 @@ public:
 			entry._unknown_value      = atoi(row[24]);
 			entry.bug_report          = row[25] ? row[25] : "";
 			entry.system_info         = row[26] ? row[26] : "";
-			entry.report_datetime     = row[27] ? row[27] : "";
+			entry.report_datetime     = strtoll(row[27] ? row[27] : "-1", nullptr, 10);
 			entry.bug_status          = atoi(row[28]);
-			entry.last_review         = row[29] ? row[29] : "";
+			entry.last_review         = strtoll(row[29] ? row[29] : "-1", nullptr, 10);
 			entry.last_reviewer       = row[30] ? row[30] : "";
 			entry.reviewer_notes      = row[31] ? row[31] : "";
 
@@ -317,9 +329,9 @@ public:
 		update_values.push_back(columns[24] + " = " + std::to_string(bug_reports_entry._unknown_value));
 		update_values.push_back(columns[25] + " = '" + EscapeString(bug_reports_entry.bug_report) + "'");
 		update_values.push_back(columns[26] + " = '" + EscapeString(bug_reports_entry.system_info) + "'");
-		update_values.push_back(columns[27] + " = '" + EscapeString(bug_reports_entry.report_datetime) + "'");
+		update_values.push_back(columns[27] + " = FROM_UNIXTIME(" + (bug_reports_entry.report_datetime > 0 ? std::to_string(bug_reports_entry.report_datetime) : "null") + ")");
 		update_values.push_back(columns[28] + " = " + std::to_string(bug_reports_entry.bug_status));
-		update_values.push_back(columns[29] + " = '" + EscapeString(bug_reports_entry.last_review) + "'");
+		update_values.push_back(columns[29] + " = FROM_UNIXTIME(" + (bug_reports_entry.last_review > 0 ? std::to_string(bug_reports_entry.last_review) : "null") + ")");
 		update_values.push_back(columns[30] + " = '" + EscapeString(bug_reports_entry.last_reviewer) + "'");
 		update_values.push_back(columns[31] + " = '" + EscapeString(bug_reports_entry.reviewer_notes) + "'");
 
@@ -343,6 +355,7 @@ public:
 	{
 		std::vector<std::string> insert_values;
 
+		insert_values.push_back(std::to_string(bug_reports_entry.id));
 		insert_values.push_back("'" + EscapeString(bug_reports_entry.zone) + "'");
 		insert_values.push_back(std::to_string(bug_reports_entry.client_version_id));
 		insert_values.push_back("'" + EscapeString(bug_reports_entry.client_version_name) + "'");
@@ -369,9 +382,9 @@ public:
 		insert_values.push_back(std::to_string(bug_reports_entry._unknown_value));
 		insert_values.push_back("'" + EscapeString(bug_reports_entry.bug_report) + "'");
 		insert_values.push_back("'" + EscapeString(bug_reports_entry.system_info) + "'");
-		insert_values.push_back("'" + EscapeString(bug_reports_entry.report_datetime) + "'");
+		insert_values.push_back("FROM_UNIXTIME(" + (bug_reports_entry.report_datetime > 0 ? std::to_string(bug_reports_entry.report_datetime) : "null") + ")");
 		insert_values.push_back(std::to_string(bug_reports_entry.bug_status));
-		insert_values.push_back("'" + EscapeString(bug_reports_entry.last_review) + "'");
+		insert_values.push_back("FROM_UNIXTIME(" + (bug_reports_entry.last_review > 0 ? std::to_string(bug_reports_entry.last_review) : "null") + ")");
 		insert_values.push_back("'" + EscapeString(bug_reports_entry.last_reviewer) + "'");
 		insert_values.push_back("'" + EscapeString(bug_reports_entry.reviewer_notes) + "'");
 
@@ -403,6 +416,7 @@ public:
 		for (auto &bug_reports_entry: bug_reports_entries) {
 			std::vector<std::string> insert_values;
 
+			insert_values.push_back(std::to_string(bug_reports_entry.id));
 			insert_values.push_back("'" + EscapeString(bug_reports_entry.zone) + "'");
 			insert_values.push_back(std::to_string(bug_reports_entry.client_version_id));
 			insert_values.push_back("'" + EscapeString(bug_reports_entry.client_version_name) + "'");
@@ -429,9 +443,9 @@ public:
 			insert_values.push_back(std::to_string(bug_reports_entry._unknown_value));
 			insert_values.push_back("'" + EscapeString(bug_reports_entry.bug_report) + "'");
 			insert_values.push_back("'" + EscapeString(bug_reports_entry.system_info) + "'");
-			insert_values.push_back("'" + EscapeString(bug_reports_entry.report_datetime) + "'");
+			insert_values.push_back("FROM_UNIXTIME(" + (bug_reports_entry.report_datetime > 0 ? std::to_string(bug_reports_entry.report_datetime) : "null") + ")");
 			insert_values.push_back(std::to_string(bug_reports_entry.bug_status));
-			insert_values.push_back("'" + EscapeString(bug_reports_entry.last_review) + "'");
+			insert_values.push_back("FROM_UNIXTIME(" + (bug_reports_entry.last_review > 0 ? std::to_string(bug_reports_entry.last_review) : "null") + ")");
 			insert_values.push_back("'" + EscapeString(bug_reports_entry.last_reviewer) + "'");
 			insert_values.push_back("'" + EscapeString(bug_reports_entry.reviewer_notes) + "'");
 
@@ -494,9 +508,9 @@ public:
 			entry._unknown_value      = atoi(row[24]);
 			entry.bug_report          = row[25] ? row[25] : "";
 			entry.system_info         = row[26] ? row[26] : "";
-			entry.report_datetime     = row[27] ? row[27] : "";
+			entry.report_datetime     = strtoll(row[27] ? row[27] : "-1", nullptr, 10);
 			entry.bug_status          = atoi(row[28]);
-			entry.last_review         = row[29] ? row[29] : "";
+			entry.last_review         = strtoll(row[29] ? row[29] : "-1", nullptr, 10);
 			entry.last_reviewer       = row[30] ? row[30] : "";
 			entry.reviewer_notes      = row[31] ? row[31] : "";
 
@@ -550,9 +564,9 @@ public:
 			entry._unknown_value      = atoi(row[24]);
 			entry.bug_report          = row[25] ? row[25] : "";
 			entry.system_info         = row[26] ? row[26] : "";
-			entry.report_datetime     = row[27] ? row[27] : "";
+			entry.report_datetime     = strtoll(row[27] ? row[27] : "-1", nullptr, 10);
 			entry.bug_status          = atoi(row[28]);
-			entry.last_review         = row[29] ? row[29] : "";
+			entry.last_review         = strtoll(row[29] ? row[29] : "-1", nullptr, 10);
 			entry.last_reviewer       = row[30] ? row[30] : "";
 			entry.reviewer_notes      = row[31] ? row[31] : "";
 

@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_LOGIN_SERVER_ADMINS_REPOSITORY_H
@@ -31,6 +14,7 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BaseLoginServerAdminsRepository {
 public:
@@ -41,7 +25,7 @@ public:
 		std::string first_name;
 		std::string last_name;
 		std::string email;
-		std::string registration_date;
+		time_t      registration_date;
 		std::string registration_ip_address;
 	};
 
@@ -64,24 +48,28 @@ public:
 		};
 	}
 
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
+			"account_name",
+			"account_password",
+			"first_name",
+			"last_name",
+			"email",
+			"UNIX_TIMESTAMP(registration_date)",
+			"registration_ip_address",
+		};
+	}
+
 	static std::string ColumnsRaw()
 	{
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -93,7 +81,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -103,7 +91,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -160,7 +148,7 @@ public:
 			entry.first_name              = row[3] ? row[3] : "";
 			entry.last_name               = row[4] ? row[4] : "";
 			entry.email                   = row[5] ? row[5] : "";
-			entry.registration_date       = row[6] ? row[6] : "";
+			entry.registration_date       = strtoll(row[6] ? row[6] : "-1", nullptr, 10);
 			entry.registration_ip_address = row[7] ? row[7] : "";
 
 			return entry;
@@ -200,7 +188,7 @@ public:
 		update_values.push_back(columns[3] + " = '" + EscapeString(login_server_admins_entry.first_name) + "'");
 		update_values.push_back(columns[4] + " = '" + EscapeString(login_server_admins_entry.last_name) + "'");
 		update_values.push_back(columns[5] + " = '" + EscapeString(login_server_admins_entry.email) + "'");
-		update_values.push_back(columns[6] + " = '" + EscapeString(login_server_admins_entry.registration_date) + "'");
+		update_values.push_back(columns[6] + " = FROM_UNIXTIME(" + (login_server_admins_entry.registration_date > 0 ? std::to_string(login_server_admins_entry.registration_date) : "null") + ")");
 		update_values.push_back(columns[7] + " = '" + EscapeString(login_server_admins_entry.registration_ip_address) + "'");
 
 		auto results = db.QueryDatabase(
@@ -223,12 +211,13 @@ public:
 	{
 		std::vector<std::string> insert_values;
 
+		insert_values.push_back(std::to_string(login_server_admins_entry.id));
 		insert_values.push_back("'" + EscapeString(login_server_admins_entry.account_name) + "'");
 		insert_values.push_back("'" + EscapeString(login_server_admins_entry.account_password) + "'");
 		insert_values.push_back("'" + EscapeString(login_server_admins_entry.first_name) + "'");
 		insert_values.push_back("'" + EscapeString(login_server_admins_entry.last_name) + "'");
 		insert_values.push_back("'" + EscapeString(login_server_admins_entry.email) + "'");
-		insert_values.push_back("'" + EscapeString(login_server_admins_entry.registration_date) + "'");
+		insert_values.push_back("FROM_UNIXTIME(" + (login_server_admins_entry.registration_date > 0 ? std::to_string(login_server_admins_entry.registration_date) : "null") + ")");
 		insert_values.push_back("'" + EscapeString(login_server_admins_entry.registration_ip_address) + "'");
 
 		auto results = db.QueryDatabase(
@@ -259,12 +248,13 @@ public:
 		for (auto &login_server_admins_entry: login_server_admins_entries) {
 			std::vector<std::string> insert_values;
 
+			insert_values.push_back(std::to_string(login_server_admins_entry.id));
 			insert_values.push_back("'" + EscapeString(login_server_admins_entry.account_name) + "'");
 			insert_values.push_back("'" + EscapeString(login_server_admins_entry.account_password) + "'");
 			insert_values.push_back("'" + EscapeString(login_server_admins_entry.first_name) + "'");
 			insert_values.push_back("'" + EscapeString(login_server_admins_entry.last_name) + "'");
 			insert_values.push_back("'" + EscapeString(login_server_admins_entry.email) + "'");
-			insert_values.push_back("'" + EscapeString(login_server_admins_entry.registration_date) + "'");
+			insert_values.push_back("FROM_UNIXTIME(" + (login_server_admins_entry.registration_date > 0 ? std::to_string(login_server_admins_entry.registration_date) : "null") + ")");
 			insert_values.push_back("'" + EscapeString(login_server_admins_entry.registration_ip_address) + "'");
 
 			insert_chunks.push_back("(" + implode(",", insert_values) + ")");
@@ -305,7 +295,7 @@ public:
 			entry.first_name              = row[3] ? row[3] : "";
 			entry.last_name               = row[4] ? row[4] : "";
 			entry.email                   = row[5] ? row[5] : "";
-			entry.registration_date       = row[6] ? row[6] : "";
+			entry.registration_date       = strtoll(row[6] ? row[6] : "-1", nullptr, 10);
 			entry.registration_ip_address = row[7] ? row[7] : "";
 
 			all_entries.push_back(entry);
@@ -337,7 +327,7 @@ public:
 			entry.first_name              = row[3] ? row[3] : "";
 			entry.last_name               = row[4] ? row[4] : "";
 			entry.email                   = row[5] ? row[5] : "";
-			entry.registration_date       = row[6] ? row[6] : "";
+			entry.registration_date       = strtoll(row[6] ? row[6] : "-1", nullptr, 10);
 			entry.registration_ip_address = row[7] ? row[7] : "";
 
 			all_entries.push_back(entry);

@@ -108,8 +108,8 @@ struct NPCType
 	int32	mana_regen;
 	int32	aggroradius; // added for AI improvement - neotokyo
 	int32	assistradius; // assist radius, defaults to aggroradis if not set
-	uint8	see_invis;			// See Invis flag added
-	bool	see_invis_undead;	// See Invis vs. Undead flag added
+	uint16	see_invis;			// See Invis flag added
+	uint16	see_invis_undead;	// See Invis vs. Undead flag added
 	bool	see_hide;
 	bool	see_improved_hide;
 	bool	qglobal;
@@ -148,6 +148,7 @@ struct NPCType
 	uint16	use_model;
 	int8	flymode;
 	bool	always_aggro;
+	int     exp_mod;
 };
 
 namespace player_lootitem {
@@ -198,37 +199,6 @@ struct PlayerCorpse_Struct {
 	uint32 drakkin_details;
 	player_lootitem::ServerLootItem_Struct	items[0];
 	//std::list<player_lootitem::ServerLootItem_Struct*> items;
-};
-
-struct Door {
-	uint32	db_id;
-	uint8	door_id;
-	char	zone_name[32];
-	char	door_name[32];
-	float	pos_x;
-	float	pos_y;
-	float	pos_z;
-	float	heading;
-	int		incline;
-	uint8	opentype;
-	uint32	guild_id;
-	uint16	lock_pick;
-	uint32	keyitem;
-	uint8	nokeyring;
-	uint8	trigger_door;
-	uint8	trigger_type;
-	uint8	disable_timer;
-	uint32	door_param;
-	int		invert_state;
-	uint16	size;
-	char	dest_zone[16];
-	uint32	dest_instance_id;
-	float	dest_x;
-	float	dest_y;
-	float	dest_z;
-	float	dest_heading;
-	uint8	is_ldon_door;
-	uint32	client_version_mask;
 };
 
 #pragma pack()

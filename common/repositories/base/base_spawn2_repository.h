@@ -1,29 +1,12 @@
 /**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
+ * DO NOT MODIFY THIS FILE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- *
- */
-
-/**
  * This repository was automatically generated and is NOT to be modified directly.
- * Any repository modifications are meant to be made to
- * the repository extending the base. Any modifications to base repositories are to
- * be made by the generator only
+ * Any repository modifications are meant to be made to the repository extending the base.
+ * Any modifications to base repositories are to be made by the generator only
+ *
+ * @generator ./utils/scripts/generators/repository-generator.pl
+ * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
  */
 
 #ifndef EQEMU_BASE_SPAWN2_REPOSITORY_H
@@ -31,6 +14,7 @@
 
 #include "../../database.h"
 #include "../../string_util.h"
+#include <ctime>
 
 class BaseSpawn2Repository {
 public:
@@ -46,6 +30,7 @@ public:
 		int         respawntime;
 		int         variance;
 		int         pathgrid;
+		int         path_when_zone_idle;
 		int         _condition;
 		int         cond_value;
 		int         enabled;
@@ -75,6 +60,33 @@ public:
 			"respawntime",
 			"variance",
 			"pathgrid",
+			"path_when_zone_idle",
+			"_condition",
+			"cond_value",
+			"enabled",
+			"animation",
+			"min_expansion",
+			"max_expansion",
+			"content_flags",
+			"content_flags_disabled",
+		};
+	}
+
+	static std::vector<std::string> SelectColumns()
+	{
+		return {
+			"id",
+			"spawngroupID",
+			"zone",
+			"version",
+			"x",
+			"y",
+			"z",
+			"heading",
+			"respawntime",
+			"variance",
+			"pathgrid",
+			"path_when_zone_idle",
 			"_condition",
 			"cond_value",
 			"enabled",
@@ -91,19 +103,9 @@ public:
 		return std::string(implode(", ", Columns()));
 	}
 
-	static std::string InsertColumnsRaw()
+	static std::string SelectColumnsRaw()
 	{
-		std::vector<std::string> insert_columns;
-
-		for (auto &column : Columns()) {
-			if (column == PrimaryKey()) {
-				continue;
-			}
-
-			insert_columns.push_back(column);
-		}
-
-		return std::string(implode(", ", insert_columns));
+		return std::string(implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -115,7 +117,7 @@ public:
 	{
 		return fmt::format(
 			"SELECT {} FROM {}",
-			ColumnsRaw(),
+			SelectColumnsRaw(),
 			TableName()
 		);
 	}
@@ -125,7 +127,7 @@ public:
 		return fmt::format(
 			"INSERT INTO {} ({}) ",
 			TableName(),
-			InsertColumnsRaw()
+			ColumnsRaw()
 		);
 	}
 
@@ -144,12 +146,13 @@ public:
 		entry.respawntime            = 0;
 		entry.variance               = 0;
 		entry.pathgrid               = 0;
+		entry.path_when_zone_idle    = 0;
 		entry._condition             = 0;
 		entry.cond_value             = 1;
 		entry.enabled                = 1;
 		entry.animation              = 0;
-		entry.min_expansion          = 0;
-		entry.max_expansion          = 0;
+		entry.min_expansion          = -1;
+		entry.max_expansion          = -1;
 		entry.content_flags          = "";
 		entry.content_flags_disabled = "";
 
@@ -198,14 +201,15 @@ public:
 			entry.respawntime            = atoi(row[8]);
 			entry.variance               = atoi(row[9]);
 			entry.pathgrid               = atoi(row[10]);
-			entry._condition             = atoi(row[11]);
-			entry.cond_value             = atoi(row[12]);
-			entry.enabled                = atoi(row[13]);
-			entry.animation              = atoi(row[14]);
-			entry.min_expansion          = atoi(row[15]);
-			entry.max_expansion          = atoi(row[16]);
-			entry.content_flags          = row[17] ? row[17] : "";
-			entry.content_flags_disabled = row[18] ? row[18] : "";
+			entry.path_when_zone_idle    = atoi(row[11]);
+			entry._condition             = atoi(row[12]);
+			entry.cond_value             = atoi(row[13]);
+			entry.enabled                = atoi(row[14]);
+			entry.animation              = atoi(row[15]);
+			entry.min_expansion          = atoi(row[16]);
+			entry.max_expansion          = atoi(row[17]);
+			entry.content_flags          = row[18] ? row[18] : "";
+			entry.content_flags_disabled = row[19] ? row[19] : "";
 
 			return entry;
 		}
@@ -249,14 +253,15 @@ public:
 		update_values.push_back(columns[8] + " = " + std::to_string(spawn2_entry.respawntime));
 		update_values.push_back(columns[9] + " = " + std::to_string(spawn2_entry.variance));
 		update_values.push_back(columns[10] + " = " + std::to_string(spawn2_entry.pathgrid));
-		update_values.push_back(columns[11] + " = " + std::to_string(spawn2_entry._condition));
-		update_values.push_back(columns[12] + " = " + std::to_string(spawn2_entry.cond_value));
-		update_values.push_back(columns[13] + " = " + std::to_string(spawn2_entry.enabled));
-		update_values.push_back(columns[14] + " = " + std::to_string(spawn2_entry.animation));
-		update_values.push_back(columns[15] + " = " + std::to_string(spawn2_entry.min_expansion));
-		update_values.push_back(columns[16] + " = " + std::to_string(spawn2_entry.max_expansion));
-		update_values.push_back(columns[17] + " = '" + EscapeString(spawn2_entry.content_flags) + "'");
-		update_values.push_back(columns[18] + " = '" + EscapeString(spawn2_entry.content_flags_disabled) + "'");
+		update_values.push_back(columns[11] + " = " + std::to_string(spawn2_entry.path_when_zone_idle));
+		update_values.push_back(columns[12] + " = " + std::to_string(spawn2_entry._condition));
+		update_values.push_back(columns[13] + " = " + std::to_string(spawn2_entry.cond_value));
+		update_values.push_back(columns[14] + " = " + std::to_string(spawn2_entry.enabled));
+		update_values.push_back(columns[15] + " = " + std::to_string(spawn2_entry.animation));
+		update_values.push_back(columns[16] + " = " + std::to_string(spawn2_entry.min_expansion));
+		update_values.push_back(columns[17] + " = " + std::to_string(spawn2_entry.max_expansion));
+		update_values.push_back(columns[18] + " = '" + EscapeString(spawn2_entry.content_flags) + "'");
+		update_values.push_back(columns[19] + " = '" + EscapeString(spawn2_entry.content_flags_disabled) + "'");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -278,6 +283,7 @@ public:
 	{
 		std::vector<std::string> insert_values;
 
+		insert_values.push_back(std::to_string(spawn2_entry.id));
 		insert_values.push_back(std::to_string(spawn2_entry.spawngroupID));
 		insert_values.push_back("'" + EscapeString(spawn2_entry.zone) + "'");
 		insert_values.push_back(std::to_string(spawn2_entry.version));
@@ -288,6 +294,7 @@ public:
 		insert_values.push_back(std::to_string(spawn2_entry.respawntime));
 		insert_values.push_back(std::to_string(spawn2_entry.variance));
 		insert_values.push_back(std::to_string(spawn2_entry.pathgrid));
+		insert_values.push_back(std::to_string(spawn2_entry.path_when_zone_idle));
 		insert_values.push_back(std::to_string(spawn2_entry._condition));
 		insert_values.push_back(std::to_string(spawn2_entry.cond_value));
 		insert_values.push_back(std::to_string(spawn2_entry.enabled));
@@ -325,6 +332,7 @@ public:
 		for (auto &spawn2_entry: spawn2_entries) {
 			std::vector<std::string> insert_values;
 
+			insert_values.push_back(std::to_string(spawn2_entry.id));
 			insert_values.push_back(std::to_string(spawn2_entry.spawngroupID));
 			insert_values.push_back("'" + EscapeString(spawn2_entry.zone) + "'");
 			insert_values.push_back(std::to_string(spawn2_entry.version));
@@ -335,6 +343,7 @@ public:
 			insert_values.push_back(std::to_string(spawn2_entry.respawntime));
 			insert_values.push_back(std::to_string(spawn2_entry.variance));
 			insert_values.push_back(std::to_string(spawn2_entry.pathgrid));
+			insert_values.push_back(std::to_string(spawn2_entry.path_when_zone_idle));
 			insert_values.push_back(std::to_string(spawn2_entry._condition));
 			insert_values.push_back(std::to_string(spawn2_entry.cond_value));
 			insert_values.push_back(std::to_string(spawn2_entry.enabled));
@@ -387,14 +396,15 @@ public:
 			entry.respawntime            = atoi(row[8]);
 			entry.variance               = atoi(row[9]);
 			entry.pathgrid               = atoi(row[10]);
-			entry._condition             = atoi(row[11]);
-			entry.cond_value             = atoi(row[12]);
-			entry.enabled                = atoi(row[13]);
-			entry.animation              = atoi(row[14]);
-			entry.min_expansion          = atoi(row[15]);
-			entry.max_expansion          = atoi(row[16]);
-			entry.content_flags          = row[17] ? row[17] : "";
-			entry.content_flags_disabled = row[18] ? row[18] : "";
+			entry.path_when_zone_idle    = atoi(row[11]);
+			entry._condition             = atoi(row[12]);
+			entry.cond_value             = atoi(row[13]);
+			entry.enabled                = atoi(row[14]);
+			entry.animation              = atoi(row[15]);
+			entry.min_expansion          = atoi(row[16]);
+			entry.max_expansion          = atoi(row[17]);
+			entry.content_flags          = row[18] ? row[18] : "";
+			entry.content_flags_disabled = row[19] ? row[19] : "";
 
 			all_entries.push_back(entry);
 		}
@@ -430,14 +440,15 @@ public:
 			entry.respawntime            = atoi(row[8]);
 			entry.variance               = atoi(row[9]);
 			entry.pathgrid               = atoi(row[10]);
-			entry._condition             = atoi(row[11]);
-			entry.cond_value             = atoi(row[12]);
-			entry.enabled                = atoi(row[13]);
-			entry.animation              = atoi(row[14]);
-			entry.min_expansion          = atoi(row[15]);
-			entry.max_expansion          = atoi(row[16]);
-			entry.content_flags          = row[17] ? row[17] : "";
-			entry.content_flags_disabled = row[18] ? row[18] : "";
+			entry.path_when_zone_idle    = atoi(row[11]);
+			entry._condition             = atoi(row[12]);
+			entry.cond_value             = atoi(row[13]);
+			entry.enabled                = atoi(row[14]);
+			entry.animation              = atoi(row[15]);
+			entry.min_expansion          = atoi(row[16]);
+			entry.max_expansion          = atoi(row[17]);
+			entry.content_flags          = row[18] ? row[18] : "";
+			entry.content_flags_disabled = row[19] ? row[19] : "";
 
 			all_entries.push_back(entry);
 		}

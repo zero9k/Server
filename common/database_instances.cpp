@@ -20,6 +20,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include "../common/rulesys.h"
 #include "../common/string_util.h"
 #include "../common/timer.h"
+#include "../common/repositories/dynamic_zone_members_repository.h"
+#include "../common/repositories/dynamic_zones_repository.h"
 
 #include "database.h"
 
@@ -493,8 +495,8 @@ void Database::DeleteInstance(uint16 instance_id)
 	query = StringFormat("DELETE FROM spawn_condition_values WHERE instance_id=%u", instance_id);
 	QueryDatabase(query);
 
-	query = fmt::format("DELETE FROM dynamic_zones WHERE instance_id={}", instance_id);
-	QueryDatabase(query);
+	DynamicZoneMembersRepository::DeleteByInstance(*this, instance_id);
+	DynamicZonesRepository::DeleteWhere(*this, fmt::format("instance_id = {}", instance_id));
 
 	BuryCorpsesInInstance(instance_id);
 }
@@ -507,7 +509,7 @@ void Database::FlagInstanceByGroupLeader(uint32 zone, int16 version, uint32 char
 
 	char ln[128];
 	memset(ln, 0, 128);
-	strcpy(ln, GetGroupLeadershipInfo(gid, ln));
+	GetGroupLeadershipInfo(gid, ln);
 	uint32 l_charid = GetCharacterID((const char*)ln);
 	uint16 l_id = GetInstanceID(zone, l_charid, version);
 
@@ -585,7 +587,8 @@ void Database::PurgeExpiredInstances()
 	QueryDatabase(fmt::format("DELETE FROM respawn_times WHERE instance_id IN ({})", imploded_instance_ids));
 	QueryDatabase(fmt::format("DELETE FROM spawn_condition_values WHERE instance_id IN ({})", imploded_instance_ids));
 	QueryDatabase(fmt::format("UPDATE character_corpses SET is_buried = 1, instance_id = 0 WHERE instance_id IN ({})", imploded_instance_ids));
-	QueryDatabase(fmt::format("DELETE FROM dynamic_zones WHERE instance_id IN ({})", imploded_instance_ids));
+	DynamicZoneMembersRepository::DeleteByManyInstances(*this, imploded_instance_ids);
+	DynamicZonesRepository::DeleteWhere(*this, fmt::format("instance_id IN ({})", imploded_instance_ids));
 }
 
 void Database::SetInstanceDuration(uint16 instance_id, uint32 new_duration)

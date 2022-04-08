@@ -45,24 +45,6 @@ namespace EQ
 	class InventoryProfile;
 }
 
-struct EventLogDetails_Struct {
-	uint32	id;
-	char	accountname[64];
-	uint32	account_id;
-	int16	status;
-	char	charactername[64];
-	char	targetname[64];
-	char	timestamp[64];
-	char	descriptiontype[64];
-	char	details[128];
-};
-
-struct CharacterEventLog_Struct {
-	uint32	count;
-	uint8	eventid;
-	EventLogDetails_Struct eld[255];
-};
-
 struct npcDecayTimes_Struct {
 	uint16 minlvl;
 	uint16 maxlvl;
@@ -96,6 +78,7 @@ class PTimerList;
 
 #define SQL(...) #__VA_ARGS__
 
+class LogSettings;
 class Database : public DBcore {
 public:
 	Database();
@@ -128,6 +111,7 @@ public:
 	bool SaveCharacterCreate(uint32 character_id, uint32 account_id, PlayerProfile_Struct *pp);
 	bool SetHackerFlag(const char *accountname, const char *charactername, const char *hacked);
 	bool SetMQDetectionFlag(const char *accountname, const char *charactername, const char *hacked, const char *zone);
+	bool SetMQDetectionFlag(const char *accountname, const char *charactername, const std::string &hacked, const char *zone);
 	bool UpdateName(const char *oldname, const char *newname);
 	bool CopyCharacter(
 		std::string source_character_name,
@@ -155,8 +139,9 @@ public:
 
 	void	GetAccountName(uint32 accountid, char* name, uint32* oLSAccountID = 0);
 	void	GetCharName(uint32 char_id, char* name);
-	const char *GetCharNameByID(uint32 char_id);
-	const char *GetNPCNameByID(uint32 npc_id);
+	std::string GetCharNameByID(uint32 char_id);
+	std::string GetNPCNameByID(uint32 npc_id);
+	std::string GetCleanNPCNameByID(uint32 npc_id);
 	void	LoginIP(uint32 AccountID, const char* LoginIP);
 
 	/* Instancing */
@@ -191,7 +176,7 @@ public:
 
 	/* Adventure related. */
 
-	void UpdateAdventureStatsEntry(uint32 char_id, uint8 theme, bool win);
+	void UpdateAdventureStatsEntry(uint32 char_id, uint8 theme, bool win = false, bool remove = false);
 	bool GetAdventureStats(uint32 char_id, AdventureStats_Struct *as);
 
 	/* Account Related */
@@ -205,6 +190,8 @@ public:
 
 	int16	CheckStatus(uint32 account_id);
 
+	void	SetAccountCRCField(uint32 account_id, std::string field_name, uint64 checksum);
+
 	uint32	CheckLogin(const char* name, const char* password, const char *loginserver, int16* oStatus = 0);
 	uint32	CreateAccount(const char* name, const char* password, int16 status, const char* loginserver, uint32 lsaccount_id);
 	uint32	GetAccountIDFromLSID(const std::string& in_loginserver_id, uint32 in_loginserver_account_id, char* in_account_name = 0, int16* in_status = 0);
@@ -213,7 +200,8 @@ public:
 	void	GetAccountFromID(uint32 id, char* oAccountName, int16* oStatus);
 	void	SetAgreementFlag(uint32 acctid);
 
-	int		GetIPExemption(std::string account_ip);
+	int  GetIPExemption(std::string account_ip);
+	void SetIPExemption(std::string account_ip, int exemption_amount);
 
 	int		GetInstanceID(uint32 char_id, uint32 zone_id);
 
@@ -259,7 +247,7 @@ public:
 
 	/* General Queries */
 
-	bool	GetSafePoints(const char* short_name, uint32 version, float* safe_x = 0, float* safe_y = 0, float* safe_z = 0, int16* minstatus = 0, uint8* minlevel = 0, char *flag_needed = nullptr);
+	bool	GetSafePoints(const char* zone_short_name, uint32 instance_version, float* safe_x = 0, float* safe_y = 0, float* safe_z = 0, float* safe_heading = 0, int16* minstatus = 0, uint8* minlevel = 0, char *flag_needed = nullptr);
 	bool	GetZoneGraveyard(const uint32 graveyard_id, uint32* graveyard_zoneid = 0, float* graveyard_x = 0, float* graveyard_y = 0, float* graveyard_z = 0, float* graveyard_heading = 0);
 	bool	GetZoneLongName(const char* short_name, char** long_name, char* file_name = 0, float* safe_x = 0, float* safe_y = 0, float* safe_z = 0, uint32* graveyard_id = 0, uint32* maxclients = 0);
 	bool	LoadPTimers(uint32 charid, PTimerList &into);
@@ -284,8 +272,8 @@ public:
 	int		CountInvSnapshots();
 	void	ClearInvSnapshots(bool from_now = false);
 
-	/* EQEmuLogSys */
-	void	LoadLogSettings(EQEmuLogSys::LogSettings* log_settings);
+	void SourceDatabaseTableFromUrl(std::string table_name, std::string url);
+
 
 private:
 
