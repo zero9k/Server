@@ -27,9 +27,11 @@
 #include "../common/version.h"
 #include "emu_constants.h"
 #include "textures.h"
+#include "../cereal/include/cereal/archives/binary.hpp"
+#include "../cereal/include/cereal/types/string.hpp"
 
 
-static const uint32 BUFF_COUNT = 25;
+static const uint32 BUFF_COUNT = 42;
 static const uint32 PET_BUFF_COUNT = 30;
 static const uint32 MAX_MERC = 100;
 static const uint32 MAX_MERC_GRADES = 10;
@@ -123,6 +125,17 @@ struct LDoNTrapTemplate
 	uint16 skill;
 	uint8 locked;
 };
+
+enum CrystalReclaimTypes
+{
+	Ebon = 5,
+	Radiant = 4,
+};
+
+namespace ItemStackSizeConstraint {
+	constexpr int16 Minimum = 1;
+	constexpr int16 Maximum = 1000;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -308,6 +321,7 @@ union
 	uint32 DestructibleUnk9;
 	bool targetable_with_hotkey;
 	bool show_name;
+	bool guild_show;
 };
 
 struct PlayerState_Struct {
@@ -374,19 +388,19 @@ struct NewZone_Struct {
 /*0684*/	uint16	zone_id;
 /*0686*/	uint16	zone_instance;
 /*0688*/	uint32	unknown688;
-/*0692*/	uint8	unknown692[8];
+/*0692*/	uint8  unknown692[8];
 // Titanium doesn't have a translator, but we can still safely add stuff under here without issues since client memcpy's only what it knows
 // Just wastes some bandwidth sending to tit clients /shrug
-/*0700*/	float	fog_density;
-/*0704*/	uint32	SuspendBuffs;
-/*0708*/	uint32	FastRegenHP;
-/*0712*/	uint32	FastRegenMana;
-/*0716*/	uint32	FastRegenEndurance;
-/*0720*/	uint32	NPCAggroMaxDist;
-/*0724*/	uint32	underworld_teleport_index; // > 0 teleports w/ zone point index, invalid succors, if this value is 0, it prevents you from running off edges that would end up underworld
-/*0728*/	uint32	LavaDamage; // Seen 50
-/*0732*/	uint32	MinLavaDamage; // Seen 10
-/*0736*/
+/*0700*/	float  fog_density;
+/*0704*/	uint32 suspend_buffs;
+/*0708*/	uint32 fast_regen_hp;
+/*0712*/	uint32 fast_regen_mana;
+/*0716*/	uint32 fast_regen_endurance;
+/*0720*/	uint32 npc_aggro_max_dist;
+/*0724*/	uint32 underworld_teleport_index; // > 0 teleports w/ zone point index, invalid succors, if this value is 0, it prevents you from running off edges that would end up underworld
+/*0728*/	uint32 lava_damage; // Seen 50
+/*0732*/	uint32 min_lava_damage; // Seen 10
+/*0736*/	float safe_heading;
 };
 
 /*
@@ -623,6 +637,12 @@ struct ConsentResponse_Struct {
 	char ownername[64];
 	uint8 permission;
 	char zonename[32];
+};
+
+struct NameApproval_Struct {
+	char name[64];
+	uint32 race_id;
+	uint32 class_id;
 };
 
 /*
@@ -1515,20 +1535,32 @@ struct ExpUpdate_Struct
 ** Packet Types: See ItemPacketType enum
 **
 */
-enum ItemPacketType
-{
-	ItemPacketViewLink			= 0x00,
-	ItemPacketMerchant			= 0x64,
-	ItemPacketTradeView			= 0x65,
-	ItemPacketLoot				= 0x66,
-	ItemPacketTrade				= 0x67,
-	ItemPacketCharInventory		= 0x69,
-	ItemPacketLimbo				= 0x6A,
-	ItemPacketWorldContainer	= 0x6B,
-	ItemPacketTributeItem		= 0x6C,
-	ItemPacketGuildTribute		= 0x6D,
-	ItemPacketCharmUpdate		= 0x6E, // noted as incorrect
-	ItemPacketInvalid			= 0xFF
+enum ItemPacketType {
+    ItemPacketViewLink       = 0x00,
+    ItemPacketMerchant       = 0x64,
+    ItemPacketTradeView      = 0x65,
+    ItemPacketLoot           = 0x66,
+    ItemPacketTrade          = 0x67,
+    ItemPacketCharInventory  = 0x69,
+    ItemPacketLimbo          = 0x6A,
+    ItemPacketWorldContainer = 0x6B,
+    ItemPacketTributeItem    = 0x6C,
+    ItemPacketGuildTribute   = 0x6D,
+    ItemPacketCharmUpdate    = 0x6E, // noted as incorrect
+    ItemPacketRecovery       = 0x71,
+    ItemPacketParcel         = 0x73,
+    ItemPacketInvalid        = 0xFF
+};
+
+enum MerchantWindowTabDisplay {
+    None                 = 0x00,
+    SellBuy              = 0x01,
+    Recover              = 0x02,
+    SellBuyRecover       = 0x03,
+    Parcel               = 0x04,
+    SellBuyParcel        = 0x05,
+    RecoverParcel        = 0x06,
+    SellBuyRecoverParcel = 0x07
 };
 
 //enum ItemPacketType
@@ -1665,6 +1697,68 @@ struct GuildUpdate_Struct {
 	GuildsListEntry_Struct entry;
 };
 
+struct GuildMemberAdd_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ uint32 unknown04;
+	/*008*/ uint32 unknown08;
+	/*012*/ uint32 unknown12;
+	/*016*/ uint32 level;
+	/*020*/ uint32 class_;
+	/*024*/ uint32 rank_;
+	/*028*/ uint32 guild_show;
+	/*032*/ uint32 zone_id;
+	/*036*/ uint32 last_on;
+	/*040*/ char   player_name[64];
+};
+
+struct GuildMemberLevel_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ char   player_name[64];
+	/*068*/ uint32 level;
+};
+
+struct GuildMemberRank_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ uint32 rank_;
+	/*008*/ char   player_name[64];
+	/*072*/ uint32 alt_banker; //Banker/Alt bit 00 - none 10 - Alt 11 - Alt and Banker 01 - Banker.  Banker not functional for RoF2+
+	/*076*/ uint32 offline;
+};
+
+struct GuildMemberPublicNote_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ char   player_name[64];
+	/*068*/ char   public_note[256]; //RoF2 256
+};
+
+struct GuildDelete_Struct {
+	/*000*/ uint32 guild_id;
+};
+
+struct GuildRenameGuild_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ char   new_guild_name[64];
+};
+
+struct GuildRenameMember_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ char   player_name[64];
+	/*068*/ char   new_player_name[64];
+};
+
+struct GuildMemberDetails_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ char   player_name[64];
+	/*068*/ uint32 zone_id;
+	/*072*/ uint32 last_on;
+	/*076*/ uint32 offline_mode; //1 Offline
+};
+
+struct GuildMemberDelete_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ char   player_name[64];
+};
+
 /*
 ** Money Loot
 ** Length: 22 Bytes
@@ -1713,10 +1807,10 @@ struct GuildJoin_Struct{
 /*092*/
 };
 struct GuildInviteAccept_Struct {
-	char inviter[64];
-	char newmember[64];
+	char   inviter[64];
+	char   new_member[64];
 	uint32 response;
-	uint32 guildeqid;
+	uint32 guild_id;
 };
 struct GuildManageRemove_Struct {
 	uint32 guildeqid;
@@ -1748,6 +1842,14 @@ struct PopupResponse_Struct {
 /*0004*/	uint32	popupid;
 };
 
+enum GuildInformationActions
+{
+    GuildUpdateURL          = 0,
+    GuildUpdateChannel      = 1,
+    GuildUpdateRanks        = 4,
+    GuildUpdatePermissions  = 5
+};
+
 struct GuildManageBanker_Struct {
 	uint32 unknown0;
 	char myname[64];
@@ -1761,9 +1863,9 @@ struct GuildSetRank_Struct
 {
 /*00*/	uint32	Unknown00;
 /*04*/	uint32	Unknown04;
-/*08*/	uint32	Rank;
-/*12*/	char	MemberName[64];
-/*76*/	uint32	Banker;
+/*08*/	uint32	rank;
+/*12*/	char	member_name[64];
+/*76*/	uint32	banker;
 /*80*/
 };
 
@@ -1791,6 +1893,17 @@ struct GMSummon_Struct {
 /*96*/	float	x;
 /*100*/	float	z;
 /*104*/	uint32	unknown2; // E0 E0 56 00
+};
+
+struct GMFind_Struct {
+	char	charname[64];
+	char	gmname[64];
+	uint32	success;
+	uint32	zoneID;
+	float	x;
+	float	y;
+	float	z;
+	uint32	unknown2;
 };
 
 struct GMGoto_Struct { // x,y is swapped as compared to summon and makes sense as own packet
@@ -1958,12 +2071,75 @@ struct TimeOfDay_Struct {
 };
 
 // Darvik: shopkeeper structs
-struct Merchant_Click_Struct {
-/*000*/ uint32	npcid;			// Merchant NPC's entity id
-/*004*/ uint32	playerid;
-/*008*/ uint32	command;		//1=open, 0=cancel/close
-/*012*/ float	rate;			//cost multiplier, dosent work anymore
+struct MerchantClick_Struct
+{
+    /*000*/ uint32 npc_id;      // Merchant NPC's entity id
+    /*004*/ uint32 player_id;
+    /*008*/ uint32 command;     // 1=open, 0=cancel/close
+    /*012*/ float  rate;        // cost multiplier, dosent work anymore
+    /*016*/ int32  tab_display; // bitmask b000 none, b001 Purchase/Sell, b010 Recover, b100 Parcels
+    /*020*/ int32  unknown020;  // Seen 2592000 from Server or -1 from Client
+    /*024*/
 };
+
+enum MerchantActions {
+    Close = 0,
+    Open  = 1
+};
+
+struct Parcel_Struct
+{
+    /*000*/ uint32 npc_id;
+    /*004*/ uint32 item_slot;
+    /*008*/ uint32 quantity;
+    /*012*/ uint32 money_flag;
+    /*016*/ char   send_to[64];
+    /*080*/ char   note[128];
+    /*208*/ uint32 unknown_208;
+    /*212*/ uint32 unknown_212;
+    /*216*/ uint32 unknown_216;
+};
+
+struct ParcelRetrieve_Struct
+{
+    uint32 merchant_entity_id;
+    uint32 player_entity_id;
+    uint32 parcel_slot_id;
+    uint32 parcel_item_id;
+};
+
+struct ParcelMessaging_Struct {
+	ItemPacketType packet_type;
+	std::string    serialized_item;
+	uint32         sent_time;
+	std::string    player_name;
+	std::string    note;
+	uint32         slot_id;
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(packet_type),
+			CEREAL_NVP(serialized_item),
+			CEREAL_NVP(sent_time),
+			CEREAL_NVP(player_name),
+			CEREAL_NVP(note),
+			CEREAL_NVP(slot_id)
+		);
+	}
+};
+
+struct ParcelIcon_Struct {
+	uint32 status; //0 off 1 on 2 overlimit
+};
+
+enum ParcelIconActions {
+	IconOff   = 0,
+	IconOn    = 1,
+	Overlimit = 2
+};
+
 /*
 Unknowns:
 0 is e7 from 01 to // MAYBE SLOT IN PURCHASE
@@ -2192,11 +2368,19 @@ struct QuestReward_Struct
 	/*068*/
 };
 
+struct CashReward_Struct
+{
+	/*000*/ uint32 copper;
+	/*004*/ uint32 silver;
+	/*008*/ uint32 gold;
+	/*012*/ uint32 platinum;
+};
+
 // Size: 8
 struct Camera_Struct
 {
 	uint32	duration;	// Duration in ms
-	uint32	intensity;	// Between 1023410176 and 1090519040
+	float intensity;
 };
 
 struct ZonePoint_Entry {
@@ -2316,9 +2500,12 @@ struct FaceChange_Struct {
 /*004*/	uint8	hairstyle;
 /*005*/	uint8	beard;
 /*006*/	uint8	face;
-/*007*/ uint32	drakkin_heritage;
-/*011*/ uint32	drakkin_tattoo;
-/*015*/ uint32	drakkin_details;
+/*007*/ uint8  unused_padding;
+/*008*/ uint32 drakkin_heritage;
+/*012*/ uint32 drakkin_tattoo;
+/*016*/ uint32 drakkin_details;
+/*020*/ uint32 entity_id;
+/*024*/
 //there are only 10 faces for barbs changing woad just
 //increase the face value by ten so if there were 8 woad
 //designs then there would be 80 barb faces
@@ -2537,7 +2724,10 @@ struct GMEmoteZone_Struct {
 struct BookText_Struct {
 	uint8 window;	// where to display the text (0xFF means new window)
 	uint8 type;		//type: 0=scroll, 1=book, 2=item info.. prolly others.
-	uint32 invslot;	// Only used in SoF and later clients.
+	int16 invslot;  // Only used in SoF and later clients.
+	int32 target_id;
+	int8 can_cast;
+	int8 can_scribe;
 	char booktext[1]; // Variable Length
 };
 // This is the request to read a book.
@@ -2546,9 +2736,16 @@ struct BookText_Struct {
 struct BookRequest_Struct {
 	uint8 window;	// where to display the text (0xFF means new window)
 	uint8 type;		//type: 0=scroll, 1=book, 2=item info.. prolly others.
-	uint32 invslot;	// Only used in Sof and later clients;
-	int16 subslot; // The subslot inside of a bag if it is inside one.
+	int16 invslot;  // Only used in Sof and later clients;
+	int32 target_id;
 	char txtfile[20];
+};
+
+// used by Scribe and CastSpell book buttons
+struct BookButton_Struct
+{
+	int16 invslot;   // server slot
+	int32 target_id;
 };
 
 /*
@@ -2562,11 +2759,11 @@ struct BookRequest_Struct {
 struct Object_Struct {
 /*00*/	uint32	linked_list_addr[2];// They are, get this, prev and next, ala linked list
 /*08*/	float	size;				//
-/*10*/	uint16	solidtype;			//
+/*10*/	uint16	solid_type;			//
 /*12*/	uint32	drop_id;			// Unique object id for zone
 /*16*/	uint16	zone_id;			// Redudant, but: Zone the object appears in
 /*18*/	uint16	zone_instance;		//
-/*20*/	uint32	unknown020;			//
+/*20*/	uint32	incline;			//
 /*24*/	uint32	unknown024;			//
 /*28*/	float	tilt_x;
 /*32*/	float	tilt_y;
@@ -3289,6 +3486,7 @@ struct Internal_GuildMemberEntry_Struct {
 //	char	public_note[1];				//variable length.
 	uint16	zoneinstance;				//network byte order
 	uint16	zone_id;					//network byte order
+	uint32  online;
 };
 
 struct Internal_GuildMembers_Struct {	//just for display purposes, this is not actually used in the message encoding.
@@ -3315,7 +3513,42 @@ struct GuildUpdate_PublicNote{
 	uint32	unknown0;
 	char	name[64];
 	char	target[64];
-	char	note[1]; //variable length.
+	char	note[256];
+};
+
+struct GuildUpdateURLAndChannelStruct {
+	char text[512];
+};
+
+struct GuildUpdatePermissionsStruct {
+	uint32	rank;				// the rank that is being changed
+	uint32	function_id;		// the id of the guild function
+	uint32	value;				// 1 is on, 0 is off
+
+};
+
+struct GuildUpdateRankNamesStruct {
+	uint32	rank;				// the rank that is being updated
+	char	rank_name[76];		// the rank name
+};
+
+struct GuildUpdateUCPStruct {
+	uint32	action;				// 0 and 1 use url and channel payload.  5 uses permissions payload
+	char	unknown[76];
+	union {
+		GuildUpdateURLAndChannelStruct  url_channel;
+		GuildUpdatePermissionsStruct    permissions;
+		GuildUpdateRankNamesStruct      rank_name;
+	}payload;
+};
+
+struct GuildPermission_Struct
+{
+	uint32	Action;				// 5 = Update function permission
+	char	Unknown0004[76];	// not used
+	uint32	rank;				// the rank that is being changed
+	uint32	function_id;		// the id of the guild function
+	uint32	value;				// 1 is on, 0 is off
 };
 
 struct GuildUpdateURLAndChannel_Struct
@@ -3334,7 +3567,7 @@ struct GuildUpdateURLAndChannel_Struct
 //The client sends this struct on changing a guild rank. The server sends each rank in 32 or less packets upon zonein if you are in a guild.
 struct GuildUpdateRanks_Struct
 {
-/*0000*/	uint32	Action;	// 0 = Update URL, 1 = Update Channel, 5 = RoF Ranks
+/*0000*/	uint32	Action;	// 0 = Update URL, 1 = Update Channel, 4 = Ranks 5 = Permissions
 /*0004*/	uint32	Unknown0004; //Seen 00 00 00 00
 /*0008*/	uint32	Unknown0008; //Seen 96 29 00 00
 /*0008*/	char	Unknown0012[64]; //Seen "CharacterName"
@@ -3356,6 +3589,7 @@ struct GuildStatus_Struct
 struct GuildDemoteStruct{
 	char	name[64];
 	char	target[64];
+	uint32	rank;
 };
 
 struct GuildRemoveStruct{
@@ -3365,9 +3599,9 @@ struct GuildRemoveStruct{
 	uint32	leaderstatus; //?
 };
 
-struct GuildMakeLeader{
-	char	name[64];
-	char	target[64];
+struct GuildMakeLeader_Struct{
+	char	requestor[64];
+	char	new_leader[64];
 };
 
 struct BugReport_Struct {
@@ -3407,20 +3641,23 @@ struct Make_Pet_Struct { //Simple struct for getting pet info
 	uint32 min_dmg;
 	uint32 max_dmg;
 };
-struct Ground_Spawn{
-	float max_x;
-	float max_y;
-	float min_x;
-	float min_y;
-	float max_z;
-	float heading;
-	char name[20];
-	uint32 item;
-	uint32 max_allowed;
-	uint32 respawntimer;
+
+struct GroundSpawn {
+	float       max_x         = 0.0f;
+	float       max_y         = 0.0f;
+	float       min_x         = 0.0f;
+	float       min_y         = 0.0f;
+	float       max_z         = 0.0f;
+	float       heading       = 0.0f;
+	std::string name          = std::string();
+	uint32      item_id       = 0;
+	uint32      max_allowed   = 1;
+	uint32      respawn_timer = 1;
+	bool        fix_z         = true;
 };
-struct Ground_Spawns {
-	struct Ground_Spawn spawn[50]; //Assigned max number to allow
+
+struct GroundSpawns {
+	struct GroundSpawn spawn[50]; //Assigned max number to allow
 };
 
 //struct PetitionBug_Struct{
@@ -3458,66 +3695,193 @@ struct ZoneInSendName_Struct2 {
 static const uint32 MAX_TRIBUTE_TIERS = 10;
 
 struct StartTribute_Struct {
-	uint32	client_id;
-	uint32	tribute_master_id;
-	uint32	response;
+	uint32 client_id;
+	uint32 tribute_master_id;
+	uint32 response;
 };
 
 struct TributeLevel_Struct {
-	uint32	level;	//backwards byte order!
-	uint32	tribute_item_id;	//backwards byte order!
-	uint32	cost;	//backwards byte order!
+	uint32 level;              //backwards byte order!
+	uint32 tribute_item_id;    //backwards byte order!
+	uint32 cost;               //backwards byte order!
 };
 
 struct TributeAbility_Struct {
-	uint32	tribute_id;	//backwards byte order!
-	uint32	tier_count;	//backwards byte order!
+	uint32              tribute_id;    //backwards byte order!
+	uint32              tier_count;    //backwards byte order!
 	TributeLevel_Struct tiers[MAX_TRIBUTE_TIERS];
-	char	name[0];
-};
-
-struct GuildTributeAbility_Struct {
-	uint32	guild_id;
-	TributeAbility_Struct ability;
+	char                name[0];
 };
 
 struct SelectTributeReq_Struct {
-	uint32	client_id;	//? maybe action ID?
-	uint32	tribute_id;
-	uint32	unknown8;	//seen E3 00 00 00
+	uint32 client_id;    //? maybe action ID?
+	uint32 tribute_id;
+	uint32 unknown8;    //seen E3 00 00 00
+};
+
+struct GuildTributeAbilityDetail_Struct {
+	uint32              tribute_id;    //backwards byte order!
+	uint32              tier_count;    //backwards byte order!
+	TributeLevel_Struct tiers[MAX_TRIBUTE_TIERS];
+	uint32              unknown132;
+	char                name[0];
+};
+
+struct GuildTributeAbility_Struct {
+	uint32                           guild_id;
+	GuildTributeAbilityDetail_Struct ability;
+};
+
+struct GuildTributeSelectReq_Struct {
+	uint32 tribute_id;
+	uint32 tier;
+	uint32 tribute_id2;
+	uint32 unknown12;    //seen A7 01 00 00
+};
+
+struct GuildTributeSelectReply_Struct {
+	uint32 tribute_id;
+	uint32 tier;
+	uint32 tribute_id2;
+	char   description;
+};
+
+struct GuildTributeModifyBenefits_Struct {
+/*000*/uint32 command;
+/*004*/uint32 data;
+/*008*/char   unknown8[12];
+/*020*/uint32 tribute_master_id;
+/*024*/uint32 tribute_id_1;
+/*028*/uint32 tribute_id_2;
+/*032*/uint32 tribute_id_1_tier;
+/*036*/uint32 tribute_id_2_tier;
+/*040*/char   unknown[40];
+};
+
+struct GuildTributeOptInOutReq_Struct {
+/*000*/uint32 guild_id;
+/*004*/uint32 tribute_toggle;
+/*008*/char   player[64];
+/*072*/uint32 command;
+/*076*/uint32 tribute_master_id;
+};
+
+struct GuildTributeOptInOutReply_Struct {
+/*000*/uint32 guild_id;
+/*004*/char   player_name[64];
+/*068*/uint32 tribute_toggle;//			0 off 1 on
+/*072*/uint32 tribute_trophy_toggle;// 	0 off 1 on		not yet implemented
+/*076*/uint32 no_donations;
+/*080*/uint32 time;
+/*084*/uint32 command;
+};
+
+struct GuildTributeSaveActive_Struct {
+/*000*/ uint32    command;
+/*004*/ char      unknown04[16];
+/*020*/ uint32    master_tribute_id;
+/*024*/ uint32    tribute_id_1;
+/*028*/ uint32    tribute_id_2;
+/*032*/ uint32    tribute_1_tier;
+/*036*/ uint32    tribute_2_tier;
+/*040*/ char      unknown40[8];
+};
+
+struct GuildTributeFavorTimer_Struct {
+/*000*/ uint32 guild_id;
+/*004*/ uint32 guild_favor;
+/*008*/ uint32 tribute_timer;
+/*012*/ uint32 trophy_timer;
+};
+
+struct GuildTributeSendActive_Struct {
+/*000*/ uint32 not_used;
+/*004*/ uint32 guild_favor;
+/*008*/ uint32 tribute_timer;
+/*012*/ uint32 tribute_enabled;
+/*016*/ char   unknown16[8];
+/*024*/ uint32 tribute_id_1;
+/*028*/ uint32 tribute_id_2;
+/*032*/ uint32 tribute_id_1_tier;
+/*036*/ uint32 tribute_id_2_tier;
+};
+
+struct GuildTributeToggleReq_Struct {
+/*000*/ uint32 command;
+/*004*/ uint32 unknown4;
+/*008*/ uint32 unknown8;
+};
+
+struct GuildTributeDonateItemRequest_Struct {
+/*000*/ uint32    type;
+/*004*/ uint16    slot;
+/*006*/ uint16    sub_index;
+/*008*/ uint16    aug_index;
+/*010*/ uint16    unknown10;
+/*012*/ uint32    quantity;
+/*016*/ uint32    tribute_master_id;
+/*020*/ uint32    unknown20;
+/*024*/ uint32    guild_id;
+/*028*/ uint32    unknown28;
+/*032*/ uint32    unknown32;
+};
+
+struct GuildTributeDonateItemReply_Struct {
+/*000*/ uint32 type;
+/*004*/ uint16 slot;
+/*006*/ uint16 sub_index;
+/*008*/ uint16 aug_index;
+/*010*/ uint16 unknown10;
+/*012*/ uint32 quantity;
+/*016*/ uint32 unknown20;
+/*020*/ uint32 favor;
+};
+
+struct GuildTributeDonatePlatRequest_Struct {
+/*000*/ uint32 quantity;
+/*004*/ uint32 tribute_master_id;
+/*008*/ uint32 unknown08;
+/*012*/ uint32 guild_id;
+/*016*/ uint32 unknown16;
+};
+
+struct GuildTributeDonatePlatReply_Struct {
+	/*000*/ uint32 quantity;
+	/*004*/ uint32 unknown4;
+	/*008*/ uint32 favor;
 };
 
 struct SelectTributeReply_Struct {
-	uint32	client_id;	//echoed from request.
-	uint32	tribute_id;
-	char		desc[0];
+	uint32 client_id;    //echoed from request.
+	uint32 tribute_id;
+	char   description[0];
 };
 
 struct TributeInfo_Struct {
-	uint32	active;		//0 == inactive, 1 == active
-	uint32	tributes[EQ::invtype::TRIBUTE_SIZE];	//-1 == NONE
-	uint32	tiers[EQ::invtype::TRIBUTE_SIZE];		//all 00's
-	uint32	tribute_master_id;
+	uint32 active;        //0 == inactive, 1 == active
+	uint32 tributes[EQ::invtype::TRIBUTE_SIZE];    //-1 == NONE
+	uint32 tiers[EQ::invtype::TRIBUTE_SIZE];        //all 00's
+	uint32 tribute_master_id;
 };
 
 struct TributeItem_Struct {
-	uint32	slot;
-	uint32	quantity;
-	uint32	tribute_master_id;
-	int32	tribute_points;
+	uint32 slot;
+	uint32 quantity;
+	uint32 tribute_master_id;
+	int32  tribute_points;
 };
 
 struct TributePoint_Struct {
-	int32	tribute_points;
-	uint32	unknown04;
-	int32	career_tribute_points;
-	uint32	unknown12;
+	int32  tribute_points;
+	uint32 unknown04;
+	int32  career_tribute_points;
+	uint32 unknown12;
 };
 
 struct TributeMoney_Struct {
-	uint32	platinum;
-	uint32	tribute_master_id;
-	int32	tribute_points;
+	uint32 platinum;
+	uint32 tribute_master_id;
+	int32  tribute_points;
 };
 
 
@@ -3621,14 +3985,19 @@ struct LevelAppearance_Struct { //Sends a little graphic on level up
 };
 
 struct MerchantList {
-	uint32	id;
-	uint32	slot;
-	uint32	item;
-	int16	faction_required;
-	int8	level_required;
-	uint16	alt_currency_cost;
-	uint32	classes_required;
-	uint8	probability;
+	uint32      id;
+	uint32      slot;
+	uint32      item;
+	int16       faction_required;
+	int8        level_required;
+	uint8       min_status;
+	uint8       max_status;
+	uint16      alt_currency_cost;
+	uint32      classes_required;
+	uint8       probability;
+	std::string bucket_name;
+	std::string bucket_value;
+	uint8       bucket_comparison;
 };
 
 struct TempMerchantList {
@@ -4078,7 +4447,9 @@ struct UpdateLeadershipAA_Struct {
 
 enum
 {
-	GroupLeadershipAbility_MarkNPC = 0
+	GroupLeadershipAbility_MarkNPC = 0,
+	RaidLeadershipAbility_MarkNPC = 16,
+	RaidLeadershipAbility_MainAssist = 19
 };
 
 struct DoGroupLeadershipAbility_Struct
@@ -4122,8 +4493,9 @@ struct InspectBuffs_Struct {
 struct RaidGeneral_Struct {
 /*00*/	uint32		action;	//=10
 /*04*/	char		player_name[64];	//should both be the player's name
-/*64*/	char		leader_name[64];
-/*132*/	uint32		parameter;
+/*68*/	uint32		unknown1;
+/*72*/	char		leader_name[64];
+/*136*/	uint32		parameter;
 };
 
 struct RaidAddMember_Struct {
@@ -4134,9 +4506,14 @@ struct RaidAddMember_Struct {
 /*139*/	uint8 flags[5]; //no idea if these are needed...
 };
 
+struct RaidNote_Struct {
+/*000*/ RaidGeneral_Struct general;
+/*140*/ char note[64];
+};
+
 struct RaidMOTD_Struct {
-/*000*/ RaidGeneral_Struct general; // leader_name and action only used
-/*136*/ char motd[0]; // max size is 1024, but reply is variable
+/*000*/ RaidGeneral_Struct general;
+/*140*/ char motd[1024];
 };
 
 struct RaidLeadershipUpdate_Struct {
@@ -4531,7 +4908,7 @@ struct ItemVerifyReply_Struct {
 struct ItemRecastDelay_Struct {
 /*000*/	uint32	recast_delay;	// in seconds
 /*004*/	uint32	recast_type;
-/*008*/	uint32	unknown008;
+/*008*/	bool	ignore_casting_requirement; //Ignores recast times allows items to be reset?
 /*012*/
 };
 
@@ -4992,7 +5369,7 @@ struct DynamicZoneCompassEntry_Struct
 /*000*/ uint16 dz_zone_id;      // target dz id pair
 /*002*/ uint16 dz_instance_id;
 /*004*/ uint32 dz_type;         // 1: Expedition, 2: Tutorial (purple), 3: Task, 4: Mission, 5: Quest (green)
-/*008*/ uint32 unknown008;
+/*008*/ uint32 dz_switch_id;
 /*012*/ float y;
 /*016*/ float x;
 /*020*/ float z;
@@ -5083,8 +5460,6 @@ struct GroupMakeLeader_Struct
 //ex for a blank crowns window you would send:
 //999999|1|999999|0
 //any items come after in much the same way adventure merchant items do except there is no theme included
-#define ALT_CURRENCY_OP_POPULATE 8
-#define ALT_CURRENCY_OP_UPDATE 7
 
 //Server -> Client
 //Populates the initial Alternate Currency Window
@@ -5149,10 +5524,10 @@ struct AltCurrencySelectItemReply_Struct {
 /*000*/ uint32	unknown000;
 /*004*/ uint8	unknown004; //0xff
 /*005*/ uint8	unknown005; //0xff
-/*006*/ uint8	unknown006; //0xff
-/*007*/ uint8	unknown007; //0xff
-/*008*/ char	item_name[64];
-/*072*/ uint32	unknown074;
+/*006*/ uint16	unknown006; //0xffff
+/*008*/ uint16	unknown008; //0xffff
+/*010*/ char	item_name[64];
+/*074*/ uint16	unknown074;
 /*076*/ uint32	cost;
 /*080*/ uint32	unknown080;
 /*084*/ uint32	unknown084;
@@ -5495,24 +5870,6 @@ struct MercenaryMerchantResponse_Struct {
 /*0004*/
 };
 
-struct ServerLootItem_Struct {
-	uint32	item_id;	  // uint32	item_id;
-	int16  equip_slot;	  // int16	equip_slot;
-	uint16 charges;	  // uint8	charges;
-	uint16 lootslot;	  // uint16	lootslot;
-	uint32 aug_1;		  // uint32	aug_1;
-	uint32 aug_2;		  // uint32	aug_2;
-	uint32 aug_3;		  // uint32	aug_3;
-	uint32 aug_4;		  // uint32	aug_4;
-	uint32 aug_5;		  // uint32	aug_5;
-	uint32 aug_6;		  // uint32	aug_5;
-	uint8  attuned;
-	uint16 trivial_min_level;
-	uint16 trivial_max_level;
-	uint16 npc_min_level;
-	uint16 npc_max_level;
-};
-
 //Found in client near a ref to the string:
 //"Got a broadcast message for ... %s ...\n"
 struct ClientMarqueeMessage_Struct {
@@ -5530,9 +5887,6 @@ struct ClientMarqueeMessage_Struct {
 	char msg[1]; //message plus null terminator
 
 };
-
-typedef std::list<ServerLootItem_Struct*> ItemList;
-
 
 struct fling_struct {
 /* 00 */ uint32 collision; // 0 collision is off, anything else it's on

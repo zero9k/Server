@@ -74,25 +74,6 @@ ServerManager::ServerManager()
 ServerManager::~ServerManager() = default;
 
 /**
- * @param ip_address
- * @param port
- * @return
- */
-WorldServer *ServerManager::GetServerByAddress(const std::string &ip_address, int port)
-{
-	auto iter = m_world_servers.begin();
-	while (iter != m_world_servers.end()) {
-		if ((*iter)->GetConnection()->Handle()->RemoteIP() == ip_address &&
-			(*iter)->GetConnection()->Handle()->RemotePort()) {
-			return (*iter).get();
-		}
-		++iter;
-	}
-
-	return nullptr;
-}
-
-/**
  * @param client
  * @param sequence
  * @return
@@ -180,21 +161,23 @@ void ServerManager::SendUserToWorldRequest(
 			EQ::Net::DynamicPacket outapp;
 			outapp.Resize(sizeof(UsertoWorldRequest_Struct));
 
-			auto *user_to_world_request = (UsertoWorldRequest_Struct *) outapp.Data();
-			user_to_world_request->worldid     = server_id;
-			user_to_world_request->lsaccountid = client_account_id;
-			strncpy(user_to_world_request->login, &client_loginserver[0], 64);
+			auto *r = (UsertoWorldRequest_Struct *) outapp.Data();
+			r->worldid     = server_id;
+			r->lsaccountid = client_account_id;
+			strncpy(r->login, &client_loginserver[0], 64);
 			(*iter)->GetConnection()->Send(ServerOP_UsertoWorldReq, outapp);
 			found = true;
 
-			if (server.options.IsDumpInPacketsOn()) {
-				LogInfo("{0}", outapp.ToString());
-			}
+			LogNetcode(
+				"[UsertoWorldRequest] [Size: {}]\n{}",
+				outapp.Length(),
+				outapp.ToString()
+			);
 		}
 		++iter;
 	}
 
-	if (!found && server.options.IsTraceOn()) {
+	if (!found) {
 		LogError("Client requested a user to world but supplied an invalid id of {0}", server_id);
 	}
 }

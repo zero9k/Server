@@ -1,5 +1,5 @@
 /*	EQEMu: Everquest Server Emulator
-	
+
 	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
 
 	This program is free software; you can redistribute it and/or modify
@@ -571,39 +571,39 @@ struct NewZone_Struct {
 /*0704*/	char	zone_short_name2[96];	//zone file name? excludes instance number which can be in previous version.
 /*0800*/	int32	unknown800;	//seen -1
 /*0804*/	char	unknown804[40]; //
-/*0844*/	int32	unknown844;	//seen 600
-/*0848*/	int32	unknown848;
-/*0852*/	uint16	zone_id;
-/*0854*/	uint16	zone_instance;
-/*0856*/	uint32	scriptNPCReceivedanItem;
-/*0860*/	uint32	bCheck;					// padded bool
-/*0864*/	uint32	scriptIDSomething;
-/*0868*/	uint32	underworld_teleport_index; // > 0 teleports w/ zone point index, invalid succors, -1 affects some collisions
-/*0872*/	uint32	scriptIDSomething3;
-/*0876*/	uint32	SuspendBuffs;
-/*0880*/	uint32	LavaDamage;		// Seen 50
-/*0884*/	uint32	MinLavaDamage;		// Seen 10
-/*0888*/	uint8	unknown888;		// Seen 1
-/*0889*/	uint8	unknown889;		// Seen 0 (POK) or 1 (rujj)
-/*0890*/	uint8	unknown890;		// Seen 1
-/*0891*/	uint8	unknown891;		// Seen 0
-/*0892*/	uint8	unknown892;		// Seen 0
-/*0893*/	uint8	unknown893;		// Seen 0 - 00
-/*0894*/	uint8	fall_damage;	// 0 = Fall Damage on, 1 = Fall Damage off
-/*0895*/	uint8	unknown895;		// Seen 0 - 00
-/*0896*/	uint32	FastRegenHP;		// Seen 180
-/*0900*/	uint32	FastRegenMana;		// Seen 180
-/*0904*/	uint32	FastRegenEndurance;		// Seen 180
-/*0908*/	uint32	unknown908;		// Seen 2
-/*0912*/	uint32	unknown912;		// Seen 2
-/*0916*/	float	FogDensity;		// Most zones have this set to 0.33 Blightfire had 0.16
-/*0920*/	uint32	unknown920;		// Seen 0
-/*0924*/	uint32	unknown924;		// Seen 0
-/*0928*/	uint32	unknown928;		// Seen 0
+/*0844*/	int32  unknown844;	//seen 600
+/*0848*/	int32  unknown848;
+/*0852*/	uint16 zone_id;
+/*0854*/	uint16 zone_instance;
+/*0856*/	uint32 scriptNPCReceivedanItem;
+/*0860*/	uint32 bCheck;					// padded bool
+/*0864*/	uint32 scriptIDSomething;
+/*0868*/	uint32 underworld_teleport_index; // > 0 teleports w/ zone point index, invalid succors, -1 affects some collisions
+/*0872*/	uint32 scriptIDSomething3;
+/*0876*/	uint32 suspend_buffs;
+/*0880*/	uint32 lava_damage;		// Seen 50
+/*0884*/	uint32 min_lava_damage;		// Seen 10
+/*0888*/	uint8  unknown888;		// Seen 1
+/*0889*/	uint8  unknown889;		// Seen 0 (POK) or 1 (rujj)
+/*0890*/	uint8  unknown890;		// Seen 1
+/*0891*/	uint8  unknown891;		// Seen 0
+/*0892*/	uint8  unknown892;		// Seen 0
+/*0893*/	uint8  unknown893;		// Seen 0 - 00
+/*0894*/	uint8  fall_damage;	// 0 = Fall Damage on, 1 = Fall Damage off
+/*0895*/	uint8  unknown895;		// Seen 0 - 00
+/*0896*/	uint32 fast_regen_hp;		// Seen 180
+/*0900*/	uint32 fast_regen_mana;		// Seen 180
+/*0904*/	uint32 fast_regen_endurance;		// Seen 180
+/*0908*/	uint32 unknown908;		// Seen 2
+/*0912*/	uint32 unknown912;		// Seen 2
+/*0916*/	float  FogDensity;		// Most zones have this set to 0.33 Blightfire had 0.16
+/*0920*/	uint32 unknown920;		// Seen 0
+/*0924*/	uint32 unknown924;		// Seen 0
+/*0928*/	uint32 unknown928;		// Seen 0
 /*0932*/	int32  unknown932;		// Seen -1
 /*0936*/	int32  unknown936;		// Seen -1
-/*0940*/	uint32  unknown940;		// Seen 0
-/*0944*/	float   unknown944;		// Seen 1.0
+/*0940*/	uint32 unknown940;		// Seen 0
+/*0944*/	float  unknown944;		// Seen 1.0
 /*0948*/
 };
 
@@ -2200,15 +2200,17 @@ struct TimeOfDay_Struct {
 };
 
 // Darvik: shopkeeper structs
-struct Merchant_Click_Struct {
-/*000*/ uint32	npcid;			// Merchant NPC's entity id
-/*004*/ uint32	playerid;
-/*008*/ uint32	command;		// 1=open, 0=cancel/close
-/*012*/ float	rate;			// cost multiplier, dosent work anymore
-/*016*/ int32	unknown01;		// Seen 3 from Server or -1 from Client
-/*020*/ int32	unknown02;		// Seen 2592000 from Server or -1 from Client
-/*024*/
+struct MerchantClick_Struct
+{
+    /*000*/ uint32 npc_id;      // Merchant NPC's entity id
+    /*004*/ uint32 player_id;
+    /*008*/ uint32 command;     // 1=open, 0=cancel/close
+    /*012*/ float  rate;        // cost multiplier, dosent work anymore
+    /*016*/ int32  tab_display; // bitmask b000 none, b001 Purchase/Sell, b010 Recover, b100 Parcels
+    /*020*/ int32  unknown020;  // Seen 2592000 from Server or -1 from Client
+    /*024*/
 };
+
 /*
 Unknowns:
 0 is e7 from 01 to // MAYBE SLOT IN PURCHASE
@@ -2566,7 +2568,7 @@ struct GroupUpdate_Struct_Live {	// New for Live
 
 struct GroupMembers_Struct {	// New for Live
 /*0000*/	uint32	membernumber;	// Guess - number of member in the group (0 to 5?)
-/*0000*/	//char	membername[0];	// Member Name Null Terminated
+/*0000*/	//char	member_name[0];	// Member Name Null Terminated
 /*0000*/	uint8	unknown001[3];	// Seen 0
 /*0000*/	uint32	memberlevel;	// Guess
 /*0000*/	uint8	unknown002[11];	// Seen 0
@@ -2576,7 +2578,7 @@ struct GroupJoin_Struct_Live {	// New for Live
 /*0000*/	uint32	unknown0000;	// Matches unknown0136 from GroupFollow_Struct
 /*0004*/	uint32	action;
 /*0008*/	uint8	unknown0008[5];	// Seen 0
-/*0013*/	//char	membername[0];	// Null Terminated?
+/*0013*/	//char	member_name[0];	// Null Terminated?
 /*0000*/	uint8	unknown0013[3];	// Seen 0
 /*0000*/	uint32	unknown0016;	// Matches unknown0132 from GroupFollow_Struct
 /*0000*/	uint8	unknown0020[11];	// Seen 0
@@ -2622,11 +2624,11 @@ struct FaceChange_Struct {
 /*004*/	uint8	hairstyle;
 /*005*/	uint8	beard;
 /*006*/	uint8	face;
-/*007*/ uint8	unknown007;
+/*007*/ uint8   unused_padding;
 /*008*/ uint32	drakkin_heritage;
 /*012*/ uint32	drakkin_tattoo;
 /*016*/ uint32	drakkin_details;
-/*020*/ uint32	unknown020;
+/*020*/ uint32  entity_id;
 /*024*/
 };
 //there are only 10 faces for barbs changing woad just
@@ -3537,11 +3539,11 @@ struct GuildMakeLeader {
 // Update a guild members rank and banker status
 struct GuildSetRank_Struct
 {
-/*00*/	uint32	GuildID;	// Was Unknown00
-/*04*/	uint32	Rank;
-/*08*/	char	MemberName[64];
-/*72*/	uint32	Banker;
-/*76*/	uint32	Unknown76;	// Seen 1 - Maybe Banker?
+/*00*/	uint32	guild_id;	// Was Unknown00
+/*04*/	uint32	rank;
+/*08*/	char	member_name[64];
+/*72*/	uint32	banker;
+/*76*/	uint32	unknown76;	// Seen 1 - Maybe Banker?
 /*80*/
 };
 
@@ -3556,7 +3558,7 @@ struct Make_Pet_Struct { //Simple struct for getting pet info
 	uint32 min_dmg;
 	uint32 max_dmg;
 };
-struct Ground_Spawn{
+struct GroundSpawn{
 	float max_x;
 	float max_y;
 	float min_x;
@@ -3568,8 +3570,8 @@ struct Ground_Spawn{
 	uint32 max_allowed;
 	uint32 respawntimer;
 };
-struct Ground_Spawns {
-	struct Ground_Spawn spawn[50]; //Assigned max number to allow
+struct GroundSpawns {
+	struct GroundSpawn spawn[50]; //Assigned max number to allow
 };
 
 //struct PetitionBug_Struct{
@@ -4136,9 +4138,14 @@ struct RaidAddMember_Struct {
 /*139*/	uint8 flags[5]; //no idea if these are needed...
 };
 
+struct RaidNote_Struct {
+/*000*/ RaidGeneral_Struct general;
+/*140*/ char note[64];
+};
+
 struct RaidMOTD_Struct {
 /*000*/ RaidGeneral_Struct general; // leader_name and action only used
-/*140*/ char motd[0]; // max size 1024, but reply is variable
+/*140*/ char motd[1024]; // max size is 1024, but reply is variable
 };
 
 struct RaidLeadershipUpdate_Struct {
@@ -4921,7 +4928,7 @@ struct DynamicZoneCompassEntry_Struct
 /*000*/ uint16 dz_zone_id;      // target dz id pair
 /*002*/ uint16 dz_instance_id;
 /*004*/ uint32 dz_type;         // 1: Expedition, 2: Tutorial (purple), 3: Task, 4: Mission, 5: Quest (green)
-/*008*/ uint32 unknown008;
+/*008*/ uint32 dz_switch_id;
 /*012*/ float y;
 /*016*/ float x;
 /*020*/ float z;

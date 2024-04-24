@@ -3,7 +3,7 @@
 void command_undye(Client *c, const Seperator *sep)
 {
 	auto target = c;
-	if (c->GetTarget() && c->GetTarget()->IsClient()) {
+	if (c->GetTarget() && c->GetTarget()->IsClient() && c->GetGM()) {
 		target = c->GetTarget()->CastToClient();
 	}
 
@@ -12,13 +12,7 @@ void command_undye(Client *c, const Seperator *sep)
 		Chat::White,
 		fmt::format(
 			"Undyed armor for {}.",
-			c == target ?
-			"yourself" :
-			fmt::format(
-				"{} ({})",
-				target->GetCleanName(),
-				target->GetID()
-			)
+			c->GetTargetDescription(target)
 		).c_str()
 	);
 }

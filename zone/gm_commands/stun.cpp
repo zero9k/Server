@@ -9,7 +9,7 @@ void command_stun(Client *c, const Seperator *sep)
 	}
 
 	Mob *target  = c;
-	int duration = static_cast<int>(std::min(std::stoll(sep->arg[1]), (long long) 2000000000));
+	int duration = static_cast<int>(std::min(Strings::ToBigInt(sep->arg[1]), (int64) 2000000000));
 
 	if (duration < 0) {
 		duration = 0;
@@ -30,28 +30,12 @@ void command_stun(Client *c, const Seperator *sep)
 		duration ?
 			fmt::format(
 				"You stunned {} for {}.",
-				(
-					c == target ?
-					"yourself" :
-					fmt::format(
-						"{} ({})",
-						target->GetCleanName(),
-						target->GetID()
-					)
-				),
-				ConvertMillisecondsToTime(duration)
+				c->GetTargetDescription(target),
+				Strings::MillisecondsToTime(duration)
 			) :
 			fmt::format(
 				"You unstunned {}.",
-				(
-					c == target ?
-					"yourself" :
-					fmt::format(
-						"{} ({})",
-						target->GetCleanName(),
-						target->GetID()
-					)
-				)
+				c->GetTargetDescription(target)
 			)
 	);
 	c->Message(

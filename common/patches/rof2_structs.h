@@ -1,5 +1,5 @@
 /*	EQEMu: Everquest Server Emulator
-	
+
 	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
 
 	This program is free software; you can redistribute it and/or modify
@@ -620,40 +620,40 @@ struct NewZone_Struct {
 	/*0800*/	int32	SkyRelated2;			//seen -1 -- maybe some default sky time?
 	/*0804*/	char	WeatherString2[32];		//
 	/*0836*/	float	WeatherChangeTime;		// not sure :P
-	/*0840*/	uint32	Climate;
-	/*0844*/	int32	NPCAggroMaxDist;		//seen 600
-	/*0848*/	int32	FilterID;				//seen 2008 -- maybe zone guide related?
-	/*0852*/	uint16	zone_id;				// this might just be instance ID got 1736 for time
-	/*0854*/	uint16	zone_instance;
-	/*0856*/	uint32	scriptNPCReceivedanItem;
-	/*0860*/	uint32	bCheck;					// padded bool
-	/*0864*/	uint32	scriptIDSomething;
-	/*0868*/	uint32	underworld_teleport_index; // > 0 teleports w/ zone point index, invalid succors, -1 affects some collisions
-	/*0872*/	uint32	scriptIDSomething3;
-	/*0876*/	uint32	SuspendBuffs;			// padded bool
-	/*0880*/	uint32	LavaDamage;				// LavaDamage value
-	/*0884*/	uint32	MinLavaDamage;			// min cap after resist calcs
-	/*0888*/	uint8	bDisallowManaStone;		// can't use manastone in this zone
-	/*0889*/	uint8	bNoBind;				// can't bind even if outdoor says we can!
-	/*0890*/	uint8	bNoAttack;				// non-attack zone
-	/*0891*/	uint8	bNoCallOfHero;			// coth line disabled
-	/*0892*/	uint8	bNoFlux;				// gflux no worky
-	/*0893*/	uint8	bNoFear;				// fear spells no worky
-	/*0894*/	uint8	fall_damage;			// 0 = Fall Damage on, 1 = Fall Damage off MQ2 calls bNoEncumber
-	/*0895*/	uint8	unknown895;				// padding
-	/*0896*/	uint32	FastRegenHP;			// percentage I think?
-	/*0900*/	uint32	FastRegenMana;			// percentage I think?
-	/*0904*/	uint32	FastRegenEndurance;		// percentage I think?
-	/*0908*/	uint32	CanPlaceCampsite;		// 0 = no, 1 = can place, 2 = place and goto
-	/*0912*/	uint32	CanPlaceGuildBanner;	// ^
-	/*0916*/	float	FogDensity;				// Most zones have this set to 0.33 Blightfire had 0.16
-	/*0920*/	uint32	bAdjustGamma;			// padded bool
-	/*0924*/	uint32	TimeStringID;			// Seen 0
-	/*0928*/	uint32	bNoMercenaries;			// padded bool
-	/*0932*/	int32	FishingRelated;			// Seen -1 idk
-	/*0936*/	int32	ForageRelated;			// Seen -1 idk
-	/*0940*/	uint32	bNoLevitate;			// padded bool
-	/*0944*/	float	Blooming;				// Seen 1.0 in PoK, and 0.25 in Guild Lobby
+	/*0840*/	uint32 Climate;
+	/*0844*/	int32  NPCAggroMaxDist;		//seen 600
+	/*0848*/	int32  FilterID;				//seen 2008 -- maybe zone guide related?
+	/*0852*/	uint16 zone_id;				// this might just be instance ID got 1736 for time
+	/*0854*/	uint16 zone_instance;
+	/*0856*/	uint32 scriptNPCReceivedanItem;
+	/*0860*/	uint32 bCheck;					// padded bool
+	/*0864*/	uint32 scriptIDSomething;
+	/*0868*/	uint32 underworld_teleport_index; // > 0 teleports w/ zone point index, invalid succors, -1 affects some collisions
+	/*0872*/	uint32 scriptIDSomething3;
+	/*0876*/	uint32 suspend_buffs;			// padded bool
+	/*0880*/	uint32 lava_damage;				// lava_damage value
+	/*0884*/	uint32 min_lava_damage;			// min cap after resist calcs
+	/*0888*/	uint8  bDisallowManaStone;		// can't use manastone in this zone
+	/*0889*/	uint8  bNoBind;				// can't bind even if outdoor says we can!
+	/*0890*/	uint8  bNoAttack;				// non-attack zone
+	/*0891*/	uint8  bNoCallOfHero;			// coth line disabled
+	/*0892*/	uint8  bNoFlux;				// gflux no worky
+	/*0893*/	uint8  bNoFear;				// fear spells no worky
+	/*0894*/	uint8  fall_damage;			// 0 = Fall Damage on, 1 = Fall Damage off MQ2 calls bNoEncumber
+	/*0895*/	uint8  unknown895;				// padding
+	/*0896*/	uint32 fast_regen_hp;			// percentage I think?
+	/*0900*/	uint32 fast_regen_mana;			// percentage I think?
+	/*0904*/	uint32 fast_regen_endurance;		// percentage I think?
+	/*0908*/	uint32 can_place_campsite;		// 0 = no, 1 = can place, 2 = place and goto
+	/*0912*/	uint32 can_place_guild_banner;	// ^
+	/*0916*/	float  fog_density;				// Most zones have this set to 0.33 Blightfire had 0.16
+	/*0920*/	uint32 b_adjust_gamma;			// padded bool
+	/*0924*/	uint32 time_string_id;			// Seen 0
+	/*0928*/	uint32 b_no_mercenaries;			// padded bool
+	/*0932*/	int32  fishing_related;			// Seen -1 idk
+	/*0936*/	int32  forage_related;			// Seen -1 idk
+	/*0940*/	uint32 b_no_levitate;			// padded bool
+	/*0944*/	float  blooming;				// Seen 1.0 in PoK, and 0.25 in Guild Lobby
 	/*0948*/
 };
 
@@ -2011,6 +2011,31 @@ struct GuildBankClear_Struct
 /*16*/	uint32	MainAreaCount;
 };
 
+struct GuildTributeDonateItemRequest_Struct {
+	/*000*/	uint32	type;
+	/*004*/ uint16 	slot;
+	/*006*/ uint16 	sub_index;
+	/*008*/ uint16 	aug_index;
+	/*010*/ uint16 	unknown10;
+	/*012*/ uint32 	quantity;
+	/*016*/ uint32	tribute_master_id;
+	/*020*/ uint32 	unknown20;
+	/*024*/ uint32	guild_id;
+	/*028*/ uint32	unknown28;
+	/*032*/ uint32 	unknown32;
+};
+
+struct GuildTributeDonateItemReply_Struct {
+	/*000*/ uint32	type;
+	/*004*/ uint16	slot;
+	/*006*/ uint16 	sub_index;
+	/*008*/	uint16	aug_index;
+	/*010*/	uint16	unknown10;
+	/*012*/ uint32	quantity;
+	/*016*/ uint32	unknown20;
+	/*020*/	uint32	favor;
+};
+
 /*
 ** Money Loot
 ** Length: 22 Bytes
@@ -2222,15 +2247,17 @@ struct TimeOfDay_Struct {
 };
 
 // Darvik: shopkeeper structs
-struct Merchant_Click_Struct {
-/*000*/ uint32	npcid;			// Merchant NPC's entity id
-/*004*/ uint32	playerid;
-/*008*/ uint32	command;		// 1=open, 0=cancel/close
-/*012*/ float	rate;			// cost multiplier, dosent work anymore
-/*016*/ int32	unknown01;		// Seen 3 from Server or -1 from Client
-/*020*/ int32	unknown02;		// Seen 2592000 from Server or -1 from Client
-/*024*/
+struct MerchantClick_Struct
+{
+    /*000*/ uint32 npc_id;      // Merchant NPC's entity id
+    /*004*/ uint32 player_id;
+    /*008*/ uint32 command;     // 1=open, 0=cancel/close
+    /*012*/ float  rate;        // cost multiplier, dosent work anymore
+    /*016*/ int32  tab_display; // bitmask b000 none, b001 Purchase/Sell, b010 Recover, b100 Parcels
+    /*020*/ int32  unknown02;   // Seen 2592000 from Server or -1 from Client
+    /*024*/
 };
+
 /*
 Unknowns:
 0 is e7 from 01 to // MAYBE SLOT IN PURCHASE
@@ -2590,7 +2617,7 @@ struct GroupUpdate_Struct_Live {	// New for Live
 
 struct GroupMembers_Struct {	// New for Live
 /*0000*/	uint32	membernumber;	// Guess - number of member in the group (0 to 5?)
-/*0000*/	//char	membername[0];	// Member Name Null Terminated
+/*0000*/	//char	member_name[0];	// Member Name Null Terminated
 /*0000*/	uint8	unknown001[3];	// Seen 0
 /*0000*/	uint32	memberlevel;	// Guess
 /*0000*/	uint8	unknown002[11];	// Seen 0
@@ -2600,7 +2627,7 @@ struct GroupJoin_Struct_Live {	// New for Live
 /*0000*/	uint32	unknown0000;	// Matches unknown0136 from GroupFollow_Struct
 /*0004*/	uint32	action;
 /*0008*/	uint8	unknown0008[5];	// Seen 0
-/*0013*/	//char	membername[0];	// Null Terminated?
+/*0013*/	//char	member_name[0];	// Null Terminated?
 /*0000*/	uint8	unknown0013[3];	// Seen 0
 /*0000*/	uint32	unknown0016;	// Matches unknown0132 from GroupFollow_Struct
 /*0000*/	uint8	unknown0020[11];	// Seen 0
@@ -2649,11 +2676,11 @@ struct FaceChange_Struct {
 /*004*/	uint8	hairstyle;
 /*005*/	uint8	beard;
 /*006*/	uint8	face;
-/*007*/ uint8	unknown007;
+/*007*/ uint8   unused_padding;
 /*008*/ uint32	drakkin_heritage;
 /*012*/ uint32	drakkin_tattoo;
 /*016*/ uint32	drakkin_details;
-/*020*/ uint32	unknown020;
+/*020*/ uint32  entity_id;
 /*024*/
 };
 //there are only 10 faces for barbs changing woad just
@@ -2868,15 +2895,23 @@ struct BookText_Struct {
 // This is just a "text file" on the server
 // or in our case, the 'name' column in our books table.
 struct BookRequest_Struct {
-/*0000*/	uint32 window;		// where to display the text (0xFFFFFFFF means new window).
-/*0004*/	uint16 invslot;		// Is the slot, but the RoF2 conversion causes it to fail.  Turned to 0 since it isnt required anyway.
-/*0006*/	int16 subslot;		// Inventory sub-slot (0-x)
-/*0008*/	uint16 unknown006;	// Seen FFFF
-/*0010*/	uint16 unknown008;	// seen 0000
-/*0012*/	uint32 type;		// 0 = Scroll, 1 = Book, 2 = Item Info. Possibly others
-/*0016*/	uint32 unknown0012;
-/*0020*/	uint16 unknown0016;
-/*0022*/	char txtfile[8194];
+/*0000*/ uint32 window;         // where to display the text (0xFFFFFFFF means new window).
+/*0004*/ TypelessInventorySlot_Struct invslot; // book ItemIndex (with int16_t alignment padding)
+/*0012*/ uint32 type;           // 0 = Scroll, 1 = Book, 2 = Item Info. Possibly others
+/*0016*/ uint32 target_id;      // client's target when using the book
+/*0020*/ uint8 can_cast;        // show Cast Spell button in book window
+/*0021*/ uint8 can_scribe;      // show Scribe button in book window
+/*0022*/ char txtfile[8194];
+/*8216*/
+};
+
+// used by Scribe and CastSpell book buttons
+struct BookButton_Struct
+{
+/*0000*/ TypelessInventorySlot_Struct slot; // book ItemIndex (with int16_t alignment padding)
+/*0008*/ int32 target_id; // client's target when using the book button
+/*0012*/ int32 unused;    // always 0 from button packets
+/*0016*/
 };
 
 /*
@@ -3476,7 +3511,7 @@ struct TraderClick_Struct{
 	/*000*/	uint32 Code;
 	/*004*/	uint32 TraderID;
 	/*008*/	uint32 Approval;
-	/*012*/	
+	/*012*/
 };
 
 struct FormattedMessage_Struct{
@@ -3592,11 +3627,11 @@ struct GuildMakeLeader {
 // Update a guild members rank and banker status
 struct GuildSetRank_Struct
 {
-/*00*/	uint32	GuildID;	// Was Unknown00
-/*04*/	uint32	Rank;
-/*08*/	char	MemberName[64];
-/*72*/	uint32	Banker;
-/*76*/	uint32	Unknown76;	// Seen 1 - Maybe Banker?
+/*00*/	uint32	guild_id;	// Was Unknown00
+/*04*/	uint32	rank;
+/*08*/	char	member_name[64];
+/*72*/	uint32	banker;
+/*76*/	uint32	unknown76;	// Seen 1 - Maybe Banker?
 /*80*/
 };
 
@@ -3611,7 +3646,7 @@ struct Make_Pet_Struct { //Simple struct for getting pet info
 	uint32 min_dmg;
 	uint32 max_dmg;
 };
-struct Ground_Spawn{
+struct GroundSpawn{
 	float max_x;
 	float max_y;
 	float min_x;
@@ -3623,8 +3658,8 @@ struct Ground_Spawn{
 	uint32 max_allowed;
 	uint32 respawntimer;
 };
-struct Ground_Spawns {
-	struct Ground_Spawn spawn[50]; //Assigned max number to allow
+struct GroundSpawns {
+	struct GroundSpawn spawn[50]; //Assigned max number to allow
 };
 
 //struct PetitionBug_Struct{
@@ -3714,15 +3749,15 @@ struct TributeItem_Struct
 
 struct TributePoint_Struct {
 	int32   tribute_points;
-	uint32   unknown04;
+	uint32  unknown04;
 	int32   career_tribute_points;
-	uint32   unknown12;
+	uint32  unknown12;
 };
 
 struct TributeMoney_Struct {
 	uint32   platinum;
 	uint32   tribute_master_id;
-	int32   tribute_points;
+	int32    tribute_points;
 };
 
 
@@ -4190,9 +4225,14 @@ struct RaidAddMember_Struct {
 /*139*/	uint8 flags[5]; //no idea if these are needed...
 };
 
+struct RaidNote_Struct {
+/*000*/ RaidGeneral_Struct general;
+/*140*/ char note[64];
+};
+
 struct RaidMOTD_Struct {
-/*000*/ RaidGeneral_Struct general; // leader_name and action only used
-/*140*/ char motd[0]; // max size 1024, but reply is variable
+/*000*/ RaidGeneral_Struct general;
+/*140*/ char motd[1024];
 };
 
 struct RaidLeadershipUpdate_Struct {
@@ -4534,25 +4574,25 @@ struct RoF2SlotStruct
 
 struct ItemSerializationHeader
 {
-/*000*/	char unknown000[17];	// New for HoT. Looks like a string.
-/*017*/	uint32 stacksize;
-/*021*/	uint32 unknown004;
-/*025*/	uint8  slot_type;	// 0 = normal, 1 = bank, 2 = shared bank, 9 = merchant, 20 = ?
-/*026*/	uint16 main_slot;
-/*028*/ uint16 sub_slot;
-/*030*/ uint16 aug_slot;	// 0xffff
-/*032*/	uint32 price;
-/*036*/	uint32 merchant_slot; //1 if not a merchant item
-/*040*/	uint32 scaled_value; //0
-/*044*/	uint32 instance_id; //unique instance id if not merchant item, else is merchant slot
-/*048*/	uint32 unknown028; //0
-/*052*/	uint32 last_cast_time;	// Unix Time from PP of last cast for this recast type if recast delay > 0
-/*056*/	uint32 charges; //Total Charges an item has (-1 for unlimited)
-/*060*/	uint32 inst_nodrop;	// 1 if the item is no drop (attuned items)
-/*064*/	uint32 unknown044;	// 0
-/*068*/	uint32 unknown048;	// 0
-/*072*/	uint32 unknown052;	// 0
-		uint8 isEvolving;
+    /*000*/ char   unknown000[17]; // New for HoT. Looks like a string.
+    /*017*/ uint32 stacksize;
+    /*021*/ uint32 unknown004;
+    /*025*/ uint8  slot_type;      // 0 = normal, 1 = bank, 2 = shared bank, 9 = merchant, 20 = ?
+    /*026*/ uint16 main_slot;
+    /*028*/ uint16 sub_slot;
+    /*030*/ uint16 aug_slot;       // 0xffff
+    /*032*/ uint32 price;
+    /*036*/ uint32 merchant_slot;  // 1 if not a merchant item
+    /*040*/ uint32 scaled_value;   // 0
+    /*044*/ uint32 instance_id;    // unique instance id if not merchant item, else is merchant slot
+    /*048*/ uint32 parcel_item_id; 
+    /*052*/ uint32 last_cast_time; // Unix Time from PP of last cast for this recast type if recast delay > 0
+    /*056*/ uint32 charges;        // Total Charges an item has (-1 for unlimited)
+    /*060*/ uint32 inst_nodrop;    // 1 if the item is no drop (attuned items)
+    /*064*/ uint32 unknown044;     // 0
+    /*068*/ uint32 unknown048;     // 0
+    /*072*/ uint32 unknown052;     // 0
+    uint8          isEvolving;
 };
 
 struct EvolvingItem {
@@ -4989,7 +5029,7 @@ struct DynamicZoneCompassEntry_Struct
 /*000*/ uint16 dz_zone_id;      // target dz id pair
 /*002*/ uint16 dz_instance_id;
 /*004*/ uint32 dz_type;         // 1: Expedition, 2: Tutorial (purple), 3: Task, 4: Mission, 5: Quest (green)
-/*008*/ uint32 unknown008;
+/*008*/ uint32 dz_switch_id;
 /*012*/ float y;
 /*016*/ float x;
 /*020*/ float z;
@@ -5223,6 +5263,18 @@ struct Checksum_Struct {
     uint8_t  data[2048];
 };
 
+struct Parcel_Struct
+{
+    /*000*/ uint32                       npc_id;
+    /*004*/ TypelessInventorySlot_Struct inventory_slot;
+    /*012*/ uint32                       quantity;
+    /*016*/ uint32                       money_flag;
+    /*020*/ char                         send_to[64];
+    /*084*/ char                         note[128];
+    /*212*/ uint32                       unknown_212;
+    /*216*/ uint32                       unknown_216;
+    /*220*/ uint32                       unknown_220;
+};
 	}; /*structs*/
 
 }; /*RoF2*/

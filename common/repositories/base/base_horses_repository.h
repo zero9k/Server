@@ -6,24 +6,24 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
+ * @docs https://docs.eqemu.io/developer/repositories
  */
 
 #ifndef EQEMU_BASE_HORSES_REPOSITORY_H
 #define EQEMU_BASE_HORSES_REPOSITORY_H
 
 #include "../../database.h"
-#include "../../string_util.h"
+#include "../../strings.h"
 #include <ctime>
 
 class BaseHorsesRepository {
 public:
 	struct Horses {
-		int         id;
+		int32_t     id;
 		std::string filename;
-		int         race;
-		int         gender;
-		int         texture;
+		int16_t     race;
+		int8_t      gender;
+		int8_t      texture;
 		float       mountspeed;
 		std::string notes;
 	};
@@ -61,12 +61,12 @@ public:
 
 	static std::string ColumnsRaw()
 	{
-		return std::string(implode(", ", Columns()));
+		return std::string(Strings::Implode(", ", Columns()));
 	}
 
 	static std::string SelectColumnsRaw()
 	{
-		return std::string(implode(", ", SelectColumns()));
+		return std::string(Strings::Implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -94,20 +94,20 @@ public:
 
 	static Horses NewEntity()
 	{
-		Horses entry{};
+		Horses e{};
 
-		entry.id         = 0;
-		entry.filename   = "";
-		entry.race       = 216;
-		entry.gender     = 0;
-		entry.texture    = 0;
-		entry.mountspeed = 0.75;
-		entry.notes      = "Notes";
+		e.id         = 0;
+		e.filename   = "";
+		e.race       = 216;
+		e.gender     = 0;
+		e.texture    = 0;
+		e.mountspeed = 0.75;
+		e.notes      = "Notes";
 
-		return entry;
+		return e;
 	}
 
-	static Horses GetHorsesEntry(
+	static Horses GetHorses(
 		const std::vector<Horses> &horsess,
 		int horses_id
 	)
@@ -128,25 +128,26 @@ public:
 	{
 		auto results = db.QueryDatabase(
 			fmt::format(
-				"{} WHERE id = {} LIMIT 1",
+				"{} WHERE {} = {} LIMIT 1",
 				BaseSelect(),
+				PrimaryKey(),
 				horses_id
 			)
 		);
 
 		auto row = results.begin();
 		if (results.RowCount() == 1) {
-			Horses entry{};
+			Horses e{};
 
-			entry.id         = atoi(row[0]);
-			entry.filename   = row[1] ? row[1] : "";
-			entry.race       = atoi(row[2]);
-			entry.gender     = atoi(row[3]);
-			entry.texture    = atoi(row[4]);
-			entry.mountspeed = static_cast<float>(atof(row[5]));
-			entry.notes      = row[6] ? row[6] : "";
+			e.id         = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
+			e.filename   = row[1] ? row[1] : "";
+			e.race       = row[2] ? static_cast<int16_t>(atoi(row[2])) : 216;
+			e.gender     = row[3] ? static_cast<int8_t>(atoi(row[3])) : 0;
+			e.texture    = row[4] ? static_cast<int8_t>(atoi(row[4])) : 0;
+			e.mountspeed = row[5] ? strtof(row[5], nullptr) : 0.75;
+			e.notes      = row[6] ? row[6] : "Notes";
 
-			return entry;
+			return e;
 		}
 
 		return NewEntity();
@@ -171,27 +172,27 @@ public:
 
 	static int UpdateOne(
 		Database& db,
-		Horses horses_entry
+		const Horses &e
 	)
 	{
-		std::vector<std::string> update_values;
+		std::vector<std::string> v;
 
 		auto columns = Columns();
 
-		update_values.push_back(columns[1] + " = '" + EscapeString(horses_entry.filename) + "'");
-		update_values.push_back(columns[2] + " = " + std::to_string(horses_entry.race));
-		update_values.push_back(columns[3] + " = " + std::to_string(horses_entry.gender));
-		update_values.push_back(columns[4] + " = " + std::to_string(horses_entry.texture));
-		update_values.push_back(columns[5] + " = " + std::to_string(horses_entry.mountspeed));
-		update_values.push_back(columns[6] + " = '" + EscapeString(horses_entry.notes) + "'");
+		v.push_back(columns[1] + " = '" + Strings::Escape(e.filename) + "'");
+		v.push_back(columns[2] + " = " + std::to_string(e.race));
+		v.push_back(columns[3] + " = " + std::to_string(e.gender));
+		v.push_back(columns[4] + " = " + std::to_string(e.texture));
+		v.push_back(columns[5] + " = " + std::to_string(e.mountspeed));
+		v.push_back(columns[6] + " = '" + Strings::Escape(e.notes) + "'");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
 				"UPDATE {} SET {} WHERE {} = {}",
 				TableName(),
-				implode(", ", update_values),
+				Strings::Implode(", ", v),
 				PrimaryKey(),
-				horses_entry.id
+				e.id
 			)
 		);
 
@@ -200,65 +201,65 @@ public:
 
 	static Horses InsertOne(
 		Database& db,
-		Horses horses_entry
+		Horses e
 	)
 	{
-		std::vector<std::string> insert_values;
+		std::vector<std::string> v;
 
-		insert_values.push_back(std::to_string(horses_entry.id));
-		insert_values.push_back("'" + EscapeString(horses_entry.filename) + "'");
-		insert_values.push_back(std::to_string(horses_entry.race));
-		insert_values.push_back(std::to_string(horses_entry.gender));
-		insert_values.push_back(std::to_string(horses_entry.texture));
-		insert_values.push_back(std::to_string(horses_entry.mountspeed));
-		insert_values.push_back("'" + EscapeString(horses_entry.notes) + "'");
+		v.push_back(std::to_string(e.id));
+		v.push_back("'" + Strings::Escape(e.filename) + "'");
+		v.push_back(std::to_string(e.race));
+		v.push_back(std::to_string(e.gender));
+		v.push_back(std::to_string(e.texture));
+		v.push_back(std::to_string(e.mountspeed));
+		v.push_back("'" + Strings::Escape(e.notes) + "'");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
 				"{} VALUES ({})",
 				BaseInsert(),
-				implode(",", insert_values)
+				Strings::Implode(",", v)
 			)
 		);
 
 		if (results.Success()) {
-			horses_entry.id = results.LastInsertedID();
-			return horses_entry;
+			e.id = results.LastInsertedID();
+			return e;
 		}
 
-		horses_entry = NewEntity();
+		e = NewEntity();
 
-		return horses_entry;
+		return e;
 	}
 
 	static int InsertMany(
 		Database& db,
-		std::vector<Horses> horses_entries
+		const std::vector<Horses> &entries
 	)
 	{
 		std::vector<std::string> insert_chunks;
 
-		for (auto &horses_entry: horses_entries) {
-			std::vector<std::string> insert_values;
+		for (auto &e: entries) {
+			std::vector<std::string> v;
 
-			insert_values.push_back(std::to_string(horses_entry.id));
-			insert_values.push_back("'" + EscapeString(horses_entry.filename) + "'");
-			insert_values.push_back(std::to_string(horses_entry.race));
-			insert_values.push_back(std::to_string(horses_entry.gender));
-			insert_values.push_back(std::to_string(horses_entry.texture));
-			insert_values.push_back(std::to_string(horses_entry.mountspeed));
-			insert_values.push_back("'" + EscapeString(horses_entry.notes) + "'");
+			v.push_back(std::to_string(e.id));
+			v.push_back("'" + Strings::Escape(e.filename) + "'");
+			v.push_back(std::to_string(e.race));
+			v.push_back(std::to_string(e.gender));
+			v.push_back(std::to_string(e.texture));
+			v.push_back(std::to_string(e.mountspeed));
+			v.push_back("'" + Strings::Escape(e.notes) + "'");
 
-			insert_chunks.push_back("(" + implode(",", insert_values) + ")");
+			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
 
-		std::vector<std::string> insert_values;
+		std::vector<std::string> v;
 
 		auto results = db.QueryDatabase(
 			fmt::format(
 				"{} VALUES {}",
 				BaseInsert(),
-				implode(",", insert_chunks)
+				Strings::Implode(",", insert_chunks)
 			)
 		);
 
@@ -279,23 +280,23 @@ public:
 		all_entries.reserve(results.RowCount());
 
 		for (auto row = results.begin(); row != results.end(); ++row) {
-			Horses entry{};
+			Horses e{};
 
-			entry.id         = atoi(row[0]);
-			entry.filename   = row[1] ? row[1] : "";
-			entry.race       = atoi(row[2]);
-			entry.gender     = atoi(row[3]);
-			entry.texture    = atoi(row[4]);
-			entry.mountspeed = static_cast<float>(atof(row[5]));
-			entry.notes      = row[6] ? row[6] : "";
+			e.id         = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
+			e.filename   = row[1] ? row[1] : "";
+			e.race       = row[2] ? static_cast<int16_t>(atoi(row[2])) : 216;
+			e.gender     = row[3] ? static_cast<int8_t>(atoi(row[3])) : 0;
+			e.texture    = row[4] ? static_cast<int8_t>(atoi(row[4])) : 0;
+			e.mountspeed = row[5] ? strtof(row[5], nullptr) : 0.75;
+			e.notes      = row[6] ? row[6] : "Notes";
 
-			all_entries.push_back(entry);
+			all_entries.push_back(e);
 		}
 
 		return all_entries;
 	}
 
-	static std::vector<Horses> GetWhere(Database& db, std::string where_filter)
+	static std::vector<Horses> GetWhere(Database& db, const std::string &where_filter)
 	{
 		std::vector<Horses> all_entries;
 
@@ -310,23 +311,23 @@ public:
 		all_entries.reserve(results.RowCount());
 
 		for (auto row = results.begin(); row != results.end(); ++row) {
-			Horses entry{};
+			Horses e{};
 
-			entry.id         = atoi(row[0]);
-			entry.filename   = row[1] ? row[1] : "";
-			entry.race       = atoi(row[2]);
-			entry.gender     = atoi(row[3]);
-			entry.texture    = atoi(row[4]);
-			entry.mountspeed = static_cast<float>(atof(row[5]));
-			entry.notes      = row[6] ? row[6] : "";
+			e.id         = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
+			e.filename   = row[1] ? row[1] : "";
+			e.race       = row[2] ? static_cast<int16_t>(atoi(row[2])) : 216;
+			e.gender     = row[3] ? static_cast<int8_t>(atoi(row[3])) : 0;
+			e.texture    = row[4] ? static_cast<int8_t>(atoi(row[4])) : 0;
+			e.mountspeed = row[5] ? strtof(row[5], nullptr) : 0.75;
+			e.notes      = row[6] ? row[6] : "Notes";
 
-			all_entries.push_back(entry);
+			all_entries.push_back(e);
 		}
 
 		return all_entries;
 	}
 
-	static int DeleteWhere(Database& db, std::string where_filter)
+	static int DeleteWhere(Database& db, const std::string &where_filter)
 	{
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -351,6 +352,100 @@ public:
 		return (results.Success() ? results.RowsAffected() : 0);
 	}
 
+	static int64 GetMaxId(Database& db)
+	{
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"SELECT COALESCE(MAX({}), 0) FROM {}",
+				PrimaryKey(),
+				TableName()
+			)
+		);
+
+		return (results.Success() && results.begin()[0] ? strtoll(results.begin()[0], nullptr, 10) : 0);
+	}
+
+	static int64 Count(Database& db, const std::string &where_filter = "")
+	{
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"SELECT COUNT(*) FROM {} {}",
+				TableName(),
+				(where_filter.empty() ? "" : "WHERE " + where_filter)
+			)
+		);
+
+		return (results.Success() && results.begin()[0] ? strtoll(results.begin()[0], nullptr, 10) : 0);
+	}
+
+	static std::string BaseReplace()
+	{
+		return fmt::format(
+			"REPLACE INTO {} ({}) ",
+			TableName(),
+			ColumnsRaw()
+		);
+	}
+
+	static int ReplaceOne(
+		Database& db,
+		const Horses &e
+	)
+	{
+		std::vector<std::string> v;
+
+		v.push_back(std::to_string(e.id));
+		v.push_back("'" + Strings::Escape(e.filename) + "'");
+		v.push_back(std::to_string(e.race));
+		v.push_back(std::to_string(e.gender));
+		v.push_back(std::to_string(e.texture));
+		v.push_back(std::to_string(e.mountspeed));
+		v.push_back("'" + Strings::Escape(e.notes) + "'");
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES ({})",
+				BaseReplace(),
+				Strings::Implode(",", v)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
+
+	static int ReplaceMany(
+		Database& db,
+		const std::vector<Horses> &entries
+	)
+	{
+		std::vector<std::string> insert_chunks;
+
+		for (auto &e: entries) {
+			std::vector<std::string> v;
+
+			v.push_back(std::to_string(e.id));
+			v.push_back("'" + Strings::Escape(e.filename) + "'");
+			v.push_back(std::to_string(e.race));
+			v.push_back(std::to_string(e.gender));
+			v.push_back(std::to_string(e.texture));
+			v.push_back(std::to_string(e.mountspeed));
+			v.push_back("'" + Strings::Escape(e.notes) + "'");
+
+			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
+		}
+
+		std::vector<std::string> v;
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES {}",
+				BaseReplace(),
+				Strings::Implode(",", insert_chunks)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
 };
 
 #endif //EQEMU_BASE_HORSES_REPOSITORY_H

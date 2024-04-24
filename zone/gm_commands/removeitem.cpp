@@ -13,17 +13,7 @@ void command_removeitem(Client *c, const Seperator *sep)
 		target = c->GetTarget()->CastToClient();
 	}
 
-	auto target_string = (
-		c == target ?
-		"yourself" :
-		fmt::format(
-			"{} ({})",
-			target->GetCleanName(),
-			target->GetID()
-		)
-	);
-	
-	auto item_id = std::stoi(sep->arg[1]);
+	auto item_id = Strings::ToInt(sep->arg[1]);
 	if (!database.GetItem(item_id)) {
 		c->Message(
 			Chat::White,
@@ -34,9 +24,9 @@ void command_removeitem(Client *c, const Seperator *sep)
 		);
 		return;
 	}
-	
+
 	auto item_link = database.CreateItemLink(item_id);
-	auto amount = sep->IsNumber(2) ? std::stoul(sep->arg[2]) : 1;
+	auto amount = sep->IsNumber(2) ? Strings::ToUnsignedInt(sep->arg[2]) : 1;
 	auto item_count = target->CountItem(item_id);
 	if (item_count) {
 		if (item_count >= amount) {
@@ -49,7 +39,7 @@ void command_removeitem(Client *c, const Seperator *sep)
 					amount,
 					item_link,
 					item_id,
-					target_string
+					c->GetTargetDescription(target)
 				).c_str()
 			);
 		} else {
@@ -62,7 +52,7 @@ void command_removeitem(Client *c, const Seperator *sep)
 					item_count,
 					item_link,
 					item_id,
-					target_string,
+					c->GetTargetDescription(target),
 					c == target ? "you" : "they",
 					amount,
 					item_link,
@@ -77,7 +67,7 @@ void command_removeitem(Client *c, const Seperator *sep)
 				"Could not find any {} ({}) to delete from {}.",
 				database.CreateItemLink(item_id),
 				item_id,
-				target_string
+				c->GetTargetDescription(target)
 			).c_str()
 		);
 	}

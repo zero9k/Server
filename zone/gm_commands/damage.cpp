@@ -8,11 +8,12 @@ void command_damage(Client *c, const Seperator *sep)
 		return;
 	}
 
-	Mob* target = c;
-	if (c->GetTarget()) {
-		target = c->GetTarget();
-	}	
+	Mob* target = c->GetTarget();
+	if (!target) {
+		c->Message(Chat::White, "You must have a target to use #damage.");
+		return;
+	}
 
-	int damage = static_cast<int>(std::min(std::stoll(sep->arg[1]), (long long) 2000000000));
+	const auto damage = Strings::ToBigInt(sep->arg[1]);
 	target->Damage(c, damage, SPELL_UNKNOWN, EQ::skills::SkillHandtoHand, false);
 }

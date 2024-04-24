@@ -1,6 +1,5 @@
 #ifdef LUA_EQEMU
 
-#include "lua.hpp"
 #include <luabind/luabind.hpp>
 
 #include "masterentity.h"
@@ -29,6 +28,11 @@ const char *Lua_Item::GetName() {
 const char *Lua_Item::GetLore() {
 	Lua_Safe_Call_String();
 	return self->Lore;
+}
+
+const char *Lua_Item::GetComment() {
+	Lua_Safe_Call_String();
+	return self->Comment;
 }
 
 const char *Lua_Item::GetIDFile() {
@@ -76,7 +80,7 @@ uint32 Lua_Item::GetIcon() {
 	return self->Icon;
 }
 
-uint32 Lua_Item::GetLoreGroup() {
+int32 Lua_Item::GetLoreGroup() {
 	Lua_Safe_Call_Int();
 	return self->LoreGroup;
 }
@@ -476,34 +480,34 @@ uint32 Lua_Item::GetAugType() {
 	return self->AugType;
 }
 
-int Lua_Item::GetAugSlotType(int i) {
+int Lua_Item::GetAugSlotType(uint8 slot_id) {
 	Lua_Safe_Call_Int();
 
-	if(i >= 5 || i < 0) {
+	if (!EQ::ValueWithin(slot_id, EQ::invaug::SOCKET_BEGIN, EQ::invaug::SOCKET_END)) {
 		return 0;
 	}
 
-	return self->AugSlotType[i];
+	return self->AugSlotType[slot_id];
 }
 
-int Lua_Item::GetAugSlotVisible(int i) {
+int Lua_Item::GetAugSlotVisible(uint8 slot_id) {
 	Lua_Safe_Call_Int();
 
-	if(i >= 5 || i < 0) {
+	if (!EQ::ValueWithin(slot_id, EQ::invaug::SOCKET_BEGIN, EQ::invaug::SOCKET_END)) {
 		return 0;
 	}
 
-	return self->AugSlotVisible[i];
+	return self->AugSlotVisible[slot_id];
 }
 
-int Lua_Item::GetAugSlotUnk2(int i) {
+int Lua_Item::GetAugSlotUnk2(uint8 slot_id) {
 	Lua_Safe_Call_Int();
 
-	if(i >= 5 || i < 0) {
+	if (!EQ::ValueWithin(slot_id, EQ::invaug::SOCKET_BEGIN, EQ::invaug::SOCKET_END)) {
 		return 0;
 	}
 
-	return self->AugSlotUnk2[i];
+	return self->AugSlotUnk2[slot_id];
 }
 
 uint32 Lua_Item::GetLDoNTheme() {
@@ -531,42 +535,42 @@ uint32 Lua_Item::GetAugRestrict() {
 	return self->AugRestrict;
 }
 
-uint32 Lua_Item::GetEndur() {
+int32 Lua_Item::GetEndur() {
 	Lua_Safe_Call_Int();
 	return self->Endur;
 }
 
-uint32 Lua_Item::GetDotShielding() {
+int32 Lua_Item::GetDotShielding() {
 	Lua_Safe_Call_Int();
 	return self->DotShielding;
 }
 
-uint32 Lua_Item::GetAttack() {
+int32 Lua_Item::GetAttack() {
 	Lua_Safe_Call_Int();
 	return self->Attack;
 }
 
-uint32 Lua_Item::GetRegen() {
+int32 Lua_Item::GetRegen() {
 	Lua_Safe_Call_Int();
 	return self->Regen;
 }
 
-uint32 Lua_Item::GetManaRegen() {
+int32 Lua_Item::GetManaRegen() {
 	Lua_Safe_Call_Int();
 	return self->ManaRegen;
 }
 
-uint32 Lua_Item::GetEnduranceRegen() {
+int32 Lua_Item::GetEnduranceRegen() {
 	Lua_Safe_Call_Int();
 	return self->EnduranceRegen;
 }
 
-uint32 Lua_Item::GetHaste() {
+int32 Lua_Item::GetHaste() {
 	Lua_Safe_Call_Int();
 	return self->Haste;
 }
 
-uint32 Lua_Item::GetDamageShield() {
+int32 Lua_Item::GetDamageShield() {
 	Lua_Safe_Call_Int();
 	return self->DamageShield;
 }
@@ -958,6 +962,7 @@ luabind::scope lua_register_item() {
 	.def("Click_Type", &Lua_Item::GetClick_Type)
 	.def("Color", &Lua_Item::GetColor)
 	.def("CombatEffects", &Lua_Item::GetCombatEffects)
+	.def("Comment", &Lua_Item::GetComment)
 	.def("DR", &Lua_Item::GetDR)
 	.def("DSMitigation", &Lua_Item::GetDSMitigation)
 	.def("Damage", &Lua_Item::GetDamage)

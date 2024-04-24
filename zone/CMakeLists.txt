@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.12)
 
 SET(zone_sources
     aa.cpp
@@ -11,14 +11,17 @@ SET(zone_sources
     beacon.cpp
     bonuses.cpp
     bot.cpp
+    bot_raid.cpp
     bot_command.cpp
     bot_database.cpp
     botspellsai.cpp
     cheat_manager.cpp
     client.cpp
+    client_bot.cpp
     client_mods.cpp
     client_packet.cpp
     client_process.cpp
+    combat_record.cpp
     command.cpp
     corpse.cpp
     data_bucket.cpp
@@ -29,7 +32,6 @@ SET(zone_sources
     embparser.cpp
     embparser_api.cpp
     embperl.cpp
-    embxs.cpp
     encounter.cpp
     entity.cpp
     exp.cpp
@@ -46,9 +48,10 @@ SET(zone_sources
     heal_rotation.cpp
     horse.cpp
     inventory.cpp
-    loottables.cpp
+    loot.cpp
     lua_bot.cpp
     lua_bit.cpp
+    lua_buff.cpp
     lua_corpse.cpp
     lua_client.cpp
     lua_door.cpp
@@ -74,7 +77,6 @@ SET(zone_sources
     lua_spell.cpp
     lua_stat_bonuses.cpp
     embperl.cpp
-    embxs.cpp
     entity.cpp
     exp.cpp
     fearpath.cpp
@@ -86,7 +88,7 @@ SET(zone_sources
     hate_list.cpp
     horse.cpp
     inventory.cpp
-    loottables.cpp
+    loot.cpp
     main.cpp
     map.cpp
     merc.cpp
@@ -95,17 +97,17 @@ SET(zone_sources
     mob_appearance.cpp
     mob_movement_manager.cpp
     mob_info.cpp
-    mod_functions.cpp
     npc.cpp
-    npc_ai.cpp
     npc_scale_manager.cpp
     object.cpp
     oriented_bounding_box.cpp
+    parcels.cpp
     pathfinder_interface.cpp
     pathfinder_nav_mesh.cpp
     pathfinder_null.cpp
     pathing.cpp
     perl_bot.cpp
+    perl_buff.cpp
     perl_client.cpp
     perl_doors.cpp
     perl_entity.cpp
@@ -119,8 +121,11 @@ SET(zone_sources
     perl_perlpacket.cpp
     perl_player_corpse.cpp
     perl_questitem.cpp
+    perl_questitem_data.cpp
     perl_raids.cpp
+    perl_spawn.cpp
     perl_spell.cpp
+    perl_stat_bonuses.cpp
     perlpacket.cpp
     petitions.cpp
     pets.cpp
@@ -131,6 +136,8 @@ SET(zone_sources
     quest_parser_collection.cpp
     raids.cpp
     raycast_mesh.cpp
+    sidecar_api/sidecar_api.cpp
+    sidecar_api/loot_simulator_controller.cpp
     shared_task_zone_messaging.cpp
     spawn2.cpp
     spawn2.h
@@ -139,9 +146,7 @@ SET(zone_sources
     spell_effects.cpp
     spells.cpp
     task_client_state.cpp
-    task_goal_list_manager.cpp
     task_manager.cpp
-    task_proximity_manager.cpp
     tasks.cpp
     titles.cpp
     tradeskills.cpp
@@ -158,11 +163,12 @@ SET(zone_sources
     zone.cpp
     zone_config.cpp
     zonedb.cpp
+    zone_base_data.cpp
     zone_event_scheduler.cpp
+    zone_npc_factions.cpp
     zone_reload.cpp
-    zone_store.cpp
     zoning.cpp
-    )
+)
 
 SET(zone_headers
     aa.h
@@ -170,7 +176,6 @@ SET(zone_headers
     aggromanager.h
     api_service.h
     aura.h
-    basic_functions.h
     beacon.h
     bot.h
     bot_command.h
@@ -179,6 +184,7 @@ SET(zone_headers
     cheat_manager.h
     client.h
     client_packet.h
+    combat_record.h
     command.h
     common.h
     corpse.h
@@ -188,10 +194,8 @@ SET(zone_headers
     dynamic_zone.h
     embparser.h
     embperl.h
-    embxs.h
     encounter.h
     entity.h
-    errmsg.h
     event_codes.h
     expedition.h
     expedition_database.h
@@ -206,6 +210,7 @@ SET(zone_headers
     horse.h
     lua_bot.h
     lua_bit.h
+    lua_buff.h
     lua_client.h
     lua_corpse.h
     lua_door.h
@@ -233,13 +238,10 @@ SET(zone_headers
     lua_stat_bonuses.h
     map.h
     masterentity.h
-    maxskill.h
-    message.h
     merc.h
     mob.h
     mob_movement_manager.h
     npc.h
-    npc_ai.h
     npc_scale_manager.h
     object.h
     oriented_bounding_box.h
@@ -258,16 +260,14 @@ SET(zone_headers
     quest_parser_collection.h
     raids.h
     raycast_mesh.h
-    skills.h
+    sidecar_api/sidecar_api.h
     shared_task_zone_messaging.h
     spawn2.cpp
     spawn2.h
     spawngroup.h
     string_ids.h
     task_client_state.h
-    task_goal_list_manager.h
     task_manager.h
-    task_proximity_manager.h
     tasks.h
     titles.h
     trap.h
@@ -281,313 +281,19 @@ SET(zone_headers
     zone_config.h
     zonedb.h
     zonedump.h
+    zone_cli.h
     zone_reload.h
-    zone_store.h
-    )
+    zone_cli.cpp)
 
-SET(gm_commands
-    gm_commands/acceptrules.cpp
-    gm_commands/advnpcspawn.cpp
-    gm_commands/aggro.cpp
-    gm_commands/aggrozone.cpp
-    gm_commands/ai.cpp
-    gm_commands/appearance.cpp
-    gm_commands/appearanceeffects.cpp
-    gm_commands/attack.cpp
-    gm_commands/augmentitem.cpp
-    gm_commands/ban.cpp
-    gm_commands/beard.cpp
-    gm_commands/beardcolor.cpp
-    gm_commands/bestz.cpp
-    gm_commands/bind.cpp
-    gm_commands/camerashake.cpp
-    gm_commands/castspell.cpp
-    gm_commands/chat.cpp
-    gm_commands/checklos.cpp
-    gm_commands/copycharacter.cpp
-    gm_commands/corpse.cpp
-    gm_commands/corpsefix.cpp
-    gm_commands/countitem.cpp
-    gm_commands/cvs.cpp
-    gm_commands/damage.cpp
-    gm_commands/databuckets.cpp
-    gm_commands/date.cpp
-    gm_commands/dbspawn2.cpp
-    gm_commands/delacct.cpp
-    gm_commands/deletegraveyard.cpp
-    gm_commands/delpetition.cpp
-    gm_commands/depop.cpp
-    gm_commands/depopzone.cpp
-    gm_commands/details.cpp
-    gm_commands/devtools.cpp
-    gm_commands/disablerecipe.cpp
-    gm_commands/disarmtrap.cpp
-    gm_commands/distance.cpp
-    gm_commands/doanim.cpp
-    gm_commands/door.cpp
-    gm_commands/door_manipulation.cpp
-    gm_commands/door_manipulation.h
-    gm_commands/dye.cpp
-    gm_commands/dz.cpp
-    gm_commands/dzkickplayers.cpp
-    gm_commands/editmassrespawn.cpp
-    gm_commands/emote.cpp
-    gm_commands/emotesearch.cpp
-    gm_commands/emoteview.cpp
-    gm_commands/enablerecipe.cpp
-    gm_commands/endurance.cpp
-    gm_commands/equipitem.cpp
-    gm_commands/face.cpp
-    gm_commands/faction.cpp
-    gm_commands/findclass.cpp
-    gm_commands/findfaction.cpp
-    gm_commands/findnpctype.cpp
-    gm_commands/findrace.cpp
-    gm_commands/findskill.cpp
-    gm_commands/findspell.cpp
-    gm_commands/findtask.cpp
-    gm_commands/findzone.cpp
-    gm_commands/fixmob.cpp
-    gm_commands/flag.cpp
-    gm_commands/flagedit.cpp
-    gm_commands/flags.cpp
-    gm_commands/flymode.cpp
-    gm_commands/fov.cpp
-    gm_commands/freeze.cpp
-    gm_commands/gassign.cpp
-    gm_commands/gearup.cpp
-    gm_commands/gender.cpp
-    gm_commands/getplayerburiedcorpsecount.cpp
-    gm_commands/getvariable.cpp
-    gm_commands/ginfo.cpp
-    gm_commands/giveitem.cpp
-    gm_commands/givemoney.cpp
-    gm_commands/globalview.cpp
-    gm_commands/gm.cpp
-    gm_commands/gmspeed.cpp
-    gm_commands/gmzone.cpp
-    gm_commands/goto.cpp
-    gm_commands/grid.cpp
-    gm_commands/guild.cpp
-    gm_commands/guildapprove.cpp
-    gm_commands/guildcreate.cpp
-    gm_commands/guildlist.cpp
-    gm_commands/hair.cpp
-    gm_commands/haircolor.cpp
-    gm_commands/haste.cpp
-    gm_commands/hatelist.cpp
-    gm_commands/heal.cpp
-    gm_commands/helm.cpp
-    gm_commands/heritage.cpp
-    gm_commands/heromodel.cpp
-    gm_commands/hideme.cpp
-    gm_commands/hp.cpp
-    gm_commands/incstat.cpp
-    gm_commands/instance.cpp
-    gm_commands/interrogateinv.cpp
-    gm_commands/interrupt.cpp
-    gm_commands/invsnapshot.cpp
-    gm_commands/invul.cpp
-    gm_commands/ipban.cpp
-    gm_commands/iplookup.cpp
-    gm_commands/iteminfo.cpp
-    gm_commands/itemsearch.cpp
-    gm_commands/kick.cpp
-    gm_commands/kill.cpp
-    gm_commands/killallnpcs.cpp
-    gm_commands/lastname.cpp
-    gm_commands/list.cpp
-    gm_commands/listpetition.cpp
-    gm_commands/loc.cpp
-    gm_commands/lock.cpp
-    gm_commands/logcommand.cpp
-    gm_commands/logs.cpp
-    gm_commands/makepet.cpp
-    gm_commands/mana.cpp
-    gm_commands/max_all_skills.cpp
-    gm_commands/memspell.cpp
-    gm_commands/merchantcloseshop.cpp
-    gm_commands/merchantopenshop.cpp
-    gm_commands/modifynpcstat.cpp
-    gm_commands/motd.cpp
-    gm_commands/movechar.cpp
-    gm_commands/movement.cpp
-    gm_commands/myskills.cpp
-    gm_commands/mysql.cpp
-    gm_commands/mystats.cpp
-    gm_commands/name.cpp
-    gm_commands/netstats.cpp
-    gm_commands/network.cpp
-    gm_commands/npccast.cpp
-    gm_commands/npcedit.cpp
-    gm_commands/npceditmass.cpp
-    gm_commands/npcemote.cpp
-    gm_commands/npcloot.cpp
-    gm_commands/npcsay.cpp
-    gm_commands/npcshout.cpp
-    gm_commands/npcspawn.cpp
-    gm_commands/npcspecialattk.cpp
-    gm_commands/npcstats.cpp
-    gm_commands/npctype_cache.cpp
-    gm_commands/npctypespawn.cpp
-    gm_commands/nudge.cpp
-    gm_commands/nukebuffs.cpp
-    gm_commands/nukeitem.cpp
-    gm_commands/object.cpp
-    gm_commands/oocmute.cpp
-    gm_commands/opcode.cpp
-    gm_commands/path.cpp
-    gm_commands/peekinv.cpp
-    gm_commands/peqzone.cpp
-    gm_commands/permaclass.cpp
-    gm_commands/permagender.cpp
-    gm_commands/permarace.cpp
-    gm_commands/petitems.cpp
-    gm_commands/petitioninfo.cpp
-    gm_commands/petname.cpp
-    gm_commands/pf.cpp
-    gm_commands/picklock.cpp
-    gm_commands/profanity.cpp
-    gm_commands/proximity.cpp
-    gm_commands/push.cpp
-    gm_commands/pvp.cpp
-    gm_commands/qglobal.cpp
-    gm_commands/questerrors.cpp
-    gm_commands/race.cpp
-    gm_commands/raidloot.cpp
-    gm_commands/randomfeatures.cpp
-    gm_commands/refreshgroup.cpp
-    gm_commands/reloadaa.cpp
-    gm_commands/reloadallrules.cpp
-    gm_commands/reloadcontentflags.cpp
-    gm_commands/reloademote.cpp
-    gm_commands/reloadlevelmods.cpp
-    gm_commands/reloadmerchants.cpp
-    gm_commands/reloadperlexportsettings.cpp
-    gm_commands/reloadqst.cpp
-    gm_commands/reloadstatic.cpp
-    gm_commands/reloadtitles.cpp
-    gm_commands/reloadtraps.cpp
-    gm_commands/reloadworld.cpp
-    gm_commands/reloadworldrules.cpp
-    gm_commands/reloadzps.cpp
-    gm_commands/removeitem.cpp
-    gm_commands/repop.cpp
-    gm_commands/resetaa.cpp
-    gm_commands/resetaa_timer.cpp
-    gm_commands/resetdisc_timer.cpp
-    gm_commands/revoke.cpp
-    gm_commands/roambox.cpp
-    gm_commands/rules.cpp
-    gm_commands/save.cpp
-    gm_commands/scale.cpp
-    gm_commands/scribespell.cpp
-    gm_commands/scribespells.cpp
-    gm_commands/sendzonespawns.cpp
-    gm_commands/sensetrap.cpp
-    gm_commands/serverinfo.cpp
-    gm_commands/serverrules.cpp
-    gm_commands/set_adventure_points.cpp
-    gm_commands/setaapts.cpp
-    gm_commands/setaaxp.cpp
-    gm_commands/setaltcurrency.cpp
-    gm_commands/setanim.cpp
-    gm_commands/setcrystals.cpp
-    gm_commands/setendurance.cpp
-    gm_commands/setfaction.cpp
-    gm_commands/setgraveyard.cpp
-    gm_commands/sethp.cpp
-    gm_commands/setlanguage.cpp
-    gm_commands/setlsinfo.cpp
-    gm_commands/setmana.cpp
-    gm_commands/setpass.cpp
-    gm_commands/setpvppoints.cpp
-    gm_commands/setskill.cpp
-    gm_commands/setskillall.cpp
-    gm_commands/setstartzone.cpp
-    gm_commands/setstat.cpp
-    gm_commands/setxp.cpp
-    gm_commands/showbonusstats.cpp
-    gm_commands/showbuffs.cpp
-    gm_commands/shownpcgloballoot.cpp
-    gm_commands/shownumhits.cpp
-    gm_commands/showskills.cpp
-    gm_commands/showspellslist.cpp
-    gm_commands/showstats.cpp
-    gm_commands/showzonegloballoot.cpp
-    gm_commands/showzonepoints.cpp
-    gm_commands/shutdown.cpp
-    gm_commands/size.cpp
-    gm_commands/spawn.cpp
-    gm_commands/spawnfix.cpp
-    gm_commands/spawnstatus.cpp
-    gm_commands/spellinfo.cpp
-    gm_commands/stun.cpp
-    gm_commands/summon.cpp
-    gm_commands/summonburiedplayercorpse.cpp
-    gm_commands/summonitem.cpp
-    gm_commands/suspend.cpp
-    gm_commands/task.cpp
-    gm_commands/tattoo.cpp
-    gm_commands/tempname.cpp
-    gm_commands/texture.cpp
-    gm_commands/time.cpp
-    gm_commands/timers.cpp
-    gm_commands/timezone.cpp
-    gm_commands/title.cpp
-    gm_commands/titlesuffix.cpp
-    gm_commands/traindisc.cpp
-    gm_commands/trapinfo.cpp
-    gm_commands/tune.cpp
-    gm_commands/ucs.cpp
-    gm_commands/undye.cpp
-    gm_commands/undyeme.cpp
-    gm_commands/unfreeze.cpp
-    gm_commands/unlock.cpp
-    gm_commands/unmemspell.cpp
-    gm_commands/unmemspells.cpp
-    gm_commands/unscribespell.cpp
-    gm_commands/unscribespells.cpp
-    gm_commands/updatechecksum.cpp
-    gm_commands/untraindisc.cpp
-    gm_commands/untraindiscs.cpp
-    gm_commands/uptime.cpp
-    gm_commands/version.cpp
-    gm_commands/viewcurrencies.cpp
-    gm_commands/viewnpctype.cpp
-    gm_commands/viewpetition.cpp
-    gm_commands/viewzoneloot.cpp
-    gm_commands/wc.cpp
-    gm_commands/weather.cpp
-    gm_commands/who.cpp
-    gm_commands/worldshutdown.cpp
-    gm_commands/worldwide.cpp
-    gm_commands/wp.cpp
-    gm_commands/wpadd.cpp
-    gm_commands/wpinfo.cpp
-    gm_commands/xtargets.cpp
-    gm_commands/zclip.cpp
-    gm_commands/zcolor.cpp
-    gm_commands/zheader.cpp
-    gm_commands/zonebootup.cpp
-    gm_commands/zonelock.cpp
-    gm_commands/zoneshutdown.cpp
-    gm_commands/zonestatus.cpp
-    gm_commands/zopp.cpp
-    gm_commands/zsafecoords.cpp
-    gm_commands/zsave.cpp
-    gm_commands/zsky.cpp
-    gm_commands/zstats.cpp
-    gm_commands/zunderworld.cpp
-)
-
-SOURCE_GROUP(gm_commands FILES
-    ${gm_commands}
-)
-
-ADD_EXECUTABLE(zone ${zone_sources} ${zone_headers} ${gm_commands})
+ADD_EXECUTABLE(zone ${zone_sources} ${zone_headers})
 
 INSTALL(TARGETS zone RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+
+IF (WIN32 AND EQEMU_BUILD_PCH)
+    TARGET_PRECOMPILE_HEADERS(zone PRIVATE ../common/pch/pch.h)
+    TARGET_PRECOMPILE_HEADERS(zone PRIVATE ../common/types.h ../common/eqemu_logsys.h ../common/eqemu_logsys_log_aliases.h ../common/features.h ../common/global_define.h)
+    TARGET_PRECOMPILE_HEADERS(zone PRIVATE mob.h npc.h corpse.h doors.h bot.h entity.h client.h zone.h)
+ENDIF()
 
 ADD_DEFINITIONS(-DZONE)
 

@@ -12,8 +12,8 @@ void command_nukeitem(Client *c, const Seperator *sep)
 	if (c->GetTarget() && c->GetTarget()->IsClient()) {
 		target = c->GetTarget()->CastToClient();
 	}
-	
-	auto item_id = std::stoi(sep->arg[1]);
+
+	auto item_id = Strings::ToInt(sep->arg[1]);
 	auto deleted_count = target->NukeItem(item_id);
 	if (deleted_count) {
 		c->Message(
@@ -23,15 +23,7 @@ void command_nukeitem(Client *c, const Seperator *sep)
 				deleted_count,
 				database.CreateItemLink(item_id),
 				item_id,
-				(
-					c == target ?
-					"yourself" :
-					fmt::format(
-						"{} ({})",
-						target->GetCleanName(),
-						target->GetID()
-					)
-				)
+				c->GetTargetDescription(target)
 			).c_str()
 		);
 	} else {
@@ -41,15 +33,7 @@ void command_nukeitem(Client *c, const Seperator *sep)
 				"Could not find any {} ({}) to delete from {}.",
 				database.CreateItemLink(item_id),
 				item_id,
-				(
-					c == target ?
-					"yourself" :
-					fmt::format(
-						"{} ({})",
-						target->GetCleanName(),
-						target->GetID()
-					)
-				)
+				c->GetTargetDescription(target)
 			).c_str()
 		);
 	}

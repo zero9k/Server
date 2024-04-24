@@ -24,11 +24,14 @@
 #include "groups.h"
 #include "raids.h"
 #include "string_ids.h"
-#include "../common/expedition_lockout_timer.h"
 #include "../common/repositories/character_expedition_lockouts_repository.h"
-#include "../common/repositories/expeditions_repository.h"
 
 constexpr char SystemName[] = "expedition";
+
+// message string 8312 added in September 08 2020 Test patch (used by both dz and shared tasks)
+constexpr const char* CREATE_NOT_ALL_ADDED = "Not all players in your {} were added to the {}. The {} can take a maximum of {} players, and your {} has {}.";
+// message string 9265 (not in emu clients)
+constexpr const char* EXPEDITION_OTHER_BELONGS = "{} attempted to create an expedition but {} already belongs to one.";
 
 ExpeditionRequest::ExpeditionRequest(const DynamicZone& dz, bool disable_messages) :
 	m_expedition_name(dz.GetName()),
@@ -91,12 +94,12 @@ bool ExpeditionRequest::CanRaidRequest(Raid* raid)
 		// stable_sort not needed, order within a raid group may not be what is displayed
 		std::sort(raid_members.begin(), raid_members.end(),
 			[&](const RaidMember& lhs, const RaidMember& rhs) {
-				if (m_leader_name == lhs.membername) { // leader always added first
+				if (m_leader_name == lhs.member_name) { // leader always added first
 					return true;
-				} else if (m_leader_name == rhs.membername) {
+				} else if (m_leader_name == rhs.member_name) {
 					return false;
 				}
-				return lhs.GroupNumber < rhs.GroupNumber;
+				return lhs.group_number < rhs.group_number;
 			});
 
 		m_not_all_added_msg = fmt::format(CREATE_NOT_ALL_ADDED, "raid", SystemName,
@@ -107,7 +110,7 @@ bool ExpeditionRequest::CanRaidRequest(Raid* raid)
 	std::vector<std::string> member_names;
 	for (int i = 0; i < raid_members.size(); ++i)
 	{
-		member_names.emplace_back(raid_members[i].membername);
+		member_names.emplace_back(raid_members[i].member_name);
 	}
 
 	return CanMembersJoin(member_names);
@@ -122,8 +125,8 @@ bool ExpeditionRequest::CanGroupRequest(Group* group)
 	}
 
 	// Group::GetLeaderName() is broken if group formed across zones, ask database instead
-	m_leader_name = m_leader ? m_leader->GetName() : GetGroupLeaderName(group->GetID()); // group->GetLeaderName();
-	m_leader_id = m_leader ? m_leader->CharacterID() : database.GetCharacterID(m_leader_name.c_str());
+	m_leader_name = m_leader ? m_leader->GetName() : group->GetLeaderName();
+	m_leader_id = m_leader ? m_leader->CharacterID() : database.GetCharacterID(m_leader_name);
 
 	std::vector<std::string> member_names;
 	member_names.emplace_back(m_leader_name); // leader always added first
@@ -143,13 +146,6 @@ bool ExpeditionRequest::CanGroupRequest(Group* group)
 	}
 
 	return CanMembersJoin(member_names);
-}
-
-std::string ExpeditionRequest::GetGroupLeaderName(uint32_t group_id)
-{
-	char leader_name_buffer[64] = { 0 };
-	database.GetGroupLeadershipInfo(group_id, leader_name_buffer);
-	return std::string(leader_name_buffer);
 }
 
 bool ExpeditionRequest::CanMembersJoin(const std::vector<std::string>& member_names)

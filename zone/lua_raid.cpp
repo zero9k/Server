@@ -1,12 +1,12 @@
 #ifdef LUA_EQEMU
 
-#include "lua.hpp"
+#include "../common/data_verification.h"
+
 #include <luabind/luabind.hpp>
 #include <luabind/object.hpp>
 
 #include "masterentity.h"
 #include "lua_raid.h"
-#include "lua_entity.h"
 #include "lua_mob.h"
 #include "lua_client.h"
 #include "lua_npc.h"
@@ -14,6 +14,11 @@
 bool Lua_Raid::IsRaidMember(const char *name) {
 	Lua_Safe_Call_Bool();
 	return self->IsRaidMember(name);
+}
+
+bool Lua_Raid::IsRaidMember(Lua_Client c) {
+	Lua_Safe_Call_Bool();
+	return self->IsRaidMember(c);
 }
 
 void Lua_Raid::CastGroupSpell(Lua_Mob caster, int spell_id, uint32 group_id) {
@@ -41,7 +46,7 @@ int Lua_Raid::GetGroup(Lua_Client c) {
 	return self->GetGroup(c);
 }
 
-void Lua_Raid::SplitExp(uint32 exp, Lua_Mob other) {
+void Lua_Raid::SplitExp(uint64 exp, Lua_Mob other) {
 	Lua_Safe_Call_Void();
 	self->SplitExp(exp, other);
 }
@@ -76,9 +81,24 @@ bool Lua_Raid::IsLeader(Lua_Client c) {
 	return self->IsLeader(c);
 }
 
+Lua_Client Lua_Raid::GetLeader() {
+	Lua_Safe_Call_Class(Lua_Client);
+	return self->GetLeader();
+}
+
+std::string Lua_Raid::GetLeaderName() {
+	Lua_Safe_Call_String();
+	return self->GetLeaderName();
+}
+
 bool Lua_Raid::IsGroupLeader(const char *name) {
 	Lua_Safe_Call_Bool();
 	return self->IsGroupLeader(name);
+}
+
+bool Lua_Raid::IsGroupLeader(Lua_Client c) {
+	Lua_Safe_Call_Bool();
+	return self->IsGroupLeader(c);
 }
 
 int Lua_Raid::GetHighestLevel() {
@@ -91,9 +111,9 @@ int Lua_Raid::GetLowestLevel() {
 	return self->GetLowestLevel();
 }
 
-Lua_Client Lua_Raid::GetClientByIndex(int index) {
+Lua_Client Lua_Raid::GetClientByIndex(int member_index) {
 	Lua_Safe_Call_Class(Lua_Client);
-	return self->GetClientByIndex(index);
+	return self->GetClientByIndex(member_index);
 }
 
 void Lua_Raid::TeleportGroup(Lua_Mob sender, uint32 zone_id, uint32 instance_id, float x, float y, float z, float h, uint32 group_id) {
@@ -111,24 +131,27 @@ int Lua_Raid::GetID() {
 	return self->GetID();
 }
 
-Lua_Client Lua_Raid::GetMember(int index) {
+Lua_Client Lua_Raid::GetMember(int member_index) {
 	Lua_Safe_Call_Class(Lua_Client);
 
-	if(index >= 72 || index < 0) {
+	if (!EQ::ValueWithin(member_index, 0, 71)) {
 		return Lua_Client();
 	}
 
-	return self->members[index].member;
+	return self->members[member_index].member;
 }
 
-int Lua_Raid::GetGroupNumber(int index) {
+int Lua_Raid::GetGroupNumber(int member_index) {
 	Lua_Safe_Call_Int();
 
-	if(index >= 72 || index < 0 || self->members[index].GroupNumber == RAID_GROUPLESS) {
+	if (
+		!EQ::ValueWithin(member_index, 0, 71) ||
+		self->members[member_index].group_number == RAID_GROUPLESS
+	) {
 		return -1;
 	}
 
-	return self->members[index].GroupNumber;
+	return self->members[member_index].group_number;
 }
 
 bool Lua_Raid::DoesAnyMemberHaveExpeditionLockout(std::string expedition_name, std::string event_name)
@@ -163,8 +186,13 @@ luabind::scope lua_register_raid() {
 	.def("GetTotalRaidDamage", (uint32(Lua_Raid::*)(Lua_Mob))&Lua_Raid::GetTotalRaidDamage)
 	.def("GroupCount", (int(Lua_Raid::*)(uint32))&Lua_Raid::GroupCount)
 	.def("IsGroupLeader", (bool(Lua_Raid::*)(const char*))&Lua_Raid::IsGroupLeader)
+	.def("IsGroupLeader", (bool(Lua_Raid::*)(Lua_Client))&Lua_Raid::IsGroupLeader)
 	.def("IsLeader", (bool(Lua_Raid::*)(const char*))&Lua_Raid::IsLeader)
+	.def("IsLeader", (bool(Lua_Raid::*)(Lua_Client))&Lua_Raid::IsLeader)
+	.def("GetLeader", (Lua_Client(Lua_Raid::*)(void))&Lua_Raid::GetLeader)
+	.def("GetLeaderName", (std::string(Lua_Raid::*)(void)) & Lua_Raid::GetLeaderName)
 	.def("IsRaidMember", (bool(Lua_Raid::*)(const char*))&Lua_Raid::IsRaidMember)
+	.def("IsRaidMember", (bool(Lua_Raid::*)(Lua_Client))&Lua_Raid::IsRaidMember)
 	.def("RaidCount", (int(Lua_Raid::*)(void))&Lua_Raid::RaidCount)
 	.def("SplitExp", (void(Lua_Raid::*)(uint32,Lua_Mob))&Lua_Raid::SplitExp)
 	.def("SplitMoney", (void(Lua_Raid::*)(uint32,uint32,uint32,uint32,uint32))&Lua_Raid::SplitMoney)

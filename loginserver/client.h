@@ -53,6 +53,18 @@ public:
 	void Handle_Login(const char *data, unsigned int size);
 
 	/**
+	* Sends the expansion data packet
+	*
+	* Titanium uses the encrypted data block to contact the expansion (You own xxx:) and the max expansions (of yyy)
+	* Rof uses a seperate data packet specifically for the expansion data
+	* Live, as of July 2021 uses a similar but slightly different seperate data packet
+	*
+	* @param PlayerLoginReply_Struct
+	*
+	*/
+	void SendExpansionPacketData(PlayerLoginReply_Struct& plrs);
+
+	/**
 	 * Sends a packet to the requested server to see if the client is allowed or not
 	 *
 	 * @param data
@@ -98,6 +110,12 @@ public:
 	 * @return
 	 */
 	std::string GetAccountName() const { return m_account_name; }
+
+	/**
+	 * Returns a description for the client for logging
+	 * @return std::string
+	 */
+	std::string GetClientDescription();
 
 	/**
 	 * Gets the key generated at login for this client
@@ -157,7 +175,7 @@ public:
 		const std::string &password_hash
 	);
 
-	void DoSuccessfulLogin(const std::string in_account_name, int db_account_id, const std::string &db_loginserver);
+	void DoSuccessfulLogin(const std::string& in_account_name, int db_account_id, const std::string &db_loginserver);
 	void CreateLocalAccount(const std::string &username, const std::string &password);
 	void CreateEQEmuAccount(const std::string &in_account_name, const std::string &in_account_password, unsigned int loginserver_account_id);
 
@@ -180,21 +198,6 @@ private:
 
 	std::string m_stored_user;
 	std::string m_stored_pass;
-	void LoginOnNewConnection(std::shared_ptr<EQ::Net::DaybreakConnection> connection);
-	void LoginOnStatusChange(
-		std::shared_ptr<EQ::Net::DaybreakConnection> conn,
-		EQ::Net::DbProtocolStatus from,
-		EQ::Net::DbProtocolStatus to
-	);
-	void LoginOnStatusChangeIgnored(
-		std::shared_ptr<EQ::Net::DaybreakConnection> conn,
-		EQ::Net::DbProtocolStatus from,
-		EQ::Net::DbProtocolStatus to
-	);
-	void LoginOnPacketRecv(std::shared_ptr<EQ::Net::DaybreakConnection> conn, const EQ::Net::Packet &p);
-	void LoginSendSessionReady();
-	void LoginSendLogin();
-	void LoginProcessLoginResponse(const EQ::Net::Packet &p);
 	static bool ProcessHealthCheck(std::string username);
 };
 

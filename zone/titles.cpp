@@ -17,7 +17,7 @@
 */
 
 #include "../common/eq_packet_structs.h"
-#include "../common/string_util.h"
+#include "../common/strings.h"
 #include "../common/misc_functions.h"
 #include "../common/repositories/titles_repository.h"
 
@@ -47,22 +47,24 @@ bool TitleManager::LoadTitles()
 
 	for (auto row : results) {
 		TitleEntry title;
-		title.title_id = std::stoi(row[0]);
-		title.skill_id = (EQ::skills::SkillType) std::stoi(row[1]);
-		title.min_skill_value = std::stoi(row[2]);
-		title.max_skill_value = std::stoi(row[3]);
-		title.min_aa_points = std::stoi(row[4]);
-		title.max_aa_points = std::stoi(row[5]);
-		title.class_id = std::stoi(row[6]);
-		title.gender_id = std::stoi(row[7]);
-		title.character_id = std::stoi(row[8]);
-		title.status = std::stoi(row[9]);
-		title.item_id = std::stoi(row[10]);
+		title.title_id = Strings::ToInt(row[0]);
+		title.skill_id = (EQ::skills::SkillType) Strings::ToInt(row[1]);
+		title.min_skill_value = Strings::ToInt(row[2]);
+		title.max_skill_value = Strings::ToInt(row[3]);
+		title.min_aa_points = Strings::ToInt(row[4]);
+		title.max_aa_points = Strings::ToInt(row[5]);
+		title.class_id = Strings::ToInt(row[6]);
+		title.gender_id = Strings::ToInt(row[7]);
+		title.character_id = Strings::ToInt(row[8]);
+		title.status = Strings::ToInt(row[9]);
+		title.item_id = Strings::ToInt(row[10]);
 		title.prefix = row[11];
 		title.suffix = row[12];
-		title.titleset = std::stoi(row[13]);
+		title.titleset = Strings::ToInt(row[13]);
 		titles.push_back(title);
 	}
+
+	LogInfo("Loaded [{}] titles", Strings::Commify(std::to_string(results.RowCount())));
 
 	return true;
 }
@@ -89,18 +91,6 @@ EQApplicationPacket *TitleManager::MakeTitlesPacket(Client *client)
 		VARSTRUCT_ENCODE_STRING(buffer, available_title.suffix.c_str());
 	}
 	return(outapp);
-}
-
-int TitleManager::NumberOfAvailableTitles(Client *client)
-{
-	int count = 0;
-	for (const auto& title : titles) {
-		if (IsClientEligibleForTitle(client, title)) {
-			++count;
-		}
-	}
-
-	return count;
 }
 
 std::string TitleManager::GetPrefix(int title_id)
@@ -162,11 +152,11 @@ bool TitleManager::IsClientEligibleForTitle(Client *client, TitleEntry title)
 		return false;
 	}
 
-	if (title.gender_id >= 0 && client->GetBaseGender() != title.gender_id) {
+	if (title.gender_id >= Gender::Male && client->GetBaseGender() != title.gender_id) {
 		return false;
 	}
 
-	if (title.class_id >= 0 && client->GetBaseClass() != title.class_id) {
+	if (title.class_id >= Class::None && client->GetBaseClass() != title.class_id) {
 		return false;
 	}
 
@@ -225,9 +215,9 @@ bool TitleManager::IsNewTradeSkillTitleAvailable(int skill_id, int skill_value)
 	return false;
 }
 
-void TitleManager::CreateNewPlayerTitle(Client *client, const char *title)
+void TitleManager::CreateNewPlayerTitle(Client *client, std::string title)
 {
-	if (!client || !title) {
+	if (!client || title.empty()) {
 		return;
 	}
 
@@ -235,7 +225,7 @@ void TitleManager::CreateNewPlayerTitle(Client *client, const char *title)
 
 	auto query = fmt::format(
 		"SELECT `id` FROM titles WHERE `prefix` = '{}' AND char_id = {}",
-		EscapeString(title),
+		Strings::Escape(title),
 		client->CharacterID()
 	);
 	auto results = database.QueryDatabase(query);
@@ -246,7 +236,7 @@ void TitleManager::CreateNewPlayerTitle(Client *client, const char *title)
 	query = fmt::format(
 		"INSERT INTO titles (`char_id`, `prefix`) VALUES ({}, '{}')",
 		client->CharacterID(),
-		EscapeString(title)
+		Strings::Escape(title)
 	);
 	results = database.QueryDatabase(query);
 	if (!results.Success()) {
@@ -258,17 +248,17 @@ void TitleManager::CreateNewPlayerTitle(Client *client, const char *title)
 	safe_delete(pack);
 }
 
-void TitleManager::CreateNewPlayerSuffix(Client *client, const char *suffix)
+void TitleManager::CreateNewPlayerSuffix(Client *client, std::string suffix)
 {
-	if (!client || !suffix) {
+	if (!client || suffix.empty()) {
 		return;
 	}
 
 	client->SetTitleSuffix(suffix);
 
-	std::string query = fmt::format(
+	auto query = fmt::format(
 		"SELECT `id` FROM titles WHERE `suffix` = '{}' AND char_id = {}",
-		EscapeString(suffix),
+		Strings::Escape(suffix),
 		client->CharacterID()
 	);
 	auto results = database.QueryDatabase(query);
@@ -279,7 +269,7 @@ void TitleManager::CreateNewPlayerSuffix(Client *client, const char *suffix)
 	query = fmt::format(
 		"INSERT INTO titles (`char_id`, `suffix`) VALUES ({}, '{}')",
 		client->CharacterID(),
-		EscapeString(suffix)
+		Strings::Escape(suffix)
 	);
 	results = database.QueryDatabase(query);
 	if (!results.Success()) {
@@ -291,24 +281,24 @@ void TitleManager::CreateNewPlayerSuffix(Client *client, const char *suffix)
 	safe_delete(pack);
 }
 
-void Client::SetAATitle(const char *title)
+void Client::SetAATitle(std::string title)
 {
-	strn0cpy(m_pp.title, title, sizeof(m_pp.title));
+	strn0cpy(m_pp.title, title.c_str(), sizeof(m_pp.title));
 	auto outapp = new EQApplicationPacket(OP_SetTitleReply, sizeof(SetTitleReply_Struct));
-	SetTitleReply_Struct *strs = (SetTitleReply_Struct *)outapp->pBuffer;
-	strn0cpy(strs->title, title, sizeof(strs->title));
+	auto strs = (SetTitleReply_Struct *) outapp->pBuffer;
+	strn0cpy(strs->title, title.c_str(), sizeof(strs->title));
 	strs->entity_id = GetID();
 	entity_list.QueueClients(this, outapp, false);
 	safe_delete(outapp);
 }
 
-void Client::SetTitleSuffix(const char *suffix)
+void Client::SetTitleSuffix(std::string suffix)
 {
-	strn0cpy(m_pp.suffix, suffix, sizeof(m_pp.suffix));
+	strn0cpy(m_pp.suffix, suffix.c_str(), sizeof(m_pp.suffix));
 	auto outapp = new EQApplicationPacket(OP_SetTitleReply, sizeof(SetTitleReply_Struct));
-	SetTitleReply_Struct *strs = (SetTitleReply_Struct *)outapp->pBuffer;
+	auto strs = (SetTitleReply_Struct *) outapp->pBuffer;
 	strs->is_suffix = 1;
-	strn0cpy(strs->title, suffix, sizeof(strs->title));
+	strn0cpy(strs->title, suffix.c_str(), sizeof(strs->title));
 	strs->entity_id = GetID();
 	entity_list.QueueClients(this, outapp, false);
 	safe_delete(outapp);

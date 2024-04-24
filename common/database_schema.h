@@ -59,17 +59,20 @@ namespace DatabaseSchema {
 			{"character_leadership_abilities", "id"},
 			{"character_material",             "id"},
 			{"character_memmed_spells",        "id"},
+			{"character_parcels",              "char_id"},
 			{"character_pet_buffs",            "char_id"},
 			{"character_pet_info",             "char_id"},
 			{"character_pet_inventory",        "char_id"},
+			{"character_peqzone_flags",        "id"},
 			{"character_potionbelt",           "id"},
 			{"character_skills",               "id"},
 			{"character_spells",               "id"},
+			{"character_stats_record",         "character_id"},
 			{"character_task_timers",          "character_id"},
 			{"character_tasks",                "charid"},
-			{"character_tribute",              "id"},
+			{"character_tribute",              "character_id"},
 			{"completed_tasks",                "charid"},
-			{"data_buckets",                   "id"},
+			{"data_buckets",                   "character_id"},
 			{"faction_values",                 "char_id"},
 			{"friends",                        "charid"},
 			{"guild_members",                  "char_id"},
@@ -126,12 +129,15 @@ namespace DatabaseSchema {
 			"character_leadership_abilities",
 			"character_material",
 			"character_memmed_spells",
+			"character_parcels",
 			"character_pet_buffs",
 			"character_pet_info",
 			"character_pet_inventory",
+			"character_peqzone_flags",
 			"character_potionbelt",
 			"character_skills",
 			"character_spells",
+			"character_stats_record",
 			"character_task_timers",
 			"character_tasks",
 			"character_tribute",
@@ -142,8 +148,10 @@ namespace DatabaseSchema {
 			"friends",
 			"guild_bank",
 			"guild_members",
+			"guild_permissions",
 			"guild_ranks",
 			"guild_relations",
+			"guild_tributes",
 			"guilds",
 			"instance_list_player",
 			"inventory",
@@ -187,13 +195,14 @@ namespace DatabaseSchema {
 			"char_create_point_allocations",
 			"damageshieldtypes",
 			"doors",
+			"dynamic_zone_templates",
+			"faction_association",
 			"faction_base_data",
 			"faction_list",
 			"faction_list_mod",
 			"fishing",
 			"forage",
 			"global_loot",
-			"goallists",
 			"graveyard",
 			"grid",
 			"grid_entries",
@@ -222,7 +231,6 @@ namespace DatabaseSchema {
 			"pets_beastlord_data",
 			"pets_equipmentset",
 			"pets_equipmentset_entries",
-			"proximities",
 			"skill_caps",
 			"spawn2",
 			"spawn_conditions",
@@ -254,7 +262,9 @@ namespace DatabaseSchema {
 	{
 		return {
 			"chatchannels",
+			"chatchannel_reserved_names",
 			"command_settings",
+			"command_subsettings",
 			"content_flags",
 			"db_str",
 			"eqtime",
@@ -316,20 +326,20 @@ namespace DatabaseSchema {
 			"completed_shared_task_activity_state",
 			"completed_shared_task_members",
 			"completed_shared_tasks",
+			"discord_webhooks",
 			"dynamic_zone_members",
 			"dynamic_zones",
-			"eventlog",
 			"expedition_lockouts",
 			"expeditions",
 			"gm_ips",
 			"group_id",
 			"group_leaders",
-			"hackers",
 			"instance_list",
 			"ip_exemptions",
-			"item_tick",
 			"lfguild",
+			"merc_buffs",
 			"merchantlist_temp",
+			"mercs",
 			"object_contents",
 			"raid_details",
 			"raid_leaders",
@@ -338,6 +348,9 @@ namespace DatabaseSchema {
 			"respawn_times",
 			"saylink",
 			"server_scheduled_events",
+			"spawn2_disabled",
+			"player_event_log_settings",
+			"player_event_logs",
 			"shared_task_activity_state",
 			"shared_task_dynamic_zones",
 			"shared_task_members",
@@ -371,6 +384,57 @@ namespace DatabaseSchema {
 		return {
 			"db_version",
 			"inventory_versions",
+		};
+	}
+
+	/**
+	 * @description Gets all player bot tables
+	 * @note These tables have no content in the PEQ daily dump
+	 *
+	 * @return
+	 */
+	static std::vector<std::string> GetBotTables()
+	{
+		return {
+			"bot_buffs",
+			"bot_command_settings",
+			"bot_create_combinations",
+			"bot_data",
+			"bot_heal_rotation_members",
+			"bot_heal_rotation_targets",
+			"bot_heal_rotations",
+			"bot_inspect_messages",
+			"bot_inventories",
+			"bot_owner_options",
+			"bot_pet_buffs",
+			"bot_pet_inventories",
+			"bot_pets",
+			"bot_spell_casting_chances",
+			"bot_spell_settings",
+			"bot_spells_entries",
+			"bot_stances",
+			"bot_timers"
+		};
+	}
+
+	static std::vector<std::string> GetMercTables()
+	{
+		return {
+			"merc_armorinfo",
+			"merc_inventory",
+			"merc_merchant_entries",
+			"merc_merchant_template_entries",
+			"merc_merchant_templates",
+			"merc_name_types",
+			"merc_npc_types",
+			"merc_spell_list_entries",
+			"merc_spell_lists",
+			"merc_stance_entries",
+			"merc_stats",
+			"merc_subtypes",
+			"merc_templates",
+			"merc_types",
+			"merc_weaponinfo"
 		};
 	}
 

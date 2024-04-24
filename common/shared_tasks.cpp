@@ -7,7 +7,7 @@ std::vector<SharedTaskActivityStateEntry> SharedTask::GetActivityState() const
 	return m_shared_task_activity_state;
 }
 
-std::vector<SharedTaskMember> SharedTask::GetMembers() const
+const std::vector<SharedTaskMember>& SharedTask::GetMembers() const
 {
 	return m_members;
 }
@@ -47,26 +47,27 @@ const SharedTasksRepository::SharedTasks &SharedTask::GetDbSharedTask() const
 	return m_db_shared_task;
 }
 
-void SharedTask::SetDbSharedTask(const SharedTasksRepository::SharedTasks &m_db_shared_task)
+void SharedTask::SetDbSharedTask(const SharedTasksRepository::SharedTasks &t)
 {
-	SharedTask::m_db_shared_task = m_db_shared_task;
+	SharedTask::m_db_shared_task = t;
 }
 
-SharedTaskRequestCharacters SharedTask::GetRequestCharacters(Database &db, uint32_t requested_character_id)
+SharedTaskRequest SharedTask::GetRequestCharacters(Database &db, uint32_t requested_character_id)
 {
-	SharedTaskRequestCharacters request{};
+	// todo: group/raid refactors to check online members without querying
+	SharedTaskRequest request{};
 
 	request.group_type = SharedTaskRequestGroupType::Group;
-	request.characters = CharacterDataRepository::GetWhere(
+	auto characters = CharacterDataRepository::GetWhere(
 		db, fmt::format(
-			"id IN (select charid from group_id where groupid = (select groupid from group_id where charid = {}))",
+			"id IN (select character_id from group_id where group_id = (select group_id from group_id where character_id = {}))",
 			requested_character_id
 		)
 	);
 
-	if (request.characters.empty()) {
+	if (characters.empty()) {
 		request.group_type = SharedTaskRequestGroupType::Raid;
-		request.characters = CharacterDataRepository::GetWhere(
+		characters = CharacterDataRepository::GetWhere(
 			db, fmt::format(
 				"id IN (select charid from raid_members where raidid = (select raidid from raid_members where charid = {}))",
 				requested_character_id
@@ -74,10 +75,10 @@ SharedTaskRequestCharacters SharedTask::GetRequestCharacters(Database &db, uint3
 		);
 	}
 
-	if (request.characters.empty()) // solo request
+	if (characters.empty()) // solo request
 	{
 		request.group_type = SharedTaskRequestGroupType::Solo;
-		request.characters = CharacterDataRepository::GetWhere(
+		characters = CharacterDataRepository::GetWhere(
 			db, fmt::format(
 				"id = {} LIMIT 1",
 				requested_character_id
@@ -85,12 +86,24 @@ SharedTaskRequestCharacters SharedTask::GetRequestCharacters(Database &db, uint3
 		);
 	}
 
+	request.leader_id     = requested_character_id;
 	request.lowest_level  = std::numeric_limits<uint8_t>::max();
 	request.highest_level = 0;
-	for (const auto &character: request.characters) {
+	request.members.reserve(characters.size());
+	for (const auto& character: characters)
+	{
 		request.lowest_level  = std::min(request.lowest_level, character.level);
 		request.highest_level = std::max(request.highest_level, character.level);
 		request.character_ids.emplace_back(character.id); // convenience
+
+		SharedTaskMember member = {};
+		member.character_id   = character.id;
+		member.character_name = character.name;
+		if (character.id == requested_character_id)
+		{
+			member.is_leader = true;
+		}
+		request.members.emplace_back(member);
 	}
 
 	return request;
@@ -136,4 +149,9 @@ SharedTaskMember SharedTask::GetLeader() const
 		}
 	}
 	return {};
+}
+
+bool SharedTask::IsExpired() const
+{
+	return m_db_shared_task.expire_time > 0 && m_db_shared_task.expire_time < std::time(nullptr);
 }

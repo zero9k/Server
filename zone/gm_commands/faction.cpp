@@ -18,7 +18,7 @@ void command_faction(Client *c, const Seperator *sep)
 
 	std::string faction_filter;
 	if (sep->arg[2]) {
-		faction_filter = str_tolower(sep->arg[2]);
+		faction_filter = Strings::ToLower(sep->arg[2]);
 	}
 
 	if (!strcasecmp(sep->arg[1], "review")) {
@@ -53,12 +53,11 @@ void command_faction(Client *c, const Seperator *sep)
 		uint32    found_count = 0;
 		for (auto row : results) {
 			uint32      faction_number = (found_count + 1);
-			auto        faction_id     = std::stoul(row[0]);
+			auto        faction_id     = Strings::ToUnsignedInt(row[0]);
 			std::string faction_name   = row[1];
 			std::string faction_value  = row[2];
-			std::string reset_link     = EQ::SayLinkEngine::GenerateQuestSaylink(
+			std::string reset_link     = Saylink::Silent(
 				fmt::format("#faction reset {}", faction_id),
-				false,
 				"Reset"
 			);
 
@@ -108,7 +107,7 @@ void command_faction(Client *c, const Seperator *sep)
 					)
 					) {
 					uint32 character_id = target->CharacterID();
-					uint32 faction_id   = std::stoul(faction_filter.c_str());
+					uint32 faction_id   = Strings::ToUnsignedInt(faction_filter);
 					if (target->ReloadCharacterFaction(target, faction_id, character_id)) {
 						c->Message(
 							Chat::White,
@@ -154,16 +153,13 @@ void command_faction(Client *c, const Seperator *sep)
 	}
 	else if (!strcasecmp(sep->arg[1], "view")) {
 		if (c->GetTarget() && c->GetTarget()->IsNPC()) {
-			Mob         *target        = c->GetTarget();
-			uint32      npc_id         = target->GetNPCTypeID();
-			uint32      npc_faction_id = target->CastToNPC()->GetPrimaryFaction();
-			std::string npc_name       = target->GetCleanName();
+			auto target = c->GetTarget();
+			auto npc_faction_id = target->CastToNPC()->GetPrimaryFaction();
 			c->Message(
 				Chat::White,
 				fmt::format(
-					"{} ({}) has a Primary Faction  of {} ({}).",
-					npc_name,
-					npc_id,
+					"{} has a Primary Faction of {} ({}).",
+					c->GetTargetDescription(target),
 					content_db.GetFactionName(npc_faction_id),
 					npc_faction_id
 				).c_str()

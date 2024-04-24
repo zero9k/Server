@@ -8,7 +8,7 @@ void command_npcloot(Client *c, const Seperator *sep)
 		c->Message(Chat::White, "You must target an NPC or a Corpse to use this command.");
 		return;
 	}
-	
+
 	int arguments = sep->argnum;
 	if (!arguments) {
 		c->Message(Chat::White, "Usage: #npcloot add [Item ID] [Charges] [Equip] [Augment 1 ID] [Augment 2 ID] [Augment 3 ID] [Augment 4 ID] [Augment 5 ID] [Augment 6 ID] - Adds the specified item to an NPC's loot");
@@ -42,15 +42,15 @@ void command_npcloot(Client *c, const Seperator *sep)
 			return;
 		}
 
-		auto item_id = std::stoul(sep->arg[2]);
-		auto item_charges = sep->IsNumber(3) ? static_cast<uint16>(std::stoul(sep->arg[3])) : 1;
+		auto item_id = Strings::ToUnsignedInt(sep->arg[2]);
+		auto item_charges = sep->IsNumber(3) ? static_cast<uint16>(Strings::ToUnsignedInt(sep->arg[3])) : 1;
 		bool equip_item = arguments >= 4 ? atobool(sep->arg[4]) : false;
-		auto augment_one_id = sep->IsNumber(5) ? std::stoul(sep->arg[5]) : 0;
-		auto augment_two_id = sep->IsNumber(6) ? std::stoul(sep->arg[6]) : 0;
-		auto augment_three_id = sep->IsNumber(7) ? std::stoul(sep->arg[7]) : 0;
-		auto augment_four_id = sep->IsNumber(8) ? std::stoul(sep->arg[8]) : 0;
-		auto augment_five_id = sep->IsNumber(9) ? std::stoul(sep->arg[9]) : 0;
-		auto augment_six_id = sep->IsNumber(10) ? std::stoul(sep->arg[10]) : 0;
+		auto augment_one_id = sep->IsNumber(5) ? Strings::ToUnsignedInt(sep->arg[5]) : 0;
+		auto augment_two_id = sep->IsNumber(6) ? Strings::ToUnsignedInt(sep->arg[6]) : 0;
+		auto augment_three_id = sep->IsNumber(7) ? Strings::ToUnsignedInt(sep->arg[7]) : 0;
+		auto augment_four_id = sep->IsNumber(8) ? Strings::ToUnsignedInt(sep->arg[8]) : 0;
+		auto augment_five_id = sep->IsNumber(9) ? Strings::ToUnsignedInt(sep->arg[9]) : 0;
+		auto augment_six_id = sep->IsNumber(10) ? Strings::ToUnsignedInt(sep->arg[10]) : 0;
 
 		auto item_data = database.GetItem(item_id);
 
@@ -65,7 +65,9 @@ void command_npcloot(Client *c, const Seperator *sep)
 			return;
 		}
 
-		c->GetTarget()->CastToNPC()->AddItem(
+		auto target = c->GetTarget();
+
+		target->CastToNPC()->AddItem(
 			item_id,
 			item_charges,
 			equip_item,
@@ -97,11 +99,10 @@ void command_npcloot(Client *c, const Seperator *sep)
 		c->Message(
 			Chat::White,
 			fmt::format(
-				"Added {} ({}) to {} ({}).",
+				"Added {} ({}) to {}.",
 				item_link,
 				item_id,
-				c->GetTarget()->GetCleanName(),
-				c->GetTarget()->GetID()
+				c->GetTargetDescription(target)
 			).c_str()
 		);
 	} else if (is_money) {
@@ -113,11 +114,11 @@ void command_npcloot(Client *c, const Seperator *sep)
 		auto target = c->GetTarget()->CastToNPC();
 
 		if (sep->IsNumber(2)) {
-			uint16 platinum = EQ::Clamp(std::stoi(sep->arg[2]), 0, 65535);
-			uint16 gold = sep->IsNumber(3) ? EQ::Clamp(std::stoi(sep->arg[3]), 0, 65535) : 0;
-			uint16 silver = sep->IsNumber(4) ? EQ::Clamp(std::stoi(sep->arg[4]), 0, 65535) : 0;
-			uint16 copper = sep->IsNumber(5) ? EQ::Clamp(std::stoi(sep->arg[5]), 0, 65535) : 0;
-			target->AddCash(
+			uint16 platinum = EQ::Clamp(Strings::ToInt(sep->arg[2]), 0, 65535);
+			uint16 gold = sep->IsNumber(3) ? EQ::Clamp(Strings::ToInt(sep->arg[3]), 0, 65535) : 0;
+			uint16 silver = sep->IsNumber(4) ? EQ::Clamp(Strings::ToInt(sep->arg[4]), 0, 65535) : 0;
+			uint16 copper = sep->IsNumber(5) ? EQ::Clamp(Strings::ToInt(sep->arg[5]), 0, 65535) : 0;
+			target->AddLootCash(
 				copper,
 				silver,
 				gold,
@@ -131,21 +132,20 @@ void command_npcloot(Client *c, const Seperator *sep)
 					gold ||
 					platinum
 				) ?
-				ConvertMoneyToString(
-					platinum,
-					gold,
-					silver,
-					copper
-				) :
+					Strings::Money(
+						platinum,
+						gold,
+						silver,
+						copper
+					) :
 				"no money"
 			);
 
 			c->Message(
 				Chat::White,
 				fmt::format(
-					"{} ({}) now has {}.",
-					target->GetCleanName(),
-					target->GetID(),
+					"{} now has {}.",
+					c->GetTargetDescription(target),
 					money_string
 				).c_str()
 			);
@@ -172,12 +172,11 @@ void command_npcloot(Client *c, const Seperator *sep)
 				c->Message(
 					Chat::White,
 					fmt::format(
-						"Removed {} {} ({}) from {} ({}).",
+						"Removed {} {} ({}) from {}.",
 						item_count,
 						database.CreateItemLink(item_id),
 						item_id,
-						target->GetCleanName(),
-						target->GetID()
+						c->GetTargetDescription(target)
 					).c_str()
 				);
 
@@ -188,47 +187,43 @@ void command_npcloot(Client *c, const Seperator *sep)
 				c->Message(
 					Chat::White,
 					fmt::format(
-						"{} ({}) has no items to remove.",
-						target->GetCleanName(),
-						target->GetID()
+						"{} has no items to remove.",
+						c->GetTargetDescription(target)
 					).c_str()
 				);
 			} else {
 				c->Message(
 					Chat::White,
 					fmt::format(
-						"{} Item{} removed from {} ({}).",
+						"{} Item{} removed from {}.",
 						total_item_count,
 						total_item_count != 1 ? "s" : "",
-						target->GetCleanName(),
-						target->GetID()
+						c->GetTargetDescription(target)
 					).c_str()
 				);
 			}
 		} else {
 			if (sep->IsNumber(2)) {
-				auto item_id = std::stoul(sep->arg[2]);
+				auto item_id = Strings::ToUnsignedInt(sep->arg[2]);
 				auto item_count = target->CountItem(item_id);
 				if (item_count) {
 					target->RemoveItem(item_id);
 					c->Message(
 						Chat::White,
 						fmt::format(
-							"Removed {} {} ({}) from {} ({}).",
+							"Removed {} {} ({}) from {}.",
 							item_count,
 							database.CreateItemLink(item_id),
 							item_id,
-							target->GetCleanName(),
-							target->GetID()
+							c->GetTargetDescription(target)
 						).c_str()
 					);
 				} else {
 					c->Message(
 						Chat::White,
 						fmt::format(
-							"{} ({}) does not have any {} ({}).",
-							target->GetCleanName(),
-							target->GetID(),
+							"{} does not have any {} ({}).",
+							c->GetTargetDescription(target),
 							database.CreateItemLink(item_id),
 							item_id
 						).c_str()

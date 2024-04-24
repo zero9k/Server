@@ -51,12 +51,11 @@ public:
 	EQApplicationPacket *MakeTitlesPacket(Client *client);
 	std::string GetPrefix(int title_id);
 	std::string GetSuffix(int title_id);
-	int NumberOfAvailableTitles(Client *client);
 	bool IsClientEligibleForTitle(Client *client, TitleEntry title);
 	bool IsNewAATitleAvailable(int aa_points, int class_id);
 	bool IsNewTradeSkillTitleAvailable(int skill_id, int skill_value);
-	void CreateNewPlayerTitle(Client *client, const char *title);
-	void CreateNewPlayerSuffix(Client *client, const char *suffix);
+	void CreateNewPlayerTitle(Client *client, std::string title);
+	void CreateNewPlayerSuffix(Client *client, std::string suffix);
 	bool HasTitle(Client* client, uint32 title_id);
 
 protected:

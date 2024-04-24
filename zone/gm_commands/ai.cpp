@@ -17,7 +17,7 @@ void command_ai(Client *c, const Seperator *sep)
 		c->Message(Chat::White, "You must target an NPC to use this command.");
 		return;
 	}
-	
+
 	auto target = c->GetTarget()->CastToNPC();
 
 	bool is_consider = !strcasecmp(sep->arg[1], "consider");
@@ -42,7 +42,7 @@ void command_ai(Client *c, const Seperator *sep)
 		return;
 	}
 
-	if (is_consider) {	
+	if (is_consider) {
 		if (arguments == 2) {
 			auto mob_name = sep->arg[2];
 			auto mob_to_consider = entity_list.GetMob(mob_name);
@@ -51,11 +51,9 @@ void command_ai(Client *c, const Seperator *sep)
 				c->Message(
 					Chat::White,
 					fmt::format(
-						"{} ({}) considers {} ({}) as {} ({}).",
-						target->GetCleanName(),
-						target->GetID(),
-						mob_to_consider->GetCleanName(),
-						mob_to_consider->GetID(),
+						"{} considers {} as {} ({}).",
+						c->GetTargetDescription(target),
+						c->GetTargetDescription(mob_to_consider),
 						EQ::constants::GetConsiderLevelName(consider_level),
 						consider_level
 					).c_str()
@@ -66,15 +64,14 @@ void command_ai(Client *c, const Seperator *sep)
 		}
 	} else if (is_faction) {
 		if (sep->IsNumber(2)) {
-			auto faction_id = std::stoi(sep->arg[2]);
+			auto faction_id = Strings::ToInt(sep->arg[2]);
 			auto faction_name = content_db.GetFactionName(faction_id);
 			target->SetNPCFactionID(faction_id);
 			c->Message(
 				Chat::White,
 				fmt::format(
-					"{} ({}) is now on Faction {}.",
-					target->GetCleanName(),
-					target->GetID(),
+					"{} is now on Faction {}.",
+					c->GetTargetDescription(target),
 					(
 						faction_name.empty() ?
 						std::to_string(faction_id) :
@@ -97,9 +94,8 @@ void command_ai(Client *c, const Seperator *sep)
 		c->Message(
 			Chat::White,
 			fmt::format(
-				"{} ({}) now has a guard spot of {:.2f}, {:.2f}, {:.2f} with a heading of {:.2f}.",
-				target->GetCleanName(),
-				target->GetID(),
+				"{} now has a guard spot of {:.2f}, {:.2f}, {:.2f} with a heading of {:.2f}.",
+				c->GetTargetDescription(target),
 				target_position.x,
 				target_position.y,
 				target_position.z,
@@ -117,21 +113,21 @@ void command_ai(Client *c, const Seperator *sep)
 				sep->IsNumber(5) &&
 				sep->IsNumber(6)
 			) {
-				auto distance = std::stof(sep->arg[2]);
-				auto min_x = std::stof(sep->arg[3]);
-				auto max_x = std::stof(sep->arg[4]);
-				auto min_y = std::stof(sep->arg[5]);
-				auto max_y = std::stof(sep->arg[6]);
+				auto distance = Strings::ToFloat(sep->arg[2]);
+				auto min_x = Strings::ToFloat(sep->arg[3]);
+				auto max_x = Strings::ToFloat(sep->arg[4]);
+				auto min_y = Strings::ToFloat(sep->arg[5]);
+				auto max_y = Strings::ToFloat(sep->arg[6]);
 
 				uint32 delay = 2500;
 				uint32 minimum_delay = 2500;
 
 				if (sep->IsNumber(7)) {
-					delay = std::stoul(sep->arg[7]);
+					delay = Strings::ToUnsignedInt(sep->arg[7]);
 				}
 
 				if (sep->IsNumber(8)) {
-					minimum_delay = std::stoul(sep->arg[8]);
+					minimum_delay = Strings::ToUnsignedInt(sep->arg[8]);
 				}
 
 				target->CastToNPC()->AI_SetRoambox(
@@ -147,9 +143,8 @@ void command_ai(Client *c, const Seperator *sep)
 				c->Message(
 					Chat::White,
 					fmt::format(
-						"{} ({}) now has a roambox from {}, {} to {}, {} with {} and {} and a distance of {}.",
-						target->GetCleanName(),
-						target->GetID(),
+						"{} now has a roambox from {}, {} to {}, {} with {} and {} and a distance of {}.",
+						c->GetTargetDescription(target),
 						min_x,
 						min_y,
 						max_x,
@@ -158,7 +153,7 @@ void command_ai(Client *c, const Seperator *sep)
 							delay ?
 							fmt::format(
 								"a delay of {} ({})",
-								ConvertMillisecondsToTime(delay),
+								Strings::MillisecondsToTime(delay),
 								delay
 							):
 							"no delay"
@@ -167,7 +162,7 @@ void command_ai(Client *c, const Seperator *sep)
 							minimum_delay ?
 							fmt::format(
 								"a minimum delay of {} ({})",
-								ConvertMillisecondsToTime(minimum_delay),
+								Strings::MillisecondsToTime(minimum_delay),
 								minimum_delay
 							):
 							"no minimum delay"
@@ -181,18 +176,18 @@ void command_ai(Client *c, const Seperator *sep)
 				sep->IsNumber(2) &&
 				sep->IsNumber(3)
 			) {
-				auto max_distance = std::stof(sep->arg[2]);
-				auto roam_distance_variance = std::stof(sep->arg[3]);
+				auto max_distance = Strings::ToFloat(sep->arg[2]);
+				auto roam_distance_variance = Strings::ToFloat(sep->arg[3]);
 
 				uint32 delay = 2500;
 				uint32 minimum_delay = 2500;
 
 				if (sep->IsNumber(4)) {
-					delay = std::stoul(sep->arg[4]);
+					delay = Strings::ToUnsignedInt(sep->arg[4]);
 				}
 
 				if (sep->IsNumber(5)) {
-					minimum_delay = std::stoul(sep->arg[5]);
+					minimum_delay = Strings::ToUnsignedInt(sep->arg[5]);
 				}
 
 				target->CastToNPC()->AI_SetRoambox(
@@ -205,9 +200,8 @@ void command_ai(Client *c, const Seperator *sep)
 				c->Message(
 					Chat::White,
 					fmt::format(
-						"{} ({}) now has a roambox with a max distance of {} and a roam distance variance of {} with {} and {}.",
-						target->GetCleanName(),
-						target->GetID(),
+						"{} now has a roambox with a max distance of {} and a roam distance variance of {} with {} and {}.",
+						c->GetTargetDescription(target),
 						max_distance,
 						roam_distance_variance,
 						(
@@ -215,7 +209,7 @@ void command_ai(Client *c, const Seperator *sep)
 							fmt::format(
 								"a delay of {} ({})",
 								delay,
-								ConvertMillisecondsToTime(delay)
+								Strings::MillisecondsToTime(delay)
 							):
 							"no delay"
 						),
@@ -224,7 +218,7 @@ void command_ai(Client *c, const Seperator *sep)
 							fmt::format(
 								"a minimum delay of {} ({})",
 								minimum_delay,
-								ConvertMillisecondsToTime(delay)
+								Strings::MillisecondsToTime(delay)
 							):
 							"no minimum delay"
 						)
@@ -239,16 +233,15 @@ void command_ai(Client *c, const Seperator *sep)
 		}
 	} else if (is_spells) {
 		if (sep->IsNumber(2)) {
-			auto spell_list_id = std::stoul(sep->arg[2]);
+			auto spell_list_id = Strings::ToUnsignedInt(sep->arg[2]);
 			if (spell_list_id >= 0) {
 				target->CastToNPC()->AI_AddNPCSpells(spell_list_id);
 
 				c->Message(
 					Chat::White,
 					fmt::format(
-						"{} ({}) is now using Spell List {}.",
-						target->GetCleanName(),
-						target->GetID(),
+						"{} is now using Spell List {}.",
+						c->GetTargetDescription(target),
 						spell_list_id
 					).c_str()
 				);

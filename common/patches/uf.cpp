@@ -1,5 +1,5 @@
 /*	EQEMu: Everquest Server Emulator
-	
+
 	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
 
 	This program is free software; you can redistribute it and/or modify
@@ -28,10 +28,15 @@
 
 #include "../eq_packet_structs.h"
 #include "../misc_functions.h"
-#include "../string_util.h"
+#include "../strings.h"
 #include "../item_instance.h"
 #include "uf_structs.h"
 #include "../rulesys.h"
+#include "../path_manager.h"
+#include "../classes.h"
+#include "../races.h"
+#include "../raid.h"
+#include "../guilds.h"
 
 #include <iostream>
 #include <sstream>
@@ -69,12 +74,7 @@ namespace UF
 	{
 		//create our opcode manager if we havent already
 		if (opcodes == nullptr) {
-			//TODO: get this file name from the config file
-			auto Config = EQEmuConfig::get();
-			std::string opfile = Config->PatchDir;
-			opfile += "patch_";
-			opfile += name;
-			opfile += ".conf";
+			std::string opfile = fmt::format("{}/patch_{}.conf", path.GetPatchPath(), name);
 			//load up the opcode manager.
 			//TODO: figure out how to support shared memory with multiple patches...
 			opcodes = new RegularOpcodeManager();
@@ -115,12 +115,7 @@ namespace UF
 		//we need to go to every stream and replace it's manager.
 
 		if (opcodes != nullptr) {
-			//TODO: get this file name from the config file
-			auto Config = EQEmuConfig::get();
-			std::string opfile = Config->PatchDir;
-			opfile += "patch_";
-			opfile += name;
-			opfile += ".conf";
+			std::string opfile = fmt::format("{}/patch_{}.conf", path.GetPatchPath(), name);
 			if (!opcodes->ReloadOpcodes(opfile.c_str())) {
 				LogNetcode("[OPCODES] Error reloading opcodes file [{}] for patch [{}]", opfile.c_str(), name);
 				return;
@@ -201,7 +196,7 @@ namespace UF
 		unsigned char *emu_buffer = in->pBuffer;
 		uint32 opcode = *((uint32*)emu_buffer);
 
-		if (opcode == 8) {
+		if (opcode == AlternateCurrencyMode::Populate) {
 			AltCurrencyPopulate_Struct *populate = (AltCurrencyPopulate_Struct*)emu_buffer;
 
 			auto outapp = new EQApplicationPacket(
@@ -527,7 +522,7 @@ namespace UF
 
 		in->size = ob.size();
 		in->pBuffer = ob.detach();
-		
+
 		delete[] __emu_buffer;
 
 		dest->FastQueuePacket(&in, ack_req);
@@ -586,7 +581,7 @@ namespace UF
 
 	ENCODE(OP_DeleteCharge)
 	{
-		Log(Logs::Moderate, Logs::Netcode, "UF::ENCODE(OP_DeleteCharge)");
+		Log(Logs::Detail, Logs::Netcode, "UF::ENCODE(OP_DeleteCharge)");
 
 		ENCODE_FORWARD(OP_MoveItem);
 	}
@@ -635,30 +630,6 @@ namespace UF
 		__packet->size = buf.size();
 		__packet->pBuffer = new unsigned char[__packet->size];
 		memcpy(__packet->pBuffer, buf.buffer(), __packet->size);
-
-		FINISH_ENCODE();
-	}
-
-	ENCODE(OP_DzCompass)
-	{
-		SETUP_VAR_ENCODE(DynamicZoneCompass_Struct);
-		ALLOC_VAR_ENCODE(structs::DynamicZoneCompass_Struct,
-			sizeof(structs::DynamicZoneCompass_Struct) +
-			sizeof(structs::DynamicZoneCompassEntry_Struct) * emu->count
-		);
-
-		OUT(client_id);
-		OUT(count);
-
-		for (uint32 i = 0; i < emu->count; ++i)
-		{
-			OUT(entries[i].dz_zone_id);
-			OUT(entries[i].dz_instance_id);
-			OUT(entries[i].dz_type);
-			OUT(entries[i].x);
-			OUT(entries[i].y);
-			OUT(entries[i].z);
-		}
 
 		FINISH_ENCODE();
 	}
@@ -958,7 +929,7 @@ namespace UF
 		{
 			if ((gjs->action == groupActDisband) || !strcmp(gjs->yourname, gjs->membername))
 			{
-				//Log.LogDebugType(Logs::General, Logs::Netcode, "[ERROR] Group Leave, yourname = %s, membername = %s", gjs->yourname, gjs->membername);
+				//Log.LogDebugType(Logs::General, Logs::Netcode, "[ERROR] Group Leave, yourname = %s, member_name = %s", gjs->yourname, gjs->member_name);
 
 				auto outapp =
 				    new EQApplicationPacket(OP_GroupDisbandYou, sizeof(structs::GroupGeneric_Struct));
@@ -978,7 +949,7 @@ namespace UF
 				return;
 			}
 			//if(gjs->action == groupActLeave)
-			//	Log.LogDebugType(Logs::General, Logs::Netcode, "[ERROR] Group Leave, yourname = %s, membername = %s", gjs->yourname, gjs->membername);
+			//	Log.LogDebugType(Logs::General, Logs::Netcode, "[ERROR] Group Leave, yourname = %s, member_name = %s", gjs->yourname, gjs->member_name);
 
 			auto outapp =
 			    new EQApplicationPacket(OP_GroupDisbandOther, sizeof(structs::GroupGeneric_Struct));
@@ -1008,7 +979,7 @@ namespace UF
 
 			for (int i = 0; i < 5; ++i)
 			{
-				//Log.LogDebugType(Logs::General, Logs::Netcode, "[ERROR] Membername[%i] is %s", i,  gu2->membername[i]);
+				//Log.LogDebugType(Logs::General, Logs::Netcode, "[ERROR] Membername[%i] is %s", i,  gu2->member_name[i]);
 				if (gu2->membername[i][0] != '\0')
 				{
 					PacketLength += (22 + strlen(gu2->membername[i]) + 1);
@@ -1076,7 +1047,7 @@ namespace UF
 			delete in;
 			return;
 		}
-		//Log.LogDebugType(Logs::General, Logs::Netcode, "[ERROR] Generic GroupUpdate, yourname = %s, membername = %s", gjs->yourname, gjs->membername);
+		//Log.LogDebugType(Logs::General, Logs::Netcode, "[ERROR] Generic GroupUpdate, yourname = %s, member_name = %s", gjs->yourname, gjs->member_name);
 		ENCODE_LENGTH_EXACT(GroupJoin_Struct);
 		SETUP_DIRECT_ENCODE(GroupJoin_Struct, structs::GroupJoin_Struct);
 
@@ -1164,6 +1135,30 @@ namespace UF
 				PutFieldN(level);
 				PutFieldN(banker);
 				PutFieldN(class_);
+				//Translate older ranks to new values* /
+				switch (emu_e->rank) {
+					case GUILD_SENIOR_MEMBER:
+					case GUILD_MEMBER:
+					case GUILD_JUNIOR_MEMBER:
+					case GUILD_INITIATE:
+					case GUILD_RECRUIT: {
+						emu_e->rank = GUILD_MEMBER_TI;
+						break;
+					}
+					case GUILD_OFFICER:
+					case GUILD_SENIOR_OFFICER: {
+						emu_e->rank = GUILD_OFFICER_TI;
+						break;
+					}
+					case GUILD_LEADER: {
+						emu_e->rank = GUILD_LEADER_TI;
+						break;
+					}
+					default: {
+						emu_e->rank = GUILD_RANK_NONE_TI;
+						break;
+					}
+				}
 				PutFieldN(rank);
 				PutFieldN(time_last_on);
 				PutFieldN(tribute_enable);
@@ -1195,14 +1190,14 @@ namespace UF
 
 		unsigned char *__emu_buffer = in->pBuffer;
 		char *InBuffer = (char *)__emu_buffer;
-		uint32 HighestGuildID = 0;
+		uint32 actual_no_guilds = 0;
 
 		for (unsigned int i = 0; i < NumberOfGuilds; ++i)
 		{
 			if (InBuffer[0])
 			{
 				PacketSize += (5 + strlen(InBuffer));
-				HighestGuildID = i - 1;
+                actual_no_guilds++;
 			}
 			InBuffer += 64;
 		}
@@ -1218,7 +1213,7 @@ namespace UF
 		memset(OutBuffer, 0, 64);
 		OutBuffer += 64;
 
-		VARSTRUCT_ENCODE_TYPE(uint32, OutBuffer, HighestGuildID);
+		VARSTRUCT_ENCODE_TYPE(uint32, OutBuffer, actual_no_guilds);
 
 		for (unsigned int i = 0; i < NumberOfGuilds; ++i)
 		{
@@ -1234,6 +1229,111 @@ namespace UF
 
 		delete[] __emu_buffer;
 		dest->FastQueuePacket(&in, ack_req);
+	}
+
+	ENCODE(OP_GuildMemberAdd)
+	{
+		ENCODE_LENGTH_EXACT(GuildMemberAdd_Struct)
+		SETUP_DIRECT_ENCODE(GuildMemberAdd_Struct, structs::GuildMemberAdd_Struct)
+
+		OUT(guild_id)
+		OUT(level)
+		OUT(class_)
+		switch (emu->rank_) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				eq->rank_ = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				eq->rank_ = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				eq->rank_ = GUILD_LEADER_TI;
+				break;
+			}
+			default: {
+				eq->rank_ = GUILD_RANK_NONE_TI;
+				break;
+			}
+		}
+		OUT(zone_id)
+		OUT(last_on)
+		OUT_str(player_name)
+
+		FINISH_ENCODE()
+	}
+
+	ENCODE(OP_GuildMemberRankAltBanker)
+	{
+		ENCODE_LENGTH_EXACT(GuildMemberRank_Struct)
+		SETUP_DIRECT_ENCODE(GuildMemberRank_Struct, structs::GuildMemberRank_Struct)
+
+		OUT(guild_id)
+		OUT(alt_banker)
+		OUT_str(player_name)
+
+		switch (emu->rank_) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				eq->rank_ = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				eq->rank_ = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				eq->rank_ = GUILD_LEADER_TI;
+				break;
+			}
+			default: {
+				eq->rank_ = GUILD_RANK_NONE_TI;
+				break;
+			}
+		}
+		FINISH_ENCODE()
+	}
+
+	ENCODE(OP_SendGuildTributes)
+	{
+		ENCODE_LENGTH_ATLEAST(structs::GuildTributeAbility_Struct)
+		SETUP_VAR_ENCODE(GuildTributeAbility_Struct)
+		ALLOC_VAR_ENCODE(structs::GuildTributeAbility_Struct, sizeof(GuildTributeAbility_Struct) + strlen(emu->ability.name))
+
+		eq->guild_id           = emu->guild_id;
+		eq->ability.tribute_id = emu->ability.tribute_id;
+		eq->ability.tier_count = emu->ability.tier_count;
+		strncpy(eq->ability.name, emu->ability.name, strlen(emu->ability.name));
+		for (int i = 0; i < ntohl(emu->ability.tier_count); i++) {
+			eq->ability.tiers[i].cost            = emu->ability.tiers[i].cost;
+			eq->ability.tiers[i].level           = emu->ability.tiers[i].level;
+			eq->ability.tiers[i].tribute_item_id = emu->ability.tiers[i].tribute_item_id;
+		}
+		FINISH_ENCODE()
+	}
+
+	ENCODE(OP_GuildTributeDonateItem)
+	{
+		SETUP_DIRECT_ENCODE(GuildTributeDonateItemReply_Struct, structs::GuildTributeDonateItemReply_Struct);
+
+		Log(Logs::Detail, Logs::Netcode, "UF::ENCODE(OP_GuildTributeDonateItem)");
+
+		OUT(quantity)
+		OUT(favor)
+		eq->unknown8 = 0;
+		eq->slot     = ServerToUFSlot(emu->slot);
+
+		FINISH_ENCODE()
 	}
 
 	ENCODE(OP_Illusion)
@@ -1314,7 +1414,7 @@ namespace UF
 
 		in->size = ob.size();
 		in->pBuffer = ob.detach();
-		
+
 		delete[] __emu_buffer;
 
 		dest->FastQueuePacket(&in, ack_req);
@@ -1380,7 +1480,7 @@ namespace UF
 		ENCODE_LENGTH_EXACT(LootingItem_Struct);
 		SETUP_DIRECT_ENCODE(LootingItem_Struct, structs::LootingItem_Struct);
 
-		Log(Logs::Moderate, Logs::Netcode, "UF::ENCODE(OP_LootItem)");
+		Log(Logs::Detail, Logs::Netcode, "UF::ENCODE(OP_LootItem)");
 
 		OUT(lootee);
 		OUT(looter);
@@ -1533,7 +1633,7 @@ namespace UF
 		ENCODE_LENGTH_EXACT(MoveItem_Struct);
 		SETUP_DIRECT_ENCODE(MoveItem_Struct, structs::MoveItem_Struct);
 
-		Log(Logs::Moderate, Logs::Netcode, "UF::ENCODE(OP_MoveItem)");
+		Log(Logs::Detail, Logs::Netcode, "UF::ENCODE(OP_MoveItem)");
 
 		eq->from_slot = ServerToUFSlot(emu->from_slot);
 		eq->to_slot = ServerToUFSlot(emu->to_slot);
@@ -1589,19 +1689,19 @@ namespace UF
 		OUT_str(zone_short_name2);
 		OUT(zone_id);
 		OUT(zone_instance);
-		OUT(SuspendBuffs);
-		OUT(FastRegenHP);
-		OUT(FastRegenMana);
-		OUT(FastRegenEndurance);
+		OUT(suspend_buffs);
+		OUT(fast_regen_hp);
+		OUT(fast_regen_mana);
+		OUT(fast_regen_endurance);
 		OUT(underworld_teleport_index);
 
-		eq->FogDensity = emu->fog_density;
+		eq->fog_density = emu->fog_density;
 
 		/*fill in some unknowns with observed values, hopefully it will help */
 		eq->unknown800 = -1;
 		eq->unknown844 = 600;
-		OUT(LavaDamage);
-		OUT(MinLavaDamage);
+		OUT(lava_damage);
+		OUT(min_lava_damage);
 		eq->unknown888 = 1;
 		eq->unknown889 = 0;
 		eq->unknown890 = 1;
@@ -1741,7 +1841,7 @@ namespace UF
 		OUT(WIS);
 		OUT(face);
 		//	OUT(unknown02264[47]);
-		
+
 		if (spells::SPELLBOOK_SIZE <= EQ::spells::SPELLBOOK_SIZE) {
 			for (uint32 r = 0; r < spells::SPELLBOOK_SIZE; r++) {
 				if (emu->spell_book[r] <= spells::SPELL_ID_MAX)
@@ -1859,6 +1959,30 @@ namespace UF
 		OUT(pvp);
 		OUT(anon);
 		OUT(gm);
+		//Translate older ranks to new values* /
+		switch (emu->guildrank) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				emu->guildrank = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				emu->guildrank = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				emu->guildrank = GUILD_LEADER_TI;
+				break;
+			}
+			default: {
+				emu->guildrank = GUILD_RANK_NONE_TI;
+				break;
+			}
+		}
 		OUT(guildrank);
 		OUT(guildbanker);
 		//	OUT(unknown13054[12]);
@@ -1962,88 +2086,124 @@ namespace UF
 
 	ENCODE(OP_RaidJoin)
 	{
-		EQApplicationPacket *inapp = *p;
-		unsigned char * __emu_buffer = inapp->pBuffer;
-		RaidCreate_Struct *raid_create = (RaidCreate_Struct*)__emu_buffer;
+		EQApplicationPacket* inapp = *p;
+		*p = nullptr;
+		unsigned char* __emu_buffer = inapp->pBuffer;
+		RaidCreate_Struct* emu = (RaidCreate_Struct*)__emu_buffer;
 
-		auto outapp_create = new EQApplicationPacket(OP_RaidUpdate, sizeof(structs::RaidGeneral_Struct));
-		structs::RaidGeneral_Struct *general = (structs::RaidGeneral_Struct*)outapp_create->pBuffer;
+		auto outapp = new EQApplicationPacket(OP_RaidUpdate, sizeof(structs::RaidGeneral_Struct));
+		structs::RaidGeneral_Struct* general = (structs::RaidGeneral_Struct*)outapp->pBuffer;
 
-		general->action = 8;
-		general->parameter = 1;
-		strn0cpy(general->leader_name, raid_create->leader_name, 64);
-		strn0cpy(general->player_name, raid_create->leader_name, 64);
+		general->action = raidCreate;
+		general->parameter = RaidCommandAcceptInvite;
+		strn0cpy(general->leader_name, emu->leader_name, sizeof(emu->leader_name));
+		strn0cpy(general->player_name, emu->leader_name, sizeof(emu->leader_name));
 
-		dest->FastQueuePacket(&outapp_create);
+		dest->FastQueuePacket(&outapp);
+
 		safe_delete(inapp);
+
 	}
 
 	ENCODE(OP_RaidUpdate)
 	{
-		EQApplicationPacket *inapp = *p;
+		EQApplicationPacket* inapp = *p;
 		*p = nullptr;
-		unsigned char * __emu_buffer = inapp->pBuffer;
-		RaidGeneral_Struct *raid_gen = (RaidGeneral_Struct*)__emu_buffer;
+		unsigned char* __emu_buffer = inapp->pBuffer;
+		RaidGeneral_Struct* raid_gen = (RaidGeneral_Struct*)__emu_buffer;
 
-		if (raid_gen->action == 0) // raid add has longer length than other raid updates
+		switch (raid_gen->action)
 		{
-			RaidAddMember_Struct* in_add_member = (RaidAddMember_Struct*)__emu_buffer;
+		case raidAdd:
+		{
+			RaidAddMember_Struct* emu = (RaidAddMember_Struct*)__emu_buffer;
 
 			auto outapp = new EQApplicationPacket(OP_RaidUpdate, sizeof(structs::RaidAddMember_Struct));
-			structs::RaidAddMember_Struct *add_member = (structs::RaidAddMember_Struct*)outapp->pBuffer;
+			structs::RaidAddMember_Struct* eq = (structs::RaidAddMember_Struct*)outapp->pBuffer;
 
-			add_member->raidGen.action = in_add_member->raidGen.action;
-			add_member->raidGen.parameter = in_add_member->raidGen.parameter;
-			strn0cpy(add_member->raidGen.leader_name, in_add_member->raidGen.leader_name, 64);
-			strn0cpy(add_member->raidGen.player_name, in_add_member->raidGen.player_name, 64);
-			add_member->_class = in_add_member->_class;
-			add_member->level = in_add_member->level;
-			add_member->isGroupLeader = in_add_member->isGroupLeader;
-			add_member->flags[0] = in_add_member->flags[0];
-			add_member->flags[1] = in_add_member->flags[1];
-			add_member->flags[2] = in_add_member->flags[2];
-			add_member->flags[3] = in_add_member->flags[3];
-			add_member->flags[4] = in_add_member->flags[4];
-			dest->FastQueuePacket(&outapp);
-		}
-		else if (raid_gen->action == 35)
-		{
-			RaidMOTD_Struct *inmotd = (RaidMOTD_Struct *)__emu_buffer;
-			auto outapp = new EQApplicationPacket(OP_RaidUpdate, sizeof(structs::RaidMOTD_Struct) +
-										 strlen(inmotd->motd) + 1);
-			structs::RaidMOTD_Struct *outmotd = (structs::RaidMOTD_Struct *)outapp->pBuffer;
+			OUT(raidGen.action);
+			OUT(raidGen.parameter);
+			OUT_str(raidGen.leader_name);
+			OUT_str(raidGen.player_name);
+			OUT(_class);
+			OUT(level);
+			OUT(isGroupLeader);
+			OUT(flags[0]);
+			OUT(flags[1]);
+			OUT(flags[2]);
+			OUT(flags[3]);
+			OUT(flags[4]);
 
-			outmotd->general.action = inmotd->general.action;
-			strn0cpy(outmotd->general.player_name, inmotd->general.player_name, 64);
-			strn0cpy(outmotd->motd, inmotd->motd, strlen(inmotd->motd) + 1);
 			dest->FastQueuePacket(&outapp);
+			break;
 		}
-		else if (raid_gen->action == 14 || raid_gen->action == 30)
+		case raidSetMotd:
 		{
-			RaidLeadershipUpdate_Struct *inlaa = (RaidLeadershipUpdate_Struct *)__emu_buffer;
-			auto outapp =
-			    new EQApplicationPacket(OP_RaidUpdate, sizeof(structs::RaidLeadershipUpdate_Struct));
-			structs::RaidLeadershipUpdate_Struct *outlaa = (structs::RaidLeadershipUpdate_Struct *)outapp->pBuffer;
+			RaidMOTD_Struct* emu = (RaidMOTD_Struct*)__emu_buffer;
 
-			outlaa->action = inlaa->action;
-			strn0cpy(outlaa->player_name, inlaa->player_name, 64);
-			strn0cpy(outlaa->leader_name, inlaa->leader_name, 64);
-			memcpy(&outlaa->raid, &inlaa->raid, sizeof(RaidLeadershipAA_Struct));
+			auto outapp = new EQApplicationPacket(OP_RaidUpdate, sizeof(structs::RaidMOTD_Struct));
+			structs::RaidMOTD_Struct* eq = (structs::RaidMOTD_Struct*)outapp->pBuffer;
+
+			OUT(general.action);
+			OUT_str(general.player_name);
+			OUT_str(general.leader_name);
+			OUT_str(motd);
+
 			dest->FastQueuePacket(&outapp);
+			break;
 		}
-		else
+		case raidSetLeaderAbilities:
+		case raidMakeLeader:
 		{
-			RaidGeneral_Struct* in_raid_general = (RaidGeneral_Struct*)__emu_buffer;
+			RaidLeadershipUpdate_Struct* emu = (RaidLeadershipUpdate_Struct*)__emu_buffer;
+
+			auto outapp = new EQApplicationPacket(OP_RaidUpdate, sizeof(structs::RaidLeadershipUpdate_Struct));
+			structs::RaidLeadershipUpdate_Struct* eq = (structs::RaidLeadershipUpdate_Struct*)outapp->pBuffer;
+
+			OUT(action);
+			OUT_str(player_name);
+			OUT_str(leader_name);
+			memcpy(&eq->raid, &emu->raid, sizeof(RaidLeadershipAA_Struct));
+
+			dest->FastQueuePacket(&outapp);
+			break;
+		}
+		case raidSetNote:
+		{
+			auto emu = (RaidNote_Struct*)__emu_buffer;
+
+			auto outapp = new EQApplicationPacket(OP_RaidUpdate, sizeof(structs::RaidNote_Struct));
+			auto eq = (structs::RaidNote_Struct*)outapp->pBuffer;
+
+			OUT(general.action);
+			OUT_str(general.leader_name);
+			OUT_str(general.player_name);
+			OUT_str(note);
+
+			dest->FastQueuePacket(&outapp);
+			break;
+		}
+		case raidNoRaid:
+		{
+			dest->QueuePacket(inapp);
+			break;
+		}
+		default:
+		{
+			RaidGeneral_Struct* emu = (RaidGeneral_Struct*)__emu_buffer;
 
 			auto outapp = new EQApplicationPacket(OP_RaidUpdate, sizeof(structs::RaidGeneral_Struct));
-			structs::RaidGeneral_Struct *raid_general = (structs::RaidGeneral_Struct*)outapp->pBuffer;
-			strn0cpy(raid_general->leader_name, in_raid_general->leader_name, 64);
-			strn0cpy(raid_general->player_name, in_raid_general->player_name, 64);
-			raid_general->action = in_raid_general->action;
-			raid_general->parameter = in_raid_general->parameter;
-			dest->FastQueuePacket(&outapp);
-		}
+			structs::RaidGeneral_Struct* eq = (structs::RaidGeneral_Struct*)outapp->pBuffer;
 
+			OUT(action);
+			OUT(parameter);
+			OUT_str(leader_name);
+			OUT_str(player_name);
+
+			dest->FastQueuePacket(&outapp);
+			break;
+		}
+		}
 		safe_delete(inapp);
 	}
 
@@ -2058,6 +2218,9 @@ namespace UF
 			eq->window = emu->window;
 		OUT(type);
 		eq->invslot = ServerToUFSlot(emu->invslot);
+		OUT(target_id);
+		OUT(can_cast);
+		OUT(can_scribe);
 		strn0cpy(eq->txtfile, emu->booktext, sizeof(eq->txtfile));
 
 		FINISH_ENCODE();
@@ -2122,7 +2285,7 @@ namespace UF
 		eq->aa_expansion = emu->expansion;
 		eq->special_category = emu->category;
 		eq->total_abilities = emu->total_effects;
-		
+
 		for(auto i = 0; i < eq->total_abilities; ++i) {
 			eq->abilities[i].skill_id = inapp->ReadUInt32();
 			eq->abilities[i].base_value = inapp->ReadUInt32();
@@ -2291,6 +2454,19 @@ namespace UF
 		FINISH_ENCODE();
 	}
 
+	ENCODE(OP_ShopRequest)
+	{
+		ENCODE_LENGTH_EXACT(MerchantClick_Struct);
+		SETUP_DIRECT_ENCODE(MerchantClick_Struct, structs::MerchantClick_Struct);
+
+		OUT(npc_id);
+		OUT(player_id);
+		OUT(command);
+		OUT(rate);
+
+		FINISH_ENCODE();
+	}
+
 	ENCODE(OP_SomeItemPacketMaybe)
 	{
 		// This Opcode is not named very well. It is used for the animation of arrows leaving the player's bow
@@ -2323,29 +2499,88 @@ namespace UF
 
 	ENCODE(OP_SpawnAppearance)
 	{
-		EQApplicationPacket *in = *p;
-		*p = nullptr;
+		ENCODE_LENGTH_EXACT(SpawnAppearance_Struct);
+		SETUP_DIRECT_ENCODE(SpawnAppearance_Struct, structs::SpawnAppearance_Struct);
 
-		unsigned char *emu_buffer = in->pBuffer;
-
-		SpawnAppearance_Struct *sas = (SpawnAppearance_Struct *)emu_buffer;
-
-		if (sas->type != AT_Size)
-		{
-			dest->FastQueuePacket(&in, ack_req);
-			return;
+		OUT(spawn_id);
+		OUT(type);
+		OUT(parameter);
+		switch (emu->type) {
+			case AppearanceType::GuildRank: {
+				//Translate new ranks to old values* /
+				switch (emu->parameter) {
+					case GUILD_SENIOR_MEMBER:
+					case GUILD_MEMBER:
+					case GUILD_JUNIOR_MEMBER:
+					case GUILD_INITIATE:
+					case GUILD_RECRUIT: {
+						eq->parameter = GUILD_MEMBER_TI;
+						break;
+					}
+					case GUILD_OFFICER:
+					case GUILD_SENIOR_OFFICER: {
+						eq->parameter = GUILD_OFFICER_TI;
+						break;
+					}
+					case GUILD_LEADER: {
+						eq->parameter = GUILD_LEADER_TI;
+						break;
+					}
+					default: {
+						eq->parameter = GUILD_RANK_NONE_TI;
+						break;
+					}
+				}
+				break;
+			}
+			case AppearanceType::GuildShow: {
+				FAIL_ENCODE();
+				return;
+			}
+			default: {
+				break;
+			}
 		}
 
-		auto outapp = new EQApplicationPacket(OP_ChangeSize, sizeof(ChangeSize_Struct));
-		ChangeSize_Struct *css = (ChangeSize_Struct *)outapp->pBuffer;
+		FINISH_ENCODE();
+	}
 
-		css->EntityID = sas->spawn_id;
-		css->Size = (float)sas->parameter;
-		css->Unknown08 = 0;
-		css->Unknown12 = 1.0f;
+	ENCODE(OP_SetGuildRank)
+	{
+		ENCODE_LENGTH_EXACT(GuildSetRank_Struct);
+		SETUP_DIRECT_ENCODE(GuildSetRank_Struct, structs::GuildSetRank_Struct);
 
-		dest->FastQueuePacket(&outapp, ack_req);
-		delete in;
+		eq->unknown00 = 0;
+		eq->unknown04 = 0;
+
+		switch (emu->rank) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				emu->rank = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				emu->rank = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				emu->rank = GUILD_LEADER_TI;
+				break;
+			}
+			default: {
+				emu->rank = GUILD_RANK_NONE_TI;
+				break;
+			}
+		}
+
+		memcpy(eq->member_name, emu->member_name, sizeof(eq->member_name));
+		OUT(banker);
+
+		FINISH_ENCODE();
 	}
 
 	ENCODE(OP_SpawnDoor)
@@ -2749,7 +2984,7 @@ namespace UF
 			if (strlen(emu->suffix))
 				PacketSize += strlen(emu->suffix) + 1;
 
-			if (emu->DestructibleObject || emu->class_ == 62)
+			if (emu->DestructibleObject || emu->class_ == Class::LDoNTreasure)
 			{
 				if (emu->DestructibleObject)
 					PacketSize = PacketSize - 4;	// No bodytype
@@ -2770,7 +3005,9 @@ namespace UF
 			}
 
 			float SpawnSize = emu->size;
-			if (!((emu->NPC == 0) || (emu->race <= 12) || (emu->race == 128) || (emu->race == 130) || (emu->race == 330) || (emu->race == 522)))
+			if (!((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin))
+				)
 			{
 				PacketSize -= (sizeof(structs::Texture_Struct) * EQ::textures::materialCount);
 
@@ -2836,18 +3073,20 @@ namespace UF
 
 			uint8 OtherData = 0;
 
-			if (emu->class_ == 62) //Ldon chest
+			if (emu->class_ == Class::LDoNTreasure) //Ldon chest
+			{
 				OtherData = OtherData | 0x01;
+			}
 
-			if (strlen(emu->title))
+			if (strlen(emu->title)) {
 				OtherData = OtherData | 0x04;
-
-			if (strlen(emu->suffix))
+			}
+			if (strlen(emu->suffix)) {
 				OtherData = OtherData | 0x08;
-
-			if (emu->DestructibleObject)
+			}
+			if (emu->DestructibleObject) {
 				OtherData = OtherData | 0xd1;	// Live has 0xe1 for OtherData
-
+			}
 			VARSTRUCT_ENCODE_TYPE(uint8, Buffer, OtherData);
 
 			if (emu->DestructibleObject)
@@ -2860,7 +3099,7 @@ namespace UF
 			}
 			VARSTRUCT_ENCODE_TYPE(float, Buffer, 0);	// unknown4
 
-			if (emu->DestructibleObject || emu->class_ == 62)
+			if (emu->DestructibleObject || emu->class_ == Class::LDoNTreasure)
 			{
 				VARSTRUCT_ENCODE_STRING(Buffer, emu->DestructibleModel);
 				VARSTRUCT_ENCODE_STRING(Buffer, emu->DestructibleName2);
@@ -2932,6 +3171,30 @@ namespace UF
 			else
 			{
 				VARSTRUCT_ENCODE_TYPE(uint32, Buffer, emu->guildID);
+				//Translate older ranks to new values* /
+				switch (emu->guildrank) {
+					case GUILD_SENIOR_MEMBER:
+					case GUILD_MEMBER:
+					case GUILD_JUNIOR_MEMBER:
+					case GUILD_INITIATE:
+					case GUILD_RECRUIT: {
+						emu->guildrank = GUILD_MEMBER_TI;
+						break;
+					}
+					case GUILD_OFFICER:
+					case GUILD_SENIOR_OFFICER: {
+						emu->guildrank = GUILD_OFFICER_TI;
+						break;
+					}
+					case GUILD_LEADER: {
+						emu->guildrank = GUILD_LEADER_TI;
+						break;
+					}
+					default: {
+						emu->guildrank = GUILD_RANK_NONE_TI;
+						break;
+					}
+				}
 				VARSTRUCT_ENCODE_TYPE(uint32, Buffer, emu->guildrank);
 			}
 			VARSTRUCT_ENCODE_TYPE(uint8, Buffer, emu->class_);
@@ -2969,7 +3232,9 @@ namespace UF
 
 			Buffer += sizeof(structs::Spawn_Struct_Position);
 
-			if ((emu->NPC == 0) || (emu->race <= 12) || (emu->race == 128) || (emu->race == 130) || (emu->race == 330) || (emu->race == 522))
+			if ((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin)
+				)
 			{
 				for (k = EQ::textures::textureBegin; k < EQ::textures::materialCount; ++k)
 				{
@@ -3003,7 +3268,9 @@ namespace UF
 				VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 0);
 			}
 
-			if ((emu->NPC == 0) || (emu->race <= 12) || (emu->race == 128) || (emu->race == 130) || (emu->race == 330) || (emu->race == 522))
+			if ((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin)
+				)
 			{
 				structs::Texture_Struct *Equipment = (structs::Texture_Struct *)Buffer;
 
@@ -3124,6 +3391,17 @@ namespace UF
 		IN(Beginning.Action);
 		memcpy(emu->Name, eq->Name, sizeof(emu->Name));
 		IN(SerialNumber);
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	DECODE(OP_BookButton)
+	{
+		DECODE_LENGTH_EXACT(structs::BookButton_Struct);
+		SETUP_DIRECT_DECODE(BookButton_Struct, structs::BookButton_Struct);
+
+		emu->invslot = static_cast<int16_t>(UFToServerSlot(eq->invslot));
+		IN(target_id);
 
 		FINISH_DIRECT_DECODE();
 	}
@@ -3549,6 +3827,34 @@ namespace UF
 		DECODE_FORWARD(OP_GroupInvite);
 	}
 
+	DECODE(OP_GuildDemote)
+	{
+		DECODE_LENGTH_EXACT(structs::GuildDemoteStruct);
+		SETUP_DIRECT_DECODE(GuildDemoteStruct, structs::GuildDemoteStruct);
+
+		memcpy(emu->name, eq->name, sizeof(emu->name));
+		memcpy(emu->target, eq->target, sizeof(emu->target));
+		emu->rank = GUILD_MEMBER;
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	DECODE(OP_GuildTributeDonateItem)
+	{
+		DECODE_LENGTH_EXACT(structs::GuildTributeDonateItemRequest_Struct);
+		SETUP_DIRECT_DECODE(GuildTributeDonateItemRequest_Struct, structs::GuildTributeDonateItemRequest_Struct);
+
+		Log(Logs::Detail, Logs::Netcode, "UF::DECODE(OP_GuildTributeDonateItem)");
+
+		IN(quantity);
+		IN(tribute_master_id);
+		IN(guild_id);
+
+		emu->slot = UFToServerSlot(eq->slot);
+
+		FINISH_DIRECT_DECODE();
+	}
+
 	DECODE(OP_InspectRequest)
 	{
 		DECODE_LENGTH_EXACT(structs::Inspect_Struct);
@@ -3607,7 +3913,7 @@ namespace UF
 		DECODE_LENGTH_EXACT(structs::LootingItem_Struct);
 		SETUP_DIRECT_DECODE(LootingItem_Struct, structs::LootingItem_Struct);
 
-		Log(Logs::Moderate, Logs::Netcode, "UF::DECODE(OP_LootItem)");
+		Log(Logs::Detail, Logs::Netcode, "UF::DECODE(OP_LootItem)");
 
 		IN(lootee);
 		IN(looter);
@@ -3622,7 +3928,7 @@ namespace UF
 		DECODE_LENGTH_EXACT(structs::MoveItem_Struct);
 		SETUP_DIRECT_DECODE(MoveItem_Struct, structs::MoveItem_Struct);
 
-		Log(Logs::Moderate, Logs::Netcode, "UF::DECODE(OP_MoveItem)");
+		Log(Logs::Detail, Logs::Netcode, "UF::DECODE(OP_MoveItem)");
 
 		emu->from_slot = UFToServerSlot(eq->from_slot);
 		emu->to_slot = UFToServerSlot(eq->to_slot);
@@ -3646,39 +3952,48 @@ namespace UF
 	{
 		DECODE_LENGTH_ATLEAST(structs::RaidGeneral_Struct);
 
-		// This is a switch on the RaidGeneral action
-		switch (*(uint32 *)__packet->pBuffer) {
-			case 35: { // raidMOTD
-				// we don't have a nice macro for this
-				structs::RaidMOTD_Struct *__eq_buffer = (structs::RaidMOTD_Struct *)__packet->pBuffer;
-				__eq_buffer->motd[1023] = '\0';
-				size_t motd_size = strlen(__eq_buffer->motd) + 1;
-				__packet->size = sizeof(RaidMOTD_Struct) + motd_size;
-				__packet->pBuffer = new unsigned char[__packet->size];
-				RaidMOTD_Struct *emu = (RaidMOTD_Struct *)__packet->pBuffer;
-				structs::RaidMOTD_Struct *eq = (structs::RaidMOTD_Struct *)__eq_buffer;
-				strn0cpy(emu->general.player_name, eq->general.player_name, 64);
-				strn0cpy(emu->motd, eq->motd, motd_size);
-				IN(general.action);
-				IN(general.parameter);
-				FINISH_DIRECT_DECODE();
-				break;
-			}
-			case 36: { // raidPlayerNote unhandled
-				break;
-			}
-			default: {
-				DECODE_LENGTH_EXACT(structs::RaidGeneral_Struct);
-				SETUP_DIRECT_DECODE(RaidGeneral_Struct, structs::RaidGeneral_Struct);
-				strn0cpy(emu->leader_name, eq->leader_name, 64);
-				strn0cpy(emu->player_name, eq->player_name, 64);
-				IN(action);
-				IN(parameter);
-				FINISH_DIRECT_DECODE();
-				break;
-			}
-		}
+		RaidGeneral_Struct* rgs = (RaidGeneral_Struct*)__packet->pBuffer;
 
+		switch (rgs->action)
+		{
+		case raidSetMotd:
+		{
+			SETUP_VAR_DECODE(RaidMOTD_Struct, structs::RaidMOTD_Struct, motd);
+
+			IN(general.action);
+			IN(general.parameter);
+			IN_str(general.leader_name);
+			IN_str(general.player_name);
+			IN_str(motd);
+
+			FINISH_VAR_DECODE();
+			break;
+		}
+		case raidSetNote:
+		{
+			SETUP_VAR_DECODE(RaidNote_Struct, structs::RaidNote_Struct, note);
+
+			IN(general.action);
+			IN(general.parameter);
+			IN_str(general.leader_name);
+			IN_str(general.player_name);
+			IN_str(note);
+
+			FINISH_VAR_DECODE();
+			break;
+		}
+		default:
+		{
+			SETUP_DIRECT_DECODE(RaidGeneral_Struct, structs::RaidGeneral_Struct);
+			IN(action);
+			IN(parameter);
+			IN_str(leader_name);
+			IN_str(player_name);
+
+			FINISH_DIRECT_DECODE();
+			break;
+		}
+		}
 	}
 
 	DECODE(OP_ReadBook)
@@ -3687,7 +4002,8 @@ namespace UF
 		SETUP_DIRECT_DECODE(BookRequest_Struct, structs::BookRequest_Struct);
 
 		IN(type);
-		emu->invslot = UFToServerSlot(eq->invslot);
+		emu->invslot = static_cast<int16_t>(UFToServerSlot(eq->invslot));
+		IN(target_id);
 		emu->window = (uint8)eq->window;
 		strn0cpy(emu->txtfile, eq->txtfile, sizeof(emu->txtfile));
 
@@ -3740,6 +4056,21 @@ namespace UF
 		emu->itemslot = UFToServerSlot(eq->itemslot);
 		IN(quantity);
 		IN(price);
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	DECODE(OP_ShopRequest)
+	{
+		DECODE_LENGTH_EXACT(structs::MerchantClick_Struct);
+		SETUP_DIRECT_DECODE(MerchantClick_Struct, structs::MerchantClick_Struct);
+
+		IN(npc_id);
+		IN(player_id);
+		IN(command);
+		IN(rate);
+		emu->tab_display = 0;
+		emu->unknown020 = 0;
 
 		FINISH_DIRECT_DECODE();
 	}
@@ -3835,7 +4166,7 @@ namespace UF
 	void SerializeItem(EQ::OutBuffer& ob, const EQ::ItemInstance *inst, int16 slot_id_in, uint8 depth)
 	{
 		const EQ::ItemData *item = inst->GetUnscaledItem();
-		
+
 		UF::structs::ItemSerializationHeader hdr;
 
 		hdr.stacksize = (inst->IsStackable() ? ((inst->GetCharges() > 1000) ? 0xFFFFFFFF : inst->GetCharges()) : 1);
@@ -3874,17 +4205,17 @@ namespace UF
 			ob.write((const char*)&evotop, sizeof(UF::structs::EvolvingItem));
 		}
 
-		//ORNAMENT IDFILE / ICON -
-		int ornamentationAugtype = RuleI(Character, OrnamentationAugmentType);
-		uint16 ornaIcon = 0;
-		if (inst->GetOrnamentationAug(ornamentationAugtype)) {
-			const EQ::ItemData *aug_weap = inst->GetOrnamentationAug(ornamentationAugtype)->GetItem();
-			ornaIcon = aug_weap->Icon;
+		uint16     ornament_icon = 0;
+		const auto augment       = inst->GetOrnamentationAugment();
 
-			ob.write(aug_weap->IDFile, strlen(aug_weap->IDFile));
+		if (augment) {
+			const auto augment_item = augment->GetItem();
+			ornament_icon = augment_item->Icon;
+
+			ob.write(augment_item->IDFile, strlen(augment_item->IDFile));
 		}
 		else if (inst->GetOrnamentationIDFile() && inst->GetOrnamentationIcon()) {
-			ornaIcon = inst->GetOrnamentationIcon();
+			ornament_icon = inst->GetOrnamentationIcon();
 			char tmp[30]; memset(tmp, 0x0, 30); sprintf(tmp, "IT%d", inst->GetOrnamentationIDFile());
 
 			ob.write(tmp, strlen(tmp));
@@ -3893,7 +4224,7 @@ namespace UF
 
 		UF::structs::ItemSerializationHeaderFinish hdrf;
 
-		hdrf.ornamentIcon = ornaIcon;
+		hdrf.ornamentIcon = ornament_icon;
 		hdrf.unknown060 = 0; //This is Always 0.. or it breaks shit..
 		hdrf.unknown061 = 0; //possibly ornament / special ornament
 		hdrf.isCopied = 0; //Flag for item to be 'Copied'
@@ -4420,7 +4751,7 @@ namespace UF
 			return;
 		}
 
-		auto segments = SplitString(serverSayLink, '\x12');
+		auto segments = Strings::Split(serverSayLink, '\x12');
 
 		for (size_t segment_iter = 0; segment_iter < segments.size(); ++segment_iter) {
 			if (segment_iter & 1) {
@@ -4460,7 +4791,7 @@ namespace UF
 			return;
 		}
 
-		auto segments = SplitString(ufSayLink, '\x12');
+		auto segments = Strings::Split(ufSayLink, '\x12');
 
 		for (size_t segment_iter = 0; segment_iter < segments.size(); ++segment_iter) {
 			if (segment_iter & 1) {

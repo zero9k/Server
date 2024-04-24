@@ -14,7 +14,7 @@ void command_editmassrespawn(Client *c, const Seperator *sep)
 
 	int change_respawn_seconds = 0;
 	if (sep->arg[2] && sep->IsNumber(2)) {
-		change_respawn_seconds = atoi(sep->arg[2]);
+		change_respawn_seconds = Strings::ToInt(sep->arg[2]);
 	}
 
 	bool change_apply = false;
@@ -126,7 +126,7 @@ void command_editmassrespawn(Client *c, const Seperator *sep)
 
 				c->Message(
 					Chat::Yellow, "To apply these changes, click <%s> or type [%s]",
-					EQ::SayLinkEngine::GenerateQuestSaylink(saylink, false, "Apply").c_str(),
+					Saylink::Silent(saylink, "Apply").c_str(),
 					saylink.c_str()
 				);
 			}

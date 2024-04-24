@@ -1,6 +1,7 @@
 #ifdef LUA_EQEMU
 
-#include "lua.hpp"
+#include "../common/data_verification.h"
+
 #include <luabind/luabind.hpp>
 
 #include "lua_stat_bonuses.h"
@@ -10,37 +11,42 @@ int32 Lua_StatBonuses::GetAC() const {
 	return self->AC;
 }
 
-int32 Lua_StatBonuses::GetHP() const {
+int64 Lua_StatBonuses::GetHP() const {
 	Lua_Safe_Call_Int();
 	return self->HP;
 }
 
-int32 Lua_StatBonuses::GetHPRegen() const {
+int64 Lua_StatBonuses::GetFlatMaxHPChange() const {
+	Lua_Safe_Call_Int();
+	return self->FlatMaxHPChange;
+}
+
+int64 Lua_StatBonuses::GetHPRegen() const {
 	Lua_Safe_Call_Int();
 	return self->HPRegen;
 }
 
-int32 Lua_StatBonuses::GetMaxHP() const {
+int64 Lua_StatBonuses::GetMaxHP() const {
 	Lua_Safe_Call_Int();
-	return self->MaxHP;
+	return self->PercentMaxHPChange;
 }
 
-int32 Lua_StatBonuses::GetManaRegen() const {
+int64 Lua_StatBonuses::GetManaRegen() const {
 	Lua_Safe_Call_Int();
 	return self->ManaRegen;
 }
 
-int32 Lua_StatBonuses::GetEnduranceRegen() const {
+int64 Lua_StatBonuses::GetEnduranceRegen() const {
 	Lua_Safe_Call_Int();
 	return self->EnduranceRegen;
 }
 
-int32 Lua_StatBonuses::GetMana() const {
+int64 Lua_StatBonuses::GetMana() const {
 	Lua_Safe_Call_Int();
 	return self->Mana;
 }
 
-int32 Lua_StatBonuses::GetEndurance() const {
+int64 Lua_StatBonuses::GetEndurance() const {
 	Lua_Safe_Call_Int();
 	return self->Endurance;
 }
@@ -380,12 +386,12 @@ uint32 Lua_StatBonuses::GetsongModCap() const {
 	return self->songModCap;
 }
 
-int8 Lua_StatBonuses::Gethatemod() const {
+int32 Lua_StatBonuses::Gethatemod() const {
 	Lua_Safe_Call_Int();
 	return self->hatemod;
 }
 
-int32 Lua_StatBonuses::GetEnduranceReduction() const {
+int64 Lua_StatBonuses::GetEnduranceReduction() const {
 	Lua_Safe_Call_Int();
 	return self->EnduranceReduction;
 }
@@ -607,7 +613,7 @@ int32 Lua_StatBonuses::GetHealRate() const {
 
 int32 Lua_StatBonuses::GetMaxHPChange() const {
 	Lua_Safe_Call_Int();
-	return self->MaxHPChange;
+	return self->PercentMaxHPChange;
 }
 
 int32 Lua_StatBonuses::GetHealAmt() const {
@@ -677,7 +683,7 @@ int Lua_StatBonuses::GetXPRateMod() const {
 
 bool Lua_StatBonuses::GetBlockNextSpell() const {
 	Lua_Safe_Call_Bool();
-	//return self->BlockNextSpell; bonus no longer used due to effect being a focus
+	return false; // Bonus no longer used due to effect being a focus
 }
 
 bool Lua_StatBonuses::GetImmuneToFlee() const {
@@ -1097,7 +1103,11 @@ int32 Lua_StatBonuses::GetSkillReuseTime(int idx) const {
 
 int32 Lua_StatBonuses::GetSkillDamageAmount(int idx) const {
 	Lua_Safe_Call_Int();
-	return self->SkillDamageAmount[idx];
+	if (!EQ::ValueWithin(idx, ALL_SKILLS, EQ::skills::HIGHEST_SKILL)) {
+		return 0;
+	}
+
+	return idx == ALL_SKILLS ? self->SkillDamageAmount[EQ::skills::HIGHEST_SKILL + 1] : self->SkillDamageAmount[idx];
 }
 
 int Lua_StatBonuses::GetHPPercCap(int idx) const {
@@ -1376,6 +1386,7 @@ luabind::scope lua_register_stat_bonuses() {
 	.def("FeignedCastOnChance", &Lua_StatBonuses::GetFeignedCastOnChance)
 	.def("FinishingBlow", &Lua_StatBonuses::GetFinishingBlow)
 	.def("FinishingBlowLvl", &Lua_StatBonuses::GetFinishingBlowLvl)
+	.def("FlatMaxHPChange", &Lua_StatBonuses::GetFlatMaxHPChange)
 	.def("FlurryChance", &Lua_StatBonuses::GetFlurryChance)
 	.def("FocusEffects", &Lua_StatBonuses::GetFocusEffects)
 	.def("FocusEffectsWorn", &Lua_StatBonuses::GetFocusEffectsWorn)

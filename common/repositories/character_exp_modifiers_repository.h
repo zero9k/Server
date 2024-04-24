@@ -1,28 +1,8 @@
-/**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- */
-
 #ifndef EQEMU_CHARACTER_EXP_MODIFIERS_REPOSITORY_H
 #define EQEMU_CHARACTER_EXP_MODIFIERS_REPOSITORY_H
 
 #include "../database.h"
-#include "../string_util.h"
+#include "../strings.h"
 #include "base/base_character_exp_modifiers_repository.h"
 
 class CharacterExpModifiersRepository: public BaseCharacterExpModifiersRepository {
@@ -64,7 +44,63 @@ public:
      */
 
 	// Custom extended repository methods here
+	static EXPModifier GetEXPModifier(
+		Database& db,
+		uint32 character_id,
+		uint32 zone_id,
+		int16 instance_version
+	)
+	{
+		const auto& l = CharacterExpModifiersRepository::GetWhere(
+			db,
+			fmt::format(
+				SQL(
+					`character_id` = {} AND
+					(`zone_id` = {} OR `zone_id` = 0) AND
+					(`instance_version` = {} OR `instance_version` = -1)
+					ORDER BY `zone_id`, `instance_version` DESC
+					LIMIT 1
+				),
+				character_id,
+				zone_id,
+				instance_version
+			)
+		);
 
+		if (l.empty()) {
+			return EXPModifier{
+				.aa_modifier = 1.0f,
+				.exp_modifier = 1.0f
+			};
+		}
+
+		const auto& m = l.front();
+
+		return EXPModifier{
+			.aa_modifier = m.aa_modifier,
+			.exp_modifier = m.exp_modifier
+		};
+	}
+
+	static void SetEXPModifier(
+		Database& db,
+		uint32 character_id,
+		uint32 zone_id,
+		int16 instance_version,
+		EXPModifier m
+	)
+	{
+		CharacterExpModifiersRepository::ReplaceOne(
+			db,
+			CharacterExpModifiersRepository::CharacterExpModifiers{
+				.character_id = static_cast<int32_t>(character_id),
+				.zone_id = static_cast<int32_t>(zone_id),
+				.instance_version = instance_version,
+				.aa_modifier = m.aa_modifier,
+				.exp_modifier = m.exp_modifier
+			}
+		);
+	}
 };
 
 #endif //EQEMU_CHARACTER_EXP_MODIFIERS_REPOSITORY_H

@@ -6,21 +6,21 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
+ * @docs https://docs.eqemu.io/developer/repositories
  */
 
 #ifndef EQEMU_BASE_ALTERNATE_CURRENCY_REPOSITORY_H
 #define EQEMU_BASE_ALTERNATE_CURRENCY_REPOSITORY_H
 
 #include "../../database.h"
-#include "../../string_util.h"
+#include "../../strings.h"
 #include <ctime>
 
 class BaseAlternateCurrencyRepository {
 public:
 	struct AlternateCurrency {
-		int id;
-		int item_id;
+		int32_t id;
+		int32_t item_id;
 	};
 
 	static std::string PrimaryKey()
@@ -46,12 +46,12 @@ public:
 
 	static std::string ColumnsRaw()
 	{
-		return std::string(implode(", ", Columns()));
+		return std::string(Strings::Implode(", ", Columns()));
 	}
 
 	static std::string SelectColumnsRaw()
 	{
-		return std::string(implode(", ", SelectColumns()));
+		return std::string(Strings::Implode(", ", SelectColumns()));
 	}
 
 	static std::string TableName()
@@ -79,15 +79,15 @@ public:
 
 	static AlternateCurrency NewEntity()
 	{
-		AlternateCurrency entry{};
+		AlternateCurrency e{};
 
-		entry.id      = 0;
-		entry.item_id = 0;
+		e.id      = 0;
+		e.item_id = 0;
 
-		return entry;
+		return e;
 	}
 
-	static AlternateCurrency GetAlternateCurrencyEntry(
+	static AlternateCurrency GetAlternateCurrency(
 		const std::vector<AlternateCurrency> &alternate_currencys,
 		int alternate_currency_id
 	)
@@ -108,20 +108,21 @@ public:
 	{
 		auto results = db.QueryDatabase(
 			fmt::format(
-				"{} WHERE id = {} LIMIT 1",
+				"{} WHERE {} = {} LIMIT 1",
 				BaseSelect(),
+				PrimaryKey(),
 				alternate_currency_id
 			)
 		);
 
 		auto row = results.begin();
 		if (results.RowCount() == 1) {
-			AlternateCurrency entry{};
+			AlternateCurrency e{};
 
-			entry.id      = atoi(row[0]);
-			entry.item_id = atoi(row[1]);
+			e.id      = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
+			e.item_id = row[1] ? static_cast<int32_t>(atoi(row[1])) : 0;
 
-			return entry;
+			return e;
 		}
 
 		return NewEntity();
@@ -146,23 +147,23 @@ public:
 
 	static int UpdateOne(
 		Database& db,
-		AlternateCurrency alternate_currency_entry
+		const AlternateCurrency &e
 	)
 	{
-		std::vector<std::string> update_values;
+		std::vector<std::string> v;
 
 		auto columns = Columns();
 
-		update_values.push_back(columns[0] + " = " + std::to_string(alternate_currency_entry.id));
-		update_values.push_back(columns[1] + " = " + std::to_string(alternate_currency_entry.item_id));
+		v.push_back(columns[0] + " = " + std::to_string(e.id));
+		v.push_back(columns[1] + " = " + std::to_string(e.item_id));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
 				"UPDATE {} SET {} WHERE {} = {}",
 				TableName(),
-				implode(", ", update_values),
+				Strings::Implode(", ", v),
 				PrimaryKey(),
-				alternate_currency_entry.id
+				e.id
 			)
 		);
 
@@ -171,55 +172,55 @@ public:
 
 	static AlternateCurrency InsertOne(
 		Database& db,
-		AlternateCurrency alternate_currency_entry
+		AlternateCurrency e
 	)
 	{
-		std::vector<std::string> insert_values;
+		std::vector<std::string> v;
 
-		insert_values.push_back(std::to_string(alternate_currency_entry.id));
-		insert_values.push_back(std::to_string(alternate_currency_entry.item_id));
+		v.push_back(std::to_string(e.id));
+		v.push_back(std::to_string(e.item_id));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
 				"{} VALUES ({})",
 				BaseInsert(),
-				implode(",", insert_values)
+				Strings::Implode(",", v)
 			)
 		);
 
 		if (results.Success()) {
-			alternate_currency_entry.id = results.LastInsertedID();
-			return alternate_currency_entry;
+			e.id = results.LastInsertedID();
+			return e;
 		}
 
-		alternate_currency_entry = NewEntity();
+		e = NewEntity();
 
-		return alternate_currency_entry;
+		return e;
 	}
 
 	static int InsertMany(
 		Database& db,
-		std::vector<AlternateCurrency> alternate_currency_entries
+		const std::vector<AlternateCurrency> &entries
 	)
 	{
 		std::vector<std::string> insert_chunks;
 
-		for (auto &alternate_currency_entry: alternate_currency_entries) {
-			std::vector<std::string> insert_values;
+		for (auto &e: entries) {
+			std::vector<std::string> v;
 
-			insert_values.push_back(std::to_string(alternate_currency_entry.id));
-			insert_values.push_back(std::to_string(alternate_currency_entry.item_id));
+			v.push_back(std::to_string(e.id));
+			v.push_back(std::to_string(e.item_id));
 
-			insert_chunks.push_back("(" + implode(",", insert_values) + ")");
+			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
 
-		std::vector<std::string> insert_values;
+		std::vector<std::string> v;
 
 		auto results = db.QueryDatabase(
 			fmt::format(
 				"{} VALUES {}",
 				BaseInsert(),
-				implode(",", insert_chunks)
+				Strings::Implode(",", insert_chunks)
 			)
 		);
 
@@ -240,18 +241,18 @@ public:
 		all_entries.reserve(results.RowCount());
 
 		for (auto row = results.begin(); row != results.end(); ++row) {
-			AlternateCurrency entry{};
+			AlternateCurrency e{};
 
-			entry.id      = atoi(row[0]);
-			entry.item_id = atoi(row[1]);
+			e.id      = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
+			e.item_id = row[1] ? static_cast<int32_t>(atoi(row[1])) : 0;
 
-			all_entries.push_back(entry);
+			all_entries.push_back(e);
 		}
 
 		return all_entries;
 	}
 
-	static std::vector<AlternateCurrency> GetWhere(Database& db, std::string where_filter)
+	static std::vector<AlternateCurrency> GetWhere(Database& db, const std::string &where_filter)
 	{
 		std::vector<AlternateCurrency> all_entries;
 
@@ -266,18 +267,18 @@ public:
 		all_entries.reserve(results.RowCount());
 
 		for (auto row = results.begin(); row != results.end(); ++row) {
-			AlternateCurrency entry{};
+			AlternateCurrency e{};
 
-			entry.id      = atoi(row[0]);
-			entry.item_id = atoi(row[1]);
+			e.id      = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
+			e.item_id = row[1] ? static_cast<int32_t>(atoi(row[1])) : 0;
 
-			all_entries.push_back(entry);
+			all_entries.push_back(e);
 		}
 
 		return all_entries;
 	}
 
-	static int DeleteWhere(Database& db, std::string where_filter)
+	static int DeleteWhere(Database& db, const std::string &where_filter)
 	{
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -302,6 +303,90 @@ public:
 		return (results.Success() ? results.RowsAffected() : 0);
 	}
 
+	static int64 GetMaxId(Database& db)
+	{
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"SELECT COALESCE(MAX({}), 0) FROM {}",
+				PrimaryKey(),
+				TableName()
+			)
+		);
+
+		return (results.Success() && results.begin()[0] ? strtoll(results.begin()[0], nullptr, 10) : 0);
+	}
+
+	static int64 Count(Database& db, const std::string &where_filter = "")
+	{
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"SELECT COUNT(*) FROM {} {}",
+				TableName(),
+				(where_filter.empty() ? "" : "WHERE " + where_filter)
+			)
+		);
+
+		return (results.Success() && results.begin()[0] ? strtoll(results.begin()[0], nullptr, 10) : 0);
+	}
+
+	static std::string BaseReplace()
+	{
+		return fmt::format(
+			"REPLACE INTO {} ({}) ",
+			TableName(),
+			ColumnsRaw()
+		);
+	}
+
+	static int ReplaceOne(
+		Database& db,
+		const AlternateCurrency &e
+	)
+	{
+		std::vector<std::string> v;
+
+		v.push_back(std::to_string(e.id));
+		v.push_back(std::to_string(e.item_id));
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES ({})",
+				BaseReplace(),
+				Strings::Implode(",", v)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
+
+	static int ReplaceMany(
+		Database& db,
+		const std::vector<AlternateCurrency> &entries
+	)
+	{
+		std::vector<std::string> insert_chunks;
+
+		for (auto &e: entries) {
+			std::vector<std::string> v;
+
+			v.push_back(std::to_string(e.id));
+			v.push_back(std::to_string(e.item_id));
+
+			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
+		}
+
+		std::vector<std::string> v;
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES {}",
+				BaseReplace(),
+				Strings::Implode(",", insert_chunks)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
 };
 
 #endif //EQEMU_BASE_ALTERNATE_CURRENCY_REPOSITORY_H
