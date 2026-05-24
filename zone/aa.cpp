@@ -1,49 +1,46 @@
-/*	EQEMu: Everquest Server Emulator
-Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
-#include "../common/classes.h"
-#include "../common/global_define.h"
-#include "../common/eqemu_logsys.h"
-#include "../common/eq_packet_structs.h"
-#include "../common/races.h"
-#include "../common/spdat.h"
-#include "../common/strings.h"
-#include "../common/events/player_event_logs.h"
 #include "aa.h"
-#include "client.h"
-#include "corpse.h"
-#include "groups.h"
-#include "mob.h"
-#include "queryserv.h"
-#include "quest_parser_collection.h"
-#include "raids.h"
-#include "string_ids.h"
-#include "titles.h"
-#include "zonedb.h"
-#include "worldserver.h"
 
-#include "bot.h"
-
-#include "../common/repositories/character_alternate_abilities_repository.h"
-#include "../common/repositories/aa_ability_repository.h"
-#include "../common/repositories/aa_ranks_repository.h"
-#include "../common/repositories/aa_rank_effects_repository.h"
-#include "../common/repositories/aa_rank_prereqs_repository.h"
+#include "common/classes.h"
+#include "common/eq_packet_structs.h"
+#include "common/eqemu_logsys.h"
+#include "common/events/player_event_logs.h"
+#include "common/races.h"
+#include "common/repositories/aa_ability_repository.h"
+#include "common/repositories/aa_rank_effects_repository.h"
+#include "common/repositories/aa_rank_prereqs_repository.h"
+#include "common/repositories/aa_ranks_repository.h"
+#include "common/repositories/character_alternate_abilities_repository.h"
+#include "common/spdat.h"
+#include "common/strings.h"
+#include "zone/bot.h"
+#include "zone/client.h"
+#include "zone/corpse.h"
+#include "zone/groups.h"
+#include "zone/mob.h"
+#include "zone/queryserv.h"
+#include "zone/quest_parser_collection.h"
+#include "zone/raids.h"
+#include "zone/string_ids.h"
+#include "zone/titles.h"
+#include "zone/worldserver.h"
+#include "zone/zonedb.h"
 
 extern WorldServer worldserver;
 extern QueryServ* QServ;
@@ -82,7 +79,7 @@ void Mob::TemporaryPets(uint16 spell_id, Mob *targ, const char *name_override, u
 
 	for (int x = 0; x < MAX_SWARM_PETS; x++)
 	{
-		if (spells[spell_id].effect_id[x] == SE_TemporaryPets)
+		if (spells[spell_id].effect_id[x] == SpellEffect::TemporaryPets)
 		{
 			pet.count = spells[spell_id].base_value[x];
 			pet.duration = spells[spell_id].max_value[x];
@@ -167,7 +164,7 @@ void Mob::TemporaryPets(uint16 spell_id, Mob *targ, const char *name_override, u
 			if (RuleB(Spells, SwarmPetTargetLock) || sticktarg) {
 				swarm_pet_npc->GetSwarmInfo()->target = targ->GetID();
 				swarm_pet_npc->SetPetTargetLockID(targ->GetID());
-				swarm_pet_npc->SetSpecialAbility(IMMUNE_AGGRO, 1);
+				swarm_pet_npc->SetSpecialAbility(SpecialAbility::AggroImmunity, 1);
 			}
 			else {
 				swarm_pet_npc->GetSwarmInfo()->target = 0;
@@ -272,7 +269,7 @@ void Mob::TypesTemporaryPets(uint32 typesid, Mob *targ, const char *name_overrid
 			if (RuleB(Spells, SwarmPetTargetLock) || sticktarg) {
 				swarm_pet_npc->GetSwarmInfo()->target = targ->GetID();
 				swarm_pet_npc->SetPetTargetLockID(targ->GetID());
-				swarm_pet_npc->SetSpecialAbility(IMMUNE_AGGRO, 1);
+				swarm_pet_npc->SetSpecialAbility(SpecialAbility::AggroImmunity, 1);
 			}
 			else {
 				swarm_pet_npc->GetSwarmInfo()->target = 0;
@@ -401,7 +398,7 @@ void Mob::WakeTheDead(uint16 spell_id, Corpse *corpse_to_use, Mob *tar, uint32 d
 		made_npc->npc_spells_id = 7;
 		break;
 	case Class::Paladin:
-		//SPECATK_TRIPLE
+		//SpecialAbility::TripleAttack
 		strcpy(made_npc->special_abilities, "6,1");
 		made_npc->current_hp = made_npc->current_hp * 150 / 100;
 		made_npc->max_hp = made_npc->max_hp * 150 / 100;
@@ -518,7 +515,7 @@ void Mob::WakeTheDead(uint16 spell_id, Corpse *corpse_to_use, Mob *tar, uint32 d
 
 void Client::ResetAA()
 {
-	SendClearAA();
+	SendClearPlayerAA();
 	RefundAA();
 
 	memset(&m_pp.aa_array[0], 0, sizeof(AA_Array) * MAX_PP_AA_ARRAY);
@@ -540,6 +537,13 @@ void Client::ResetAA()
 		++slot_id;
 	}
 
+	database.DeleteCharacterAAs(CharacterID());
+}
+
+void Client::ResetLeadershipAA()
+{
+	SendClearLeadershipAA();
+
 	for (int slot_id = 0; slot_id < _maxLeaderAA; ++slot_id) {
 		m_pp.leader_abilities.ranks[slot_id] = 0;
 	}
@@ -549,14 +553,7 @@ void Client::ResetAA()
 	m_pp.group_leadership_exp    = 0;
 	m_pp.raid_leadership_exp     = 0;
 
-	database.DeleteCharacterAAs(CharacterID());
 	database.DeleteCharacterLeadershipAbilities(CharacterID());
-}
-
-void Client::SendClearAA()
-{
-	SendClearLeadershipAA();
-	SendClearPlayerAA();
 }
 
 void Client::SendClearPlayerAA()
@@ -1180,7 +1177,7 @@ void Client::FinishAlternateAdvancementPurchase(AA::Rank *rank, bool ignore_cost
 		SendAlternateAdvancementStats();
 	}
 
-	if (player_event_logs.IsEventEnabled(PlayerEvent::AA_PURCHASE)) {
+	if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::AA_PURCHASE)) {
 		auto e = PlayerEvent::AAPurchasedEvent{
 			.aa_id = rank->id,
 			.aa_cost = cost,
@@ -1202,19 +1199,6 @@ void Client::FinishAlternateAdvancementPurchase(AA::Rank *rank, bool ignore_cost
 				cost == 1 ? std::to_string(AA_POINT).c_str() : std::to_string(AA_POINTS).c_str()
 			);
 		}
-
-		/* QS: Player_Log_AA_Purchases */
-		if (RuleB(QueryServ, PlayerLogAAPurchases)) {
-			const auto event_desc = fmt::format(
-				"Ranked AA Purchase :: aa_id:{} at cost:{} in zoneid:{} instid:{}",
-				rank->id,
-				cost,
-				GetZoneID(),
-				GetInstanceID()
-			);
-
-			QServ->PlayerLogEvent(Player_Log_AA_Purchases, CharacterID(), event_desc);
-		}
 	} else {
 		if (send_message_and_save) {
 			MessageString(
@@ -1224,19 +1208,6 @@ void Client::FinishAlternateAdvancementPurchase(AA::Rank *rank, bool ignore_cost
 				std::to_string(cost).c_str(),
 				cost == 1 ? std::to_string(AA_POINT).c_str() : std::to_string(AA_POINTS).c_str()
 			);
-		}
-
-		/* QS: Player_Log_AA_Purchases */
-		if (RuleB(QueryServ, PlayerLogAAPurchases)) {
-			const auto event_desc = fmt::format(
-				"Initial AA Purchase :: aa_id:{} at cost:{} in zoneid:{} instid:{}",
-				rank->id,
-				cost,
-				GetZoneID(),
-				GetInstanceID()
-			);
-
-			QServ->PlayerLogEvent(Player_Log_AA_Purchases, CharacterID(), event_desc);
 		}
 	}
 
@@ -1402,7 +1373,7 @@ int Mob::GetAlternateAdvancementCooldownReduction(AA::Rank *rank_in) {
 		}
 
 		for(auto &effect : rank->effects) {
-			if(effect.effect_id == SE_HastenedAASkill && effect.limit_value == ability_in->id) {
+			if(effect.effect_id == SpellEffect::HastenedAASkill && effect.limit_value == ability_in->id) {
 				total_reduction += effect.base_value;
 			}
 		}
@@ -1645,7 +1616,7 @@ bool Mob::CanUseAlternateAdvancementRank(AA::Rank *rank)
 
 	auto race = GetPlayerRaceValue(GetBaseRace());
 
-	race = race > PLAYER_RACE_COUNT ? Race::Human : race;
+	race = race > RaceIndex::Drakkin ? Race::Human : race;
 
 	if (!(a->races & (1 << (race - 1)))) {
 		return false;
@@ -1975,7 +1946,7 @@ void Client::TogglePassiveAlternativeAdvancement(const AA::Rank &rank, uint32 ab
 
 		Instructions for how to make the AA - assuming a basic level of knowledge of how AA's work.
 		- aa_abilities table : Create new ability with a hotkey, type 3, zero charges
-		- aa_ranks table :  [Disabled rank] First rank, should have a cost > 0 (this is what you buy), Set hotkeys, MUST SET A SPELL CONTAINING EFFECT SE_Buy_AA_Rank(SPA 472), set a short recast timer.
+		- aa_ranks table :  [Disabled rank] First rank, should have a cost > 0 (this is what you buy), Set hotkeys, MUST SET A SPELL CONTAINING EFFECT SpellEffect::Buy_AA_Rank(SPA 472), set a short recast timer.
 							[Enabled rank] Second rank, should have a cost = 0, Set hotkeys, Set any valid spell ID you want (it has to exist but does nothing), set a short recast timer.
 							*Recommend if doing custom, just make the hotkey titled 'Toggle <Ability Name>' and use for both.
 
@@ -1995,7 +1966,7 @@ void Client::TogglePassiveAlternativeAdvancement(const AA::Rank &rank, uint32 ab
 
 	*/
 
-	bool enable_next_rank = IsEffectInSpell(rank.spell, SE_Buy_AA_Rank);
+	bool enable_next_rank = IsEffectInSpell(rank.spell, SpellEffect::Buy_AA_Rank);
 
 	if (enable_next_rank) {
 
@@ -2006,7 +1977,7 @@ void Client::TogglePassiveAlternativeAdvancement(const AA::Rank &rank, uint32 ab
 		AA::Rank *rank_next = zone->GetAlternateAdvancementRank(rank.next_id);
 
 		//Add checks for any special cases for toggle.
-		if (rank_next && IsEffectinAlternateAdvancementRankEffects(*rank_next, SE_Weapon_Stance)) {
+		if (rank_next && IsEffectinAlternateAdvancementRankEffects(*rank_next, SpellEffect::Weapon_Stance)) {
 			weaponstance.aabonus_enabled = true;
 			ApplyWeaponsStance();
 		}
@@ -2020,7 +1991,7 @@ void Client::TogglePassiveAlternativeAdvancement(const AA::Rank &rank, uint32 ab
 		Message(Chat::Spells, "You disable an ability."); //Message live gives you. Should come from spell.
 
 		//Add checks for any special cases for toggle.
-		if (IsEffectinAlternateAdvancementRankEffects(rank, SE_Weapon_Stance)) {
+		if (IsEffectinAlternateAdvancementRankEffects(rank, SpellEffect::Weapon_Stance)) {
 			weaponstance.aabonus_enabled = false;
 			BuffFadeBySpellID(weaponstance.aabonus_buff_spell_id);
 		}
@@ -2031,8 +2002,8 @@ void Client::TogglePassiveAlternativeAdvancement(const AA::Rank &rank, uint32 ab
 bool Client::UseTogglePassiveHotkey(const AA::Rank &rank) {
 
 	/*
-		Disabled rank needs a rank spell containing the SE_Buy_AA_Rank effect to return true.
-		Enabled rank checks to see if the prior rank contains a rank spell with SE_Buy_AA_Rank, if so true.
+		Disabled rank needs a rank spell containing the SpellEffect::Buy_AA_Rank effect to return true.
+		Enabled rank checks to see if the prior rank contains a rank spell with SpellEffect::Buy_AA_Rank, if so true.
 
 		Note: On live the enabled rank is Expendable with Charge 1.
 
@@ -2040,13 +2011,13 @@ bool Client::UseTogglePassiveHotkey(const AA::Rank &rank) {
 	*/
 
 
-	if (IsEffectInSpell(rank.spell, SE_Buy_AA_Rank)) {//Checked when is Disabled.
+	if (IsEffectInSpell(rank.spell, SpellEffect::Buy_AA_Rank)) {//Checked when is Disabled.
 		return true;
 	}
 	else if (rank.prev_id != -1) {//Check when effect is Enabled.
 		AA::Rank *rank_prev = zone->GetAlternateAdvancementRank(rank.prev_id);
 
-		if (rank_prev && IsEffectInSpell(rank_prev->spell, SE_Buy_AA_Rank)) {
+		if (rank_prev && IsEffectInSpell(rank_prev->spell, SpellEffect::Buy_AA_Rank)) {
 			return true;
 		}
 	}
@@ -2178,19 +2149,24 @@ void Client::AutoGrantAAPoints() {
 		}
 	}
 
-	SendClearAA();
+	SendClearLeadershipAA();
+	SendClearPlayerAA();
 	SendAlternateAdvancementTable();
 	SendAlternateAdvancementPoints();
 	SendAlternateAdvancementStats();
 }
 
-void Client::GrantAllAAPoints(uint8 unlock_level)
+void Client::GrantAllAAPoints(uint8 unlock_level, bool skip_grant_only)
 {
 	//iterate through every AA
 	for (auto& aa : zone->aa_abilities) {
 		AA::Ability* ability = aa.second.get();
 
 		if (ability->charges > 0) {
+			continue;
+		}
+
+		if (ability->grant_only && skip_grant_only) {
 			continue;
 		}
 
@@ -2211,7 +2187,8 @@ void Client::GrantAllAAPoints(uint8 unlock_level)
 	}
 
 	SaveAA();
-	SendClearAA();
+	SendClearLeadershipAA();
+	SendClearPlayerAA();
 	SendAlternateAdvancementTable();
 	SendAlternateAdvancementPoints();
 	SendAlternateAdvancementStats();

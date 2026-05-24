@@ -1,7 +1,27 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "world_event_scheduler.h"
-#include "../common/servertalk.h"
+
+#include "common/rulesys.h"
+#include "common/server_reload_types.h"
+#include "common/servertalk.h"
+
 #include <ctime>
-#include "../common/rulesys.h"
 
 void WorldEventScheduler::Process(ZSList *zs_list)
 {
@@ -55,11 +75,7 @@ void WorldEventScheduler::Process(ZSList *zs_list)
 				if (e.event_type == ServerEvents::EVENT_TYPE_RELOAD_WORLD) {
 					LogScheduler("Sending reload world event [{}]", e.event_data.c_str());
 
-					auto pack          = new ServerPacket(ServerOP_ReloadWorld, sizeof(ReloadWorld_Struct));
-					auto *reload_world = (ReloadWorld_Struct *) pack->pBuffer;
-					reload_world->global_repop = ReloadWorld::Repop;
-					zs_list->SendPacket(pack);
-					safe_delete(pack);
+					zs_list->SendServerReload(ServerReload::Type::WorldRepop, nullptr);
 				}
 			}
 		}

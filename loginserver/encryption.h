@@ -1,7 +1,28 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #pragma once
 
+#include "common/eqemu_logsys.h"
+#include "common/strings.h"
+#include "common/types.h"
+#include "loginserver/login_types.h"
+
 #include <string>
-#include "../common/types.h"
 
 enum EncryptionMode {
 	EncryptionModeMD5            = 1,
@@ -26,11 +47,44 @@ namespace CryptoHash {
 	const int sha512_hash_length = 128;
 }
 
-/**
- * @param mode
- * @return
- */
 std::string GetEncryptionByModeId(uint32 mode);
+
+// DES-CBC with an all-zero key and IV (EQ login protocol obfuscation, not security).
+// On encrypt, a trailing partial block is zero-padded to the next 8-byte boundary, so
+// buffer_out must be at least ((buffer_in_sz + 7) / 8) * 8 bytes. On decrypt, buffer_in_sz
+// must already be a multiple of 8 or the call returns nullptr.
 const char *eqcrypt_block(const char *buffer_in, size_t buffer_in_sz, char *buffer_out, bool enc);
 std::string eqcrypt_hash(const std::string &username, const std::string &password, int mode);
 bool eqcrypt_verify_hash(const std::string &username, const std::string &password, const std::string &pwhash, int mode);
+
+// OpenSSL 3.0 moved DES behind the "legacy" provider; these load/unload it
+// for the lifetime of the process. No-op when built against mbedtls.
+bool eqcrypt_init();
+void eqcrypt_shutdown();
+
+struct EncryptionResult {
+	std::string password;
+	int         mode = 0;
+	std::string mode_name;
+};
+
+inline EncryptionResult EncryptPasswordFromContext(LoginAccountContext c, int mode = EncryptionModeSCrypt)
+{
+	if (mode == 0) {
+		LogError("Encryption mode not set!");
+		return {};
+	}
+
+	EncryptionResult r;
+	r.password  = eqcrypt_hash(
+		c.username,
+		c.password,
+		mode
+	);
+	r.mode      = mode;
+	r.mode_name = GetEncryptionByModeId(r.mode);
+
+	LogInfo("Encrypted password for user [{}] using mode [{}] ({})", c.username, r.mode_name, r.mode);
+
+	return r;
+}

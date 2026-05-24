@@ -1,53 +1,40 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2002 EQEMu Development Team (http://eqemulator.net)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
-#if EQDEBUG >= 5
-//#define TUNE_DEBUG 20
-#endif
-
-#include "../common/global_define.h"
-#include "../common/eq_constants.h"
-#include "../common/eq_packet_structs.h"
-#include "../common/rulesys.h"
-#include "../common/spdat.h"
-#include "../common/strings.h"
-#include "../common/data_verification.h"
-#include "queryserv.h"
-#include "string_ids.h"
-#include "water_map.h"
-#include "worldserver.h"
-#include "zone.h"
-#include "lua_parser.h"
-#include "fastmath.h"
 #include "mob.h"
 
-#include "bot.h"
+#include "common/data_verification.h"
+#include "common/eq_constants.h"
+#include "common/eq_packet_structs.h"
+#include "common/rulesys.h"
+#include "common/spdat.h"
+#include "common/strings.h"
+#include "zone/bot.h"
+#include "zone/fastmath.h"
+#include "zone/lua_parser.h"
+#include "zone/queryserv.h"
+#include "zone/string_ids.h"
+#include "zone/water_map.h"
+#include "zone/worldserver.h"
+#include "zone/zone.h"
 
 extern QueryServ* QServ;
 extern WorldServer worldserver;
 extern FastMath g_Math;
-
-#ifdef _WINDOWS
-#define snprintf	_snprintf
-#define strncasecmp	_strnicmp
-#define strcasecmp	_stricmp
-#endif
-
 extern EntityList entity_list;
 extern Zone* zone;
 
@@ -466,12 +453,12 @@ void Mob::TuneGetAvoidanceByHitChance(Mob* defender, Mob *attacker, float hit_ch
 
 				if (loop_add_avoid >= 0) {
 					Message(0, "[#Tune] OPTION1: MODIFY Client Heroic AGI or Avoidance Mod2 stat by [+ %i ]", loop_add_avoid);
-					Message(0, "[#Tune] OPTION2: Give CLIENT an evasion bonus using SPA 172 Evasion SE_AvoidMeleeChance from (spells/items/aa) of [+ %i pct ]", evasion_bonus);
+					Message(0, "[#Tune] OPTION2: Give CLIENT an evasion bonus using SPA 172 Evasion SpellEffect::AvoidMeleeChance from (spells/items/aa) of [+ %i pct ]", evasion_bonus);
 
 				}
 				else {
 					Message(0, "[#Tune] OPTION1: MODIFY Client Heroic AGI or Avoidance Mod2 stat by [ %i ]", loop_add_avoid);
-					Message(0, "[#Tune] OPTION2: Give CLIENT an evasion bonus using SPA 172 Evasion SE_AvoidMeleeChance from (spells/items/aa) of [ %i pct ]", evasion_bonus);
+					Message(0, "[#Tune] OPTION2: Give CLIENT an evasion bonus using SPA 172 Evasion SpellEffect::AvoidMeleeChance from (spells/items/aa) of [ %i pct ]", evasion_bonus);
 				}
 
 				Message(0, "###################COMPLETE###################");
@@ -853,7 +840,7 @@ int64 Mob::TuneNPCAttack(Mob* other, bool no_avoid, bool no_hit_chance, int hit_
 	TuneDoAttack(other, my_hit, nullptr, no_avoid, no_hit_chance, ac_override, add_ac, avoidance_override, accuracy_override, add_avoidance, add_accuracy);
 
 	LogCombat("Final damage against [{}]: [{}]", other->GetName(), my_hit.damage_done);
-	if (other->IsClient() && IsPet() && GetOwner()->IsClient()) {
+	if (other->IsClient() && IsPet() && GetOwner()->IsOfClientBot()) {
 		//pets do half damage to clients in pvp
 		my_hit.damage_done /= 2;
 		if (my_hit.damage_done < 1)
@@ -1012,6 +999,26 @@ void Mob::TuneMeleeMitigation(Mob *attacker, DamageHitInfo &hit, int ac_override
 
 	auto roll = RollD20(hit.offense, mitigation);
 
+	// Add bonus to roll if level difference is sufficient
+	const int level_diff            = attacker->GetLevel() - GetLevel();
+	const int level_diff_roll_check = RuleI(Combat, LevelDifferenceRollCheck);
+
+	if (level_diff_roll_check >= 0) {
+		if (level_diff > level_diff_roll_check) {
+			roll += RuleR(Combat, LevelDifferenceRollBonus);
+
+			if (roll > 2.0f) {
+				roll = 2.0f;
+			}
+		} else if (level_diff < (-level_diff_roll_check)) {
+			roll -= RuleR(Combat, LevelDifferenceRollBonus);
+
+			if (roll < 0.1f) {
+				roll = 0.1f;
+			}
+		}
+	}
+
 	// +0.5 for rounding, min to 1 dmg
 	hit.damage_done = std::max(static_cast<int>(roll * static_cast<double>(hit.base_damage) + 0.5), 1);
 }
@@ -1124,17 +1131,28 @@ int64 Mob::Tuneoffense(EQ::skills::SkillType skill, int atk_override, int add_at
 		break;
 	}
 
-	if (stat_bonus >= 75)
+	if (stat_bonus >= 75) {
 		offense += (2 * stat_bonus - 150) / 3;
+	}
 
 	int32 tune_atk = GetATK();
+
+	// GetATK() = ATK + itembonuses.ATK + spellbonuses.ATK.  However, ATK appears to already be itembonuses.ATK + spellbonuses.ATK for PCs, so as is, it is double counting attack
+	// This causes attack to be significantly more important than it should be based on era rule of thumbs.  I do not want to change the GetATK() function in case doing so breaks something,
+	// so instead I am just adding a /2 to remedy the double counting.  NPCs do not have this issue, so they are broken up.
+	// PCAttackPowerScaling is used to help bring attack power further in line with era estimates.
+	if (IsOfClientBotMerc()) {
+		offense += (GetATK() / 2 + GetPetATKBonusFromOwner()) * RuleI(Combat, PCAttackPowerScaling) / 100;
+	} else {
+		offense += GetATK();
+	}
+
 	if (atk_override) {
 		tune_atk = atk_override;
 	}
 
 	tune_atk += add_atk;
 
-	offense += tune_atk + GetPetATKBonusFromOwner();
 	return offense;
 }
 
@@ -1252,7 +1270,7 @@ int64 Mob::Tunecompute_tohit(EQ::skills::SkillType skillinuse, int accuracy_over
 // return -1 in cases that always hit
 int64 Mob::TuneGetTotalToHit(EQ::skills::SkillType skill, int chance_mod, int accuracy_override, int add_accuracy)
 {
-	if (chance_mod >= 10000) // override for stuff like SE_SkillAttack
+	if (chance_mod >= 10000) // override for stuff like SpellEffect::SkillAttack
 		return -1;
 
 	// calculate attacker's accuracy
@@ -1267,15 +1285,22 @@ int64 Mob::TuneGetTotalToHit(EQ::skills::SkillType skill, int chance_mod, int ac
 	// unsure on the stacking order of these effects, rather hard to parse
 	// item mod2 accuracy isn't applied to range? Theory crafting and parses back it up I guess
 	// mod2 accuracy -- flat bonus
-	if (skill != EQ::skills::SkillArchery && skill != EQ::skills::SkillThrowing)
+	if (skill != EQ::skills::SkillArchery && skill != EQ::skills::SkillThrowing) {
 		accuracy += itembonuses.HitChance;
+	} else {
+		// Applying a scale factor as sources suggest Accuracy should reduce number of missing by 0.1% per point, so 150 = 15% reduction in misses.
+		// Based on my calculator 150 Accuracy was reducing misses by too much (closer to 20%)
+		// NOTE: This doesn't mean if you have a 30% miss chance you now miss 15%.  It means if you have a 30% miss chance you now have a 30% * (100% - 15%) = 30% * 85% = 25.5% miss chance
+		// Using same scale factor for Avoidance and Accuracy since they impact the formula about the same.
+		accuracy += itembonuses.HitChance * RuleI(Combat, PCAccuracyAvoidanceMod2Scale) / 100;
+	}
 
 	//518 Increase ATK accuracy by percentage, stackable
 	auto atkhit_bonus = itembonuses.Attack_Accuracy_Max_Percent + aabonuses.Attack_Accuracy_Max_Percent + spellbonuses.Attack_Accuracy_Max_Percent;
 	if (atkhit_bonus)
 		accuracy += round(static_cast<double>(accuracy) * static_cast<double>(atkhit_bonus) * 0.0001);
 
-	// 216 Melee Accuracy Amt aka SE_Accuracy -- flat bonus
+	// 216 Melee Accuracy Amt aka SpellEffect::Accuracy -- flat bonus
 	accuracy += itembonuses.Accuracy[EQ::skills::HIGHEST_SKILL + 1] +
 		aabonuses.Accuracy[EQ::skills::HIGHEST_SKILL + 1] +
 		spellbonuses.Accuracy[EQ::skills::HIGHEST_SKILL + 1] +
@@ -1297,13 +1322,18 @@ int64 Mob::TuneGetTotalToHit(EQ::skills::SkillType skill, int chance_mod, int ac
 	if (spellbonuses.HitChanceEffect[EQ::skills::HIGHEST_SKILL + 1] >= 10000)
 		return -1;
 
-	// 184 Accuracy % aka SE_HitChance -- percentage increase
+	// 184 Accuracy % aka SpellEffect::HitChance -- percentage increase
 	auto hit_bonus = itembonuses.HitChanceEffect[EQ::skills::HIGHEST_SKILL + 1] +
 		aabonuses.HitChanceEffect[EQ::skills::HIGHEST_SKILL + 1] +
 		spellbonuses.HitChanceEffect[EQ::skills::HIGHEST_SKILL + 1] +
 		itembonuses.HitChanceEffect[skill] +
 		aabonuses.HitChanceEffect[skill] +
 		spellbonuses.HitChanceEffect[skill];
+
+	if (skill == EQ::skills::SkillArchery) {
+		hit_bonus += spellbonuses.increase_archery + aabonuses.increase_archery + itembonuses.increase_archery;
+		hit_bonus -= hit_bonus * RuleR(Combat, ArcheryHitPenalty);
+	}
 
 	accuracy = (accuracy * (100 + hit_bonus)) / 100;
 	return accuracy;
@@ -1317,15 +1347,15 @@ int64 Mob::TuneGetTotalDefense(int avoidance_override, int add_avoidance)
 	if (evasion_bonus >= 10000)
 		return -1;
 
-	// 515 SE_AC_Avoidance_Max_Percent
+	// 515 SpellEffect::AC_Avoidance_Max_Percent
 	auto ac_aviodance_bonus = itembonuses.AC_Avoidance_Max_Percent + aabonuses.AC_Avoidance_Max_Percent + spellbonuses.AC_Avoidance_Max_Percent;
 	if (ac_aviodance_bonus)
 		avoidance += round(static_cast<double>(avoidance) * static_cast<double>(ac_aviodance_bonus) * 0.0001);
 
-	// 172 Evasion aka SE_AvoidMeleeChance
+	// 172 Evasion aka SpellEffect::AvoidMeleeChance
 	evasion_bonus += itembonuses.AvoidMeleeChanceEffect + aabonuses.AvoidMeleeChanceEffect; // item bonus here isn't mod2 avoidance
 
-	// 215 Pet Avoidance % aka SE_PetAvoidance
+	// 215 Pet Avoidance % aka SpellEffect::PetAvoidance
 	evasion_bonus += GetPetAvoidanceBonusFromOwner();
 
 	// Evasion is a percentage bonus according to AA descriptions
@@ -1338,31 +1368,43 @@ int64 Mob::TuneGetTotalDefense(int avoidance_override, int add_avoidance)
 int64 Mob::Tunecompute_defense(int avoidance_override, int add_avoidance)
 {
 	int defense = GetSkill(EQ::skills::SkillDefense) * 400 / 225;
-	defense += (8000 * (GetAGI() - 40)) / 36000;
-	if (IsOfClientBot()) {
-		if (avoidance_override) {
-			defense = avoidance_override;
+
+	// In new code, AGI becomes a large contributor to avoidance at low levels, since AGI isn't capped by Level but Defense is
+	// A scale factor is implemented for PCs to reduce the effect of AGI at low levels.  This isn't applied to NPCs since they can be
+	// easily controlled via the Database.
+	if (RuleB(Combat, LegacyComputeDefense)) {
+		int agi_scale_factor = 1000;
+
+		if (IsOfClientBot()) {
+			agi_scale_factor = std::min(1000, static_cast<int>(GetLevel()) * 1000 / 70); // Scales Agi Contribution for PC's Level, max Contribution at Level 70
 		}
-		else {
+
+		defense += agi_scale_factor * (800 * (GetAGI() - 40)) / 3600 / 1000;
+
+		if (IsOfClientBot()) {
+			defense += GetHeroicAGI() / 10;
+		}
+
+		defense += itembonuses.AvoidMeleeChance * RuleI(Combat, PCAccuracyAvoidanceMod2Scale) / 100; // item mod2
+	} else {
+		defense += (8000 * (GetAGI() - 40)) / 36000;
+
+		if (IsOfClientBot()) {
 			defense += itembonuses.heroic_agi_avoidance;
 		}
-		defense += add_avoidance; //1 pt = 10 heroic agi
+
+		defense += itembonuses.AvoidMeleeChance; // item mod2
 	}
 
-	//516 SE_AC_Mitigation_Max_Percent
-	auto ac_bonus = itembonuses.AC_Mitigation_Max_Percent + aabonuses.AC_Mitigation_Max_Percent + spellbonuses.AC_Mitigation_Max_Percent;
-	if (ac_bonus)
-		defense += round(static_cast<double>(defense) * static_cast<double>(ac_bonus) * 0.0001);
 
-	defense += itembonuses.AvoidMeleeChance; // item mod2
+	//516 SpellEffect::AC_Mitigation_Max_Percent
+	auto ac_bonus = itembonuses.AC_Mitigation_Max_Percent + aabonuses.AC_Mitigation_Max_Percent + spellbonuses.AC_Mitigation_Max_Percent;
+	if (ac_bonus) {
+		defense += round(static_cast<double>(defense) * static_cast<double>(ac_bonus) * 0.0001);
+	}
+
 	if (IsNPC()) {
-		if (avoidance_override) {
-			defense += avoidance_override;
-		}
-		else {
-			defense += CastToNPC()->GetAvoidanceRating();
-		}
-		defense += add_avoidance;
+		defense += CastToNPC()->GetAvoidanceRating();
 	}
 
 	if (IsClient()) {
@@ -1498,10 +1540,10 @@ void Mob::TuneCommonOutgoingHitSuccess(Mob* defender, DamageHitInfo &hit, ExtraA
 	// this appears where they do special attack dmg mods
 	int spec_mod = 0;
 	if (IsSpecialAttack(eSpecialAttacks::Rampage)) {
-		int mod = GetSpecialAbilityParam(SPECATK_RAMPAGE, 2);
+		int mod = GetSpecialAbilityParam(SpecialAbility::Rampage, 2);
 		if (mod > 0)
 			spec_mod = mod;
-		if ((IsPet() || IsTempPet()) && IsPetOwnerClient()) {
+		if ((IsPet() || IsTempPet()) && IsPetOwnerOfClientBot()) {
 			//SE_PC_Pet_Rampage SPA 464 on pet, damage modifier
 			int spell_mod = spellbonuses.PC_Pet_Rampage[SBIndex::PET_RAMPAGE_DMG_MOD] + itembonuses.PC_Pet_Rampage[SBIndex::PET_RAMPAGE_DMG_MOD] + aabonuses.PC_Pet_Rampage[SBIndex::PET_RAMPAGE_DMG_MOD];
 			if (spell_mod > spec_mod)
@@ -1509,10 +1551,10 @@ void Mob::TuneCommonOutgoingHitSuccess(Mob* defender, DamageHitInfo &hit, ExtraA
 		}
 	}
 	else if (IsSpecialAttack(eSpecialAttacks::AERampage)) {
-		int mod = GetSpecialAbilityParam(SPECATK_AREA_RAMPAGE, 2);
+		int mod = GetSpecialAbilityParam(SpecialAbility::AreaRampage, 2);
 		if (mod > 0)
 			spec_mod = mod;
-		if ((IsPet() || IsTempPet()) && IsPetOwnerClient()) {
+		if ((IsPet() || IsTempPet()) && IsPetOwnerOfClientBot()) {
 			//SE_PC_Pet_AE_Rampage SPA 465 on pet, damage modifier
 			int spell_mod = spellbonuses.PC_Pet_AE_Rampage[SBIndex::PET_RAMPAGE_DMG_MOD] + itembonuses.PC_Pet_AE_Rampage[SBIndex::PET_RAMPAGE_DMG_MOD] + aabonuses.PC_Pet_AE_Rampage[SBIndex::PET_RAMPAGE_DMG_MOD];
 			if (spell_mod > spec_mod)

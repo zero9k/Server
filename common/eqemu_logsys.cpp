@@ -1,54 +1,47 @@
-/**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2018 EQEmulator Development Team (https://github.com/EQEmu/Server)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include "eqemu_logsys.h"
-#include "rulesys.h"
-#include "platform.h"
-#include "strings.h"
-#include "repositories/discord_webhooks_repository.h"
-#include "repositories/logsys_categories_repository.h"
-#include "termcolor/rang.hpp"
 
+#include "common/file.h"
+#include "common/path_manager.h"
+#include "common/platform.h"
+#include "common/repositories/discord_webhooks_repository.h"
+#include "common/repositories/logsys_categories_repository.h"
+#include "common/rulesys.h"
+#include "common/strings.h"
+#include "common/termcolor/rang.hpp"
+
+#include <ctime>
+#include <filesystem>
 #include <iostream>
 #include <string>
-#include <time.h>
 #include <sys/stat.h>
-
-std::ofstream process_log;
-
-#include <filesystem>
 
 #ifdef _WINDOWS
+#include "common/platform/platform.h"
 #include <direct.h>
-#include <conio.h>
-#include <iostream>
-#include <dos.h>
-#include <windows.h>
-#include <process.h>
 #else
-
-#include <unistd.h>
 #include <sys/stat.h>
 #include <thread>
-
+#include <unistd.h>
 #endif
+
+std::ofstream process_log;
 
 /**
  * EQEmuLogSys Constructor
@@ -85,6 +78,7 @@ EQEmuLogSys *EQEmuLogSys::LoadLogSettingsDefaults()
 	 * Set Defaults
 	 */
 	log_settings[Logs::Crash].log_to_console                = static_cast<uint8>(Logs::General);
+	log_settings[Logs::Crash].log_to_file                   = static_cast<uint8>(Logs::General);
 	log_settings[Logs::MySQLError].log_to_console           = static_cast<uint8>(Logs::General);
 	log_settings[Logs::NPCScaling].log_to_gmsay             = static_cast<uint8>(Logs::General);
 	log_settings[Logs::HotReload].log_to_gmsay              = static_cast<uint8>(Logs::General);
@@ -102,6 +96,8 @@ EQEmuLogSys *EQEmuLogSys::LoadLogSettingsDefaults()
 	log_settings[Logs::QuestErrors].log_to_console          = static_cast<uint8>(Logs::General);
 	log_settings[Logs::EqTime].log_to_console               = static_cast<uint8>(Logs::General);
 	log_settings[Logs::EqTime].log_to_gmsay                 = static_cast<uint8>(Logs::General);
+	log_settings[Logs::NpcHandin].log_to_console            = static_cast<uint8>(Logs::General);
+	log_settings[Logs::NpcHandin].log_to_gmsay              = static_cast<uint8>(Logs::General);
 
 	/**
 	 * RFC 5424
@@ -532,6 +528,11 @@ void EQEmuLogSys::StartFileLogs(const std::string &log_name)
 {
 	EQEmuLogSys::CloseFileLogs();
 
+	if (!File::Exists(PathManager::Instance()->GetLogPath())) {
+		LogInfo("Logs directory not found, creating [{}]", PathManager::Instance()->GetLogPath());
+		File::Makedir(PathManager::Instance()->GetLogPath());
+	}
+
 	/**
 	 * When loading settings, we must have been given a reason in category based logging to output to a file in order to even create or open one...
 	 */
@@ -591,6 +592,8 @@ void EQEmuLogSys::SilenceConsoleLogging()
 		log_settings[log_index].is_category_enabled = 0;
 	}
 
+	log_settings[Logs::MySQLError].log_to_console = static_cast<uint8>(Logs::MySQLError);
+	log_settings[Logs::Error].log_to_console = static_cast<uint8>(Logs::Error);
 	log_settings[Logs::Crash].log_to_console = static_cast<uint8>(Logs::General);
 }
 
@@ -602,7 +605,7 @@ void EQEmuLogSys::EnableConsoleLogging()
 	std::copy(std::begin(pre_silence_settings), std::end(pre_silence_settings), std::begin(log_settings));
 }
 
-EQEmuLogSys *EQEmuLogSys::LoadLogDatabaseSettings()
+EQEmuLogSys *EQEmuLogSys::LoadLogDatabaseSettings(bool silent_load)
 {
 	InjectTablesIfNotExist();
 
@@ -644,7 +647,7 @@ EQEmuLogSys *EQEmuLogSys::LoadLogDatabaseSettings()
 		// If we go through this whole loop and nothing is set to any debug level, there
 		// is no point to create a file or keep anything open
 		if (log_settings[c.log_category_id].log_to_file > 0) {
-			LogSys.m_file_logs_enabled = true;
+			m_file_logs_enabled = true;
 		}
 
 		db_categories.emplace_back(c.log_category_id);
@@ -670,14 +673,33 @@ EQEmuLogSys *EQEmuLogSys::LoadLogDatabaseSettings()
 		if (is_missing_in_database && !is_deprecated_category) {
 			LogInfo("Automatically adding new log category [{}] ({})", Logs::LogCategoryName[i], i);
 
-			auto new_category = LogsysCategoriesRepository::NewEntity();
-			new_category.log_category_id          = i;
-			new_category.log_category_description = Strings::Escape(Logs::LogCategoryName[i]);
-			new_category.log_to_console           = log_settings[i].log_to_console;
-			new_category.log_to_gmsay             = log_settings[i].log_to_gmsay;
-			new_category.log_to_file              = log_settings[i].log_to_file;
-			new_category.log_to_discord           = log_settings[i].log_to_discord;
-			db_categories_to_add.emplace_back(new_category);
+			auto e = LogsysCategoriesRepository::NewEntity();
+			e.log_category_id          = i;
+			e.log_category_description = Strings::Escape(Logs::LogCategoryName[i]);
+			e.log_to_console           = log_settings[i].log_to_console;
+			e.log_to_gmsay             = log_settings[i].log_to_gmsay;
+			e.log_to_file              = log_settings[i].log_to_file;
+			e.log_to_discord           = log_settings[i].log_to_discord;
+			db_categories_to_add.emplace_back(e);
+		}
+
+		// look to see if the category name is different in the database
+		auto it = std::find_if(
+			categories.begin(),
+			categories.end(),
+			[i](const auto &c) { return c.log_category_id == i; }
+		);
+		if (it != categories.end()) {
+			if (it->log_category_description != Logs::LogCategoryName[i]) {
+				LogInfo(
+					"Updating log category [{}] ({}) to new name [{}]",
+					it->log_category_description,
+					i,
+					Logs::LogCategoryName[i]
+				);
+				it->log_category_description = Logs::LogCategoryName[i];
+				LogsysCategoriesRepository::ReplaceOne(*m_database, *it);
+			}
 		}
 	}
 
@@ -685,6 +707,10 @@ EQEmuLogSys *EQEmuLogSys::LoadLogDatabaseSettings()
 		LogsysCategoriesRepository::ReplaceMany(*m_database, db_categories_to_add);
 		LoadLogDatabaseSettings();
 		return this;
+	}
+
+	if (silent_load) {
+		SilenceConsoleLogging();
 	}
 
 	LogInfo("Loaded [{}] log categories", categories.size());
@@ -703,6 +729,10 @@ EQEmuLogSys *EQEmuLogSys::LoadLogDatabaseSettings()
 	log_settings[Logs::Crash].log_to_file    = static_cast<uint8>(Logs::General);
 	log_settings[Logs::Info].log_to_file     = static_cast<uint8>(Logs::General);
 	log_settings[Logs::Info].log_to_console  = static_cast<uint8>(Logs::General);
+
+	if (silent_load) {
+		SilenceConsoleLogging();
+	}
 
 	return this;
 }

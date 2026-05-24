@@ -1,6 +1,24 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "servertalk_client_connection.h"
-#include "dns.h"
-#include "../eqemu_logsys.h"
+
+#include "common/eqemu_logsys.h"
+#include "common/net/dns.h"
 
 EQ::Net::ServertalkClient::ServertalkClient(const std::string &addr, int port, bool ipv6, const std::string &identifier, const std::string &credentials)
 	: m_timer(std::make_unique<EQ::Timer>(100, true, std::bind(&EQ::Net::ServertalkClient::Connect, this)))
@@ -62,15 +80,15 @@ void EQ::Net::ServertalkClient::Connect()
 	m_connecting = true;
 	EQ::Net::TCPConnection::Connect(m_addr, m_port, false, [this](std::shared_ptr<EQ::Net::TCPConnection> connection) {
 		if (connection == nullptr) {
-			LogF(Logs::General, Logs::TCPConnection, "Error connecting to {0}:{1}, attempting to reconnect...", m_addr, m_port);
+			LogNetTCP("Error connecting to {0}:{1}, attempting to reconnect...", m_addr, m_port);
 			m_connecting = false;
 			return;
 		}
 
-		LogF(Logs::General, Logs::TCPConnection, "Connected to {0}:{1}", m_addr, m_port);
+		LogNetTCP("Connected to {0}:{1}", m_addr, m_port);
 		m_connection = connection;
 		m_connection->OnDisconnect([this](EQ::Net::TCPConnection *c) {
-			LogF(Logs::General, Logs::TCPConnection, "Connection lost to {0}:{1}, attempting to reconnect...", m_addr, m_port);
+			LogNetTCP("Connection lost to {0}:{1}, attempting to reconnect...", m_addr, m_port);
 			m_connection.reset();
 		});
 

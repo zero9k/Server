@@ -1,21 +1,39 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #ifdef LUA_EQEMU
 
-#include "lua.hpp"
-#include <luabind/luabind.hpp>
-
-#include "bot.h"
-#include "client.h"
-#include "dialogue_window.h"
-#include "lua_bot.h"
-#include "lua_buff.h"
-#include "lua_client.h"
-#include "lua_hate_list.h"
-#include "lua_item.h"
-#include "lua_iteminst.h"
 #include "lua_mob.h"
-#include "lua_npc.h"
-#include "lua_stat_bonuses.h"
-#include "npc.h"
+
+#include "zone/bot.h"
+#include "zone/client.h"
+#include "zone/dialogue_window.h"
+#include "zone/lua_bot.h"
+#include "zone/lua_buff.h"
+#include "zone/lua_client.h"
+#include "zone/lua_hate_list.h"
+#include "zone/lua_item.h"
+#include "zone/lua_iteminst.h"
+#include "zone/lua_npc.h"
+#include "zone/lua_stat_bonuses.h"
+#include "zone/npc.h"
+
+#include "lua.hpp"
+#include "luabind/luabind.hpp"
 
 struct SpecialAbilities { };
 
@@ -1241,12 +1259,12 @@ float Lua_Mob::GetAssistRange() {
 	return self->GetAssistRange();
 }
 
-void Lua_Mob::SetPetOrder(int order) {
+void Lua_Mob::SetPetOrder(uint8 pet_order) {
 	Lua_Safe_Call_Void();
-	self->SetPetOrder(static_cast<Mob::eStandingPetOrder>(order));
+	self->SetPetOrder(pet_order);
 }
 
-int Lua_Mob::GetPetOrder() {
+uint8 Lua_Mob::GetPetOrder() {
 	Lua_Safe_Call_Int();
 	return self->GetPetOrder();
 }
@@ -1995,9 +2013,9 @@ void Lua_Mob::SetRunning(bool running) {
 	self->SetRunning(running);
 }
 
-void Lua_Mob::SetBodyType(int new_body, bool overwrite_orig) {
+void Lua_Mob::SetBodyType(uint8 new_body, bool overwrite_orig) {
 	Lua_Safe_Call_Void();
-	self->SetBodyType(static_cast<bodyType>(new_body), overwrite_orig);
+	self->SetBodyType(new_body, overwrite_orig);
 }
 
 void Lua_Mob::SetTargetable(bool on) {
@@ -3268,6 +3286,12 @@ bool Lua_Mob::IsPetOwnerNPC()
 	return self->IsPetOwnerNPC();
 }
 
+bool Lua_Mob::IsPetOwnerOfClientBot()
+{
+	Lua_Safe_Call_Bool();
+	return self->IsPetOwnerOfClientBot();
+}
+
 bool Lua_Mob::IsDestructibleObject()
 {
 	Lua_Safe_Call_Bool();
@@ -3301,7 +3325,7 @@ bool Lua_Mob::IsAlwaysAggro()
 std::string Lua_Mob::GetDeityName()
 {
 	Lua_Safe_Call_String();
-	return EQ::deity::GetDeityName(static_cast<EQ::deity::DeityType>(self->GetDeity()));
+	return Deity::GetName(self->GetDeity());
 }
 
 luabind::object Lua_Mob::GetBuffs(lua_State* L)
@@ -3380,6 +3404,150 @@ int Lua_Mob::GetExtraHaste()
 	return self->GetExtraHaste();
 }
 
+void Lua_Mob::AreaAttack(float distance)
+{
+	Lua_Safe_Call_Void();
+	entity_list.AEAttack(self, distance);
+}
+
+void Lua_Mob::AreaAttack(float distance, int16 slot_id)
+{
+	Lua_Safe_Call_Void();
+	entity_list.AEAttack(self, distance, slot_id);
+}
+
+void Lua_Mob::AreaAttack(float distance, int16 slot_id, int count)
+{
+	Lua_Safe_Call_Void();
+	entity_list.AEAttack(self, distance, slot_id, count);
+}
+
+void Lua_Mob::AreaAttack(float distance, int16 slot_id, int count, bool is_from_spell)
+{
+	Lua_Safe_Call_Void();
+	entity_list.AEAttack(self, distance, slot_id, count, is_from_spell);
+}
+
+void Lua_Mob::AreaAttack(float distance, int16 slot_id, int count, bool is_from_spell, int attack_rounds)
+{
+	Lua_Safe_Call_Void();
+	entity_list.AEAttack(self, distance, slot_id, count, is_from_spell, attack_rounds);
+}
+
+void Lua_Mob::AreaSpell(Lua_Mob center, uint16 spell_id)
+{
+	Lua_Safe_Call_Void();
+	entity_list.AESpell(self, center, spell_id);
+}
+
+void Lua_Mob::AreaSpell(Lua_Mob center, uint16 spell_id, bool affect_caster)
+{
+	Lua_Safe_Call_Void();
+	entity_list.AESpell(self, center, spell_id, affect_caster);
+}
+
+void Lua_Mob::AreaSpell(Lua_Mob center, uint16 spell_id, bool affect_caster, int16 resist_adjust)
+{
+	Lua_Safe_Call_Void();
+	entity_list.AESpell(self, center, spell_id, affect_caster, resist_adjust);
+}
+
+void Lua_Mob::AreaSpell(Lua_Mob center, uint16 spell_id, bool affect_caster, int16 resist_adjust, int max_targets)
+{
+	Lua_Safe_Call_Void();
+	entity_list.AESpell(self, center, spell_id, affect_caster, resist_adjust, &max_targets);
+}
+
+void Lua_Mob::MassGroupBuff(Lua_Mob center, uint16 spell_id)
+{
+	Lua_Safe_Call_Void();
+	entity_list.MassGroupBuff(self, center, spell_id);
+}
+
+void Lua_Mob::MassGroupBuff(Lua_Mob center, uint16 spell_id, bool affect_caster)
+{
+	Lua_Safe_Call_Void();
+	entity_list.MassGroupBuff(self, center, spell_id, affect_caster);
+}
+
+void Lua_Mob::BuffFadeBeneficial()
+{
+	Lua_Safe_Call_Void();
+	self->BuffFadeBeneficial();
+}
+
+void Lua_Mob::BuffFadeDetrimental()
+{
+	Lua_Safe_Call_Void();
+	self->BuffFadeDetrimental();
+}
+
+void Lua_Mob::BuffFadeDetrimentalByCaster(Lua_Mob caster)
+{
+	Lua_Safe_Call_Void();
+	self->BuffFadeDetrimentalByCaster(caster);
+}
+
+void Lua_Mob::BuffFadeNonPersistDeath()
+{
+	Lua_Safe_Call_Void();
+	self->BuffFadeNonPersistDeath();
+}
+
+void Lua_Mob::BuffFadeSongs()
+{
+	Lua_Safe_Call_Void();
+	self->BuffFadeSongs();
+}
+
+luabind::object Lua_Mob::GetPausedTimers(lua_State* L) {
+	auto t = luabind::newtable(L);
+	if (d_) {
+		auto self = reinterpret_cast<NativeType*>(d_);
+		auto l = quest_manager.GetPausedTimers(self);
+		int i = 1;
+		for (const auto& v : l) {
+			t[i] = v;
+			i++;
+		}
+	}
+
+	return t;
+}
+
+luabind::object Lua_Mob::GetTimers(lua_State* L) {
+	auto t = luabind::newtable(L);
+	if (d_) {
+		auto self = reinterpret_cast<NativeType*>(d_);
+		auto l = quest_manager.GetTimers(self);
+		int i = 1;
+		for (const auto& v : l) {
+			t[i] = v;
+			i++;
+		}
+	}
+
+	return t;
+}
+
+uint8 Lua_Mob::GetPetType()
+{
+	Lua_Safe_Call_Int();
+	return self->GetPetType();
+}
+
+std::string Lua_Mob::GetPetTypeName()
+{
+	Lua_Safe_Call_String();
+	return PetType::GetName(self->GetPetType());
+}
+
+void Lua_Mob::SetPetType(uint8 pet_type)
+{
+	Lua_Safe_Call_Void();
+	self->SetPetType(pet_type);
+}
+
 luabind::scope lua_register_mob() {
 	return luabind::class_<Lua_Mob, Lua_Entity>("Mob")
 	.def(luabind::constructor<>())
@@ -3393,6 +3561,15 @@ luabind::scope lua_register_mob() {
 	.def("ApplySpellBuff", (void(Lua_Mob::*)(int))&Lua_Mob::ApplySpellBuff)
 	.def("ApplySpellBuff", (void(Lua_Mob::*)(int,int))&Lua_Mob::ApplySpellBuff)
 	.def("ApplySpellBuff", (void(Lua_Mob::*)(int,int,int))&Lua_Mob::ApplySpellBuff)
+	.def("AreaAttack", (void(Lua_Mob::*)(float))&Lua_Mob::AreaAttack)
+	.def("AreaAttack", (void(Lua_Mob::*)(float, int16))&Lua_Mob::AreaAttack)
+	.def("AreaAttack", (void(Lua_Mob::*)(float, int16, int))&Lua_Mob::AreaAttack)
+	.def("AreaAttack", (void(Lua_Mob::*)(float, int16, int, bool))&Lua_Mob::AreaAttack)
+	.def("AreaAttack", (void(Lua_Mob::*)(float, int16, int, bool, int))&Lua_Mob::AreaAttack)
+	.def("AreaSpell", (void(Lua_Mob::*)(Lua_Mob, uint16))&Lua_Mob::AreaSpell)
+	.def("AreaSpell", (void(Lua_Mob::*)(Lua_Mob, uint16, bool))&Lua_Mob::AreaSpell)
+	.def("AreaSpell", (void(Lua_Mob::*)(Lua_Mob, uint16, bool, int16))&Lua_Mob::AreaSpell)
+	.def("AreaSpell", (void(Lua_Mob::*)(Lua_Mob, uint16, bool, int16, int))&Lua_Mob::AreaSpell)
 	.def("Attack", (bool(Lua_Mob::*)(Lua_Mob))&Lua_Mob::Attack)
 	.def("Attack", (bool(Lua_Mob::*)(Lua_Mob,int))&Lua_Mob::Attack)
 	.def("Attack", (bool(Lua_Mob::*)(Lua_Mob,int,bool))&Lua_Mob::Attack)
@@ -3408,11 +3585,16 @@ luabind::scope lua_register_mob() {
 	.def("BuffCount", (uint32(Lua_Mob::*)(bool))&Lua_Mob::BuffCount)
 	.def("BuffCount", (uint32(Lua_Mob::*)(bool,bool))&Lua_Mob::BuffCount)
 	.def("BuffFadeAll", (void(Lua_Mob::*)(void))&Lua_Mob::BuffFadeAll)
+	.def("BuffFadeBeneficial", (void(Lua_Mob::*)(void))&Lua_Mob::BuffFadeBeneficial)
 	.def("BuffFadeByEffect", (void(Lua_Mob::*)(int))&Lua_Mob::BuffFadeByEffect)
 	.def("BuffFadeByEffect", (void(Lua_Mob::*)(int,int))&Lua_Mob::BuffFadeByEffect)
 	.def("BuffFadeBySlot", (void(Lua_Mob::*)(int))&Lua_Mob::BuffFadeBySlot)
 	.def("BuffFadeBySlot", (void(Lua_Mob::*)(int,bool))&Lua_Mob::BuffFadeBySlot)
 	.def("BuffFadeBySpellID", (void(Lua_Mob::*)(int))&Lua_Mob::BuffFadeBySpellID)
+	.def("BuffFadeDetrimental", (void(Lua_Mob::*)(void))&Lua_Mob::BuffFadeDetrimental)
+	.def("BuffFadeDetrimentalByCaster", (void(Lua_Mob::*)(Lua_Mob))&Lua_Mob::BuffFadeDetrimentalByCaster)
+	.def("BuffFadeNonPersistDeath", (void(Lua_Mob::*)(void))&Lua_Mob::BuffFadeNonPersistDeath)
+	.def("BuffFadeSongs", (void(Lua_Mob::*)(void))&Lua_Mob::BuffFadeSongs)
 	.def("CalculateDistance", (float(Lua_Mob::*)(double,double,double))&Lua_Mob::CalculateDistance)
 	.def("CalculateDistance", (float(Lua_Mob::*)(Lua_Mob))&Lua_Mob::CalculateDistance)
 	.def("CalculateHeadingToTarget", (double(Lua_Mob::*)(double,double))&Lua_Mob::CalculateHeadingToTarget)
@@ -3550,6 +3732,7 @@ luabind::scope lua_register_mob() {
 	.def("GMMove", (void(Lua_Mob::*)(double,double,double))&Lua_Mob::GMMove)
 	.def("GMMove", (void(Lua_Mob::*)(double,double,double,double))&Lua_Mob::GMMove)
 	.def("GMMove", (void(Lua_Mob::*)(double,double,double,double,bool))&Lua_Mob::GMMove)
+	.def("Gate", &Lua_Mob::Gate)
 	.def("GetAA", (int(Lua_Mob::*)(int))&Lua_Mob::GetAA)
 	.def("GetAABonuses", &Lua_Mob::GetAABonuses)
 	.def("GetAAByAAID", (int(Lua_Mob::*)(int))&Lua_Mob::GetAAByAAID)
@@ -3706,8 +3889,11 @@ luabind::scope lua_register_mob() {
 	.def("GetOwner", &Lua_Mob::GetOwner)
 	.def("GetOwnerID", &Lua_Mob::GetOwnerID)
 	.def("GetPR", &Lua_Mob::GetPR)
+	.def("GetPausedTimers", &Lua_Mob::GetPausedTimers)
 	.def("GetPet", &Lua_Mob::GetPet)
-	.def("GetPetOrder", (int(Lua_Mob::*)(void))&Lua_Mob::GetPetOrder)
+	.def("GetPetOrder", (uint8(Lua_Mob::*)(void))&Lua_Mob::GetPetOrder)
+	.def("GetPetType", &Lua_Mob::GetPetType)
+	.def("GetPetTypeName", &Lua_Mob::GetPetTypeName)
 	.def("GetPhR", &Lua_Mob::GetPhR)
 	.def("GetRace", &Lua_Mob::GetRace)
 	.def("GetRaceName", &Lua_Mob::GetRaceName)
@@ -3731,6 +3917,7 @@ luabind::scope lua_register_mob() {
 	.def("GetTarget", &Lua_Mob::GetTarget)
 	.def("GetTexture", &Lua_Mob::GetTexture)
 	.def("GetTimerDurationMS", &Lua_Mob::GetTimerDurationMS)
+	.def("GetTimers", &Lua_Mob::GetTimers)
 	.def("GetUltimateOwner", &Lua_Mob::GetUltimateOwner)
 	.def("GetWIS", &Lua_Mob::GetWIS)
 	.def("GetWalkspeed", &Lua_Mob::GetWalkspeed)
@@ -3794,6 +3981,7 @@ luabind::scope lua_register_mob() {
 	.def("IsPetOwnerBot", &Lua_Mob::IsPetOwnerBot)
 	.def("IsPetOwnerClient", &Lua_Mob::IsPetOwnerClient)
 	.def("IsPetOwnerNPC", &Lua_Mob::IsPetOwnerNPC)
+	.def("IsPetOwnerOfClientBot", &Lua_Mob::IsPetOwnerOfClientBot)
 	.def("IsPureMeleeClass", &Lua_Mob::IsPureMeleeClass)
 	.def("IsRoamer", (bool(Lua_Mob::*)(void))&Lua_Mob::IsRoamer)
 	.def("IsRooted", (bool(Lua_Mob::*)(void))&Lua_Mob::IsRooted)
@@ -3808,6 +3996,8 @@ luabind::scope lua_register_mob() {
 	.def("IsWarriorClass", &Lua_Mob::IsWarriorClass)
 	.def("IsWisdomCasterClass", &Lua_Mob::IsWisdomCasterClass)
 	.def("Kill", (void(Lua_Mob::*)(void))&Lua_Mob::Kill)
+	.def("MassGroupBuff", (void(Lua_Mob::*)(Lua_Mob, uint16))&Lua_Mob::MassGroupBuff)
+	.def("MassGroupBuff", (void(Lua_Mob::*)(Lua_Mob, uint16, bool))&Lua_Mob::MassGroupBuff)
 	.def("Mesmerize", (void(Lua_Mob::*)(void))&Lua_Mob::Mesmerize)
 	.def("Message", &Lua_Mob::Message)
 	.def("MessageString", &Lua_Mob::MessageString)
@@ -3869,7 +4059,7 @@ luabind::scope lua_register_mob() {
 	.def("SetAllowBeneficial", (void(Lua_Mob::*)(bool))&Lua_Mob::SetAllowBeneficial)
 	.def("SetAppearance", (void(Lua_Mob::*)(int))&Lua_Mob::SetAppearance)
 	.def("SetAppearance", (void(Lua_Mob::*)(int,bool))&Lua_Mob::SetAppearance)
-	.def("SetBodyType", (void(Lua_Mob::*)(int,bool))&Lua_Mob::SetBodyType)
+	.def("SetBodyType", (void(Lua_Mob::*)(uint8,bool))&Lua_Mob::SetBodyType)
 	.def("SetBucket", (void(Lua_Mob::*)(std::string,std::string))&Lua_Mob::SetBucket)
 	.def("SetBucket", (void(Lua_Mob::*)(std::string,std::string,std::string))&Lua_Mob::SetBucket)
 	.def("SetBuffDuration", (void(Lua_Mob::*)(int))&Lua_Mob::SetBuffDuration)
@@ -3898,7 +4088,8 @@ luabind::scope lua_register_mob() {
 	.def("SetMana", &Lua_Mob::SetMana)
 	.def("SetOOCRegen", (void(Lua_Mob::*)(int64))&Lua_Mob::SetOOCRegen)
 	.def("SetPet", &Lua_Mob::SetPet)
-	.def("SetPetOrder", (void(Lua_Mob::*)(int))&Lua_Mob::SetPetOrder)
+	.def("SetPetOrder", (void(Lua_Mob::*)(uint8))&Lua_Mob::SetPetOrder)
+	.def("SetPetType", &Lua_Mob::SetPetType)
 	.def("SetPseudoRoot", (void(Lua_Mob::*)(bool))&Lua_Mob::SetPseudoRoot)
 	.def("SetRace", (void(Lua_Mob::*)(uint16))&Lua_Mob::SetRace)
 	.def("SetRunning", (void(Lua_Mob::*)(bool))&Lua_Mob::SetRunning)
@@ -3942,65 +4133,64 @@ luabind::scope lua_register_mob() {
 
 luabind::scope lua_register_special_abilities() {
 	return luabind::class_<SpecialAbilities>("SpecialAbility")
-
-		.enum_("constants")
-		[(
-				luabind::value("summon", static_cast<int>(SPECATK_SUMMON)),
-				luabind::value("enrage", static_cast<int>(SPECATK_ENRAGE)),
-				luabind::value("rampage", static_cast<int>(SPECATK_RAMPAGE)),
-				luabind::value("area_rampage", static_cast<int>(SPECATK_AREA_RAMPAGE)),
-				luabind::value("flurry", static_cast<int>(SPECATK_FLURRY)),
-				luabind::value("triple_attack", static_cast<int>(SPECATK_TRIPLE)),
-				luabind::value("quad_attack", static_cast<int>(SPECATK_QUAD)),
-				luabind::value("innate_dual_wield", static_cast<int>(SPECATK_INNATE_DW)),
-				luabind::value("bane_attack", static_cast<int>(SPECATK_BANE)),
-				luabind::value("magical_attack", static_cast<int>(SPECATK_MAGICAL)),
-				luabind::value("ranged_attack", static_cast<int>(SPECATK_RANGED_ATK)),
-				luabind::value("unslowable", static_cast<int>(UNSLOWABLE)),
-				luabind::value("unmezable", static_cast<int>(UNMEZABLE)),
-				luabind::value("uncharmable", static_cast<int>(UNCHARMABLE)),
-				luabind::value("unstunable", static_cast<int>(UNSTUNABLE)),
-				luabind::value("unsnareable", static_cast<int>(UNSNAREABLE)),
-				luabind::value("unfearable", static_cast<int>(UNFEARABLE)),
-				luabind::value("undispellable", static_cast<int>(UNDISPELLABLE)),
-				luabind::value("immune_melee", static_cast<int>(IMMUNE_MELEE)),
-				luabind::value("immune_magic", static_cast<int>(IMMUNE_MAGIC)),
-				luabind::value("immune_fleeing", static_cast<int>(IMMUNE_FLEEING)),
-				luabind::value("immune_melee_except_bane", static_cast<int>(IMMUNE_MELEE_EXCEPT_BANE)),
-				luabind::value("immune_melee_except_magical", static_cast<int>(IMMUNE_MELEE_NONMAGICAL)),
-				luabind::value("immune_aggro", static_cast<int>(IMMUNE_AGGRO)),
-				luabind::value("immune_aggro_on", static_cast<int>(IMMUNE_AGGRO_ON)),
-				luabind::value("immune_casting_from_range", static_cast<int>(IMMUNE_CASTING_FROM_RANGE)),
-				luabind::value("immune_feign_death", static_cast<int>(IMMUNE_FEIGN_DEATH)),
-				luabind::value("immune_taunt", static_cast<int>(IMMUNE_TAUNT)),
-				luabind::value("tunnelvision", static_cast<int>(NPC_TUNNELVISION)),
-				luabind::value("dont_buff_friends", static_cast<int>(NPC_NO_BUFFHEAL_FRIENDS)),
-				luabind::value("immune_pacify", static_cast<int>(IMMUNE_PACIFY)),
-				luabind::value("leash", static_cast<int>(LEASH)),
-				luabind::value("tether", static_cast<int>(TETHER)),
-				luabind::value("destructible_object", static_cast<int>(DESTRUCTIBLE_OBJECT)),
-				luabind::value("no_harm_from_client", static_cast<int>(NO_HARM_FROM_CLIENT)),
-				luabind::value("always_flee", static_cast<int>(ALWAYS_FLEE)),
-				luabind::value("flee_percent", static_cast<int>(FLEE_PERCENT)),
-				luabind::value("allow_beneficial", static_cast<int>(ALLOW_BENEFICIAL)),
-				luabind::value("disable_melee", static_cast<int>(DISABLE_MELEE)),
-				luabind::value("npc_chase_distance", static_cast<int>(NPC_CHASE_DISTANCE)),
-				luabind::value("allow_to_tank", static_cast<int>(ALLOW_TO_TANK)),
-				luabind::value("ignore_root_aggro_rules", static_cast<int>(IGNORE_ROOT_AGGRO_RULES)),
-				luabind::value("casting_resist_diff", static_cast<int>(CASTING_RESIST_DIFF)),
-				luabind::value("counter_avoid_damage", static_cast<int>(COUNTER_AVOID_DAMAGE)),
-				luabind::value("immune_ranged_attacks", static_cast<int>(IMMUNE_RANGED_ATTACKS)),
-				luabind::value("immune_damage_client", static_cast<int>(IMMUNE_DAMAGE_CLIENT)),
-				luabind::value("immune_damage_npc", static_cast<int>(IMMUNE_DAMAGE_NPC)),
-				luabind::value("immune_aggro_client", static_cast<int>(IMMUNE_AGGRO_CLIENT)),
-				luabind::value("immune_aggro_npc", static_cast<int>(IMMUNE_AGGRO_NPC)),
-				luabind::value("modify_avoid_damage", static_cast<int>(MODIFY_AVOID_DAMAGE)),
-				luabind::value("immune_open", static_cast<int>(IMMUNE_OPEN)),
-				luabind::value("immune_assassinate", static_cast<int>(IMMUNE_ASSASSINATE)),
-				luabind::value("immune_headshot", static_cast<int>(IMMUNE_HEADSHOT)),
-				luabind::value("immune_aggro_bot", static_cast<int>(IMMUNE_AGGRO_BOT)),
-				luabind::value("immune_damage_bot", static_cast<int>(IMMUNE_DAMAGE_BOT))
-		)];
+	.enum_("constants")
+	[(
+		luabind::value("summon", SpecialAbility::Summon),
+		luabind::value("enrage", SpecialAbility::Enrage),
+		luabind::value("rampage", SpecialAbility::Rampage),
+		luabind::value("area_rampage", SpecialAbility::AreaRampage),
+		luabind::value("flurry", SpecialAbility::Flurry),
+		luabind::value("triple_attack", SpecialAbility::TripleAttack),
+		luabind::value("quad_attack", SpecialAbility::QuadrupleAttack),
+		luabind::value("innate_dual_wield", SpecialAbility::DualWield),
+		luabind::value("bane_attack", SpecialAbility::BaneAttack),
+		luabind::value("magical_attack", SpecialAbility::MagicalAttack),
+		luabind::value("ranged_attack", SpecialAbility::RangedAttack),
+		luabind::value("unslowable", SpecialAbility::SlowImmunity),
+		luabind::value("unmezable", SpecialAbility::MesmerizeImmunity),
+		luabind::value("uncharmable", SpecialAbility::CharmImmunity),
+		luabind::value("unstunable", SpecialAbility::StunImmunity),
+		luabind::value("unsnareable", SpecialAbility::SnareImmunity),
+		luabind::value("unfearable", SpecialAbility::FearImmunity),
+		luabind::value("undispellable", SpecialAbility::DispellImmunity),
+		luabind::value("immune_melee", SpecialAbility::MeleeImmunity),
+		luabind::value("immune_magic", SpecialAbility::MagicImmunity),
+		luabind::value("immune_fleeing", SpecialAbility::FleeingImmunity),
+		luabind::value("immune_melee_except_bane", SpecialAbility::MeleeImmunityExceptBane),
+		luabind::value("immune_melee_except_magical", SpecialAbility::MeleeImmunityExceptMagical),
+		luabind::value("immune_aggro", SpecialAbility::AggroImmunity),
+		luabind::value("immune_aggro_on", SpecialAbility::BeingAggroImmunity),
+		luabind::value("immune_casting_from_range", SpecialAbility::CastingFromRangeImmunity),
+		luabind::value("immune_feign_death", SpecialAbility::FeignDeathImmunity),
+		luabind::value("immune_taunt", SpecialAbility::TauntImmunity),
+		luabind::value("tunnelvision", SpecialAbility::TunnelVision),
+		luabind::value("dont_buff_friends", SpecialAbility::NoBuffHealFriends),
+		luabind::value("immune_pacify", SpecialAbility::PacifyImmunity),
+		luabind::value("leash", SpecialAbility::Leash),
+		luabind::value("tether", SpecialAbility::Tether),
+		luabind::value("destructible_object", SpecialAbility::DestructibleObject),
+		luabind::value("no_harm_from_client", SpecialAbility::HarmFromClientImmunity),
+		luabind::value("always_flee", SpecialAbility::AlwaysFlee),
+		luabind::value("flee_percent", SpecialAbility::FleePercent),
+		luabind::value("allow_beneficial", SpecialAbility::AllowBeneficial),
+		luabind::value("disable_melee", SpecialAbility::DisableMelee),
+		luabind::value("npc_chase_distance", SpecialAbility::NPCChaseDistance),
+		luabind::value("allow_to_tank", SpecialAbility::AllowedToTank),
+		luabind::value("ignore_root_aggro_rules", SpecialAbility::IgnoreRootAggroRules),
+		luabind::value("casting_resist_diff", SpecialAbility::CastingResistDifficulty),
+		luabind::value("counter_avoid_damage", SpecialAbility::CounterAvoidDamage),
+		luabind::value("immune_ranged_attacks", SpecialAbility::RangedAttackImmunity),
+		luabind::value("immune_damage_client", SpecialAbility::ClientDamageImmunity),
+		luabind::value("immune_damage_npc", SpecialAbility::NPCDamageImmunity),
+		luabind::value("immune_aggro_client", SpecialAbility::ClientAggroImmunity),
+		luabind::value("immune_aggro_npc", SpecialAbility::NPCAggroImmunity),
+		luabind::value("modify_avoid_damage", SpecialAbility::ModifyAvoidDamage),
+		luabind::value("immune_open", SpecialAbility::OpenImmunity),
+		luabind::value("immune_assassinate", SpecialAbility::AssassinateImmunity),
+		luabind::value("immune_headshot", SpecialAbility::HeadshotImmunity),
+		luabind::value("immune_aggro_bot", SpecialAbility::BotAggroImmunity),
+		luabind::value("immune_damage_bot", SpecialAbility::BotDamageImmunity)
+	)];
 }
 
 #endif

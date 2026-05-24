@@ -1,12 +1,30 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "world_content_service.h"
 
-#include <utility>
-#include <glm/vec3.hpp>
-#include "../database.h"
-#include "../rulesys.h"
-#include "../eqemu_logsys.h"
-#include "../repositories/instance_list_repository.h"
+#include "common/database.h"
+#include "common/eqemu_logsys.h"
+#include "common/repositories/instance_list_repository.h"
+#include "common/rulesys.h"
+#include "common/zone_store.h"
 
+#include "glm/vec3.hpp"
+#include <utility>
 
 WorldContentService::WorldContentService()
 {
@@ -26,7 +44,7 @@ WorldContentService *WorldContentService::SetExpansionContext()
 	// pull expansion from rules
 	int expansion = RuleI(Expansion, CurrentExpansion);
 	if (expansion >= Expansion::Classic && expansion <= Expansion::MaxId) {
-		content_service.SetCurrentExpansion(expansion);
+		WorldContentService::Instance()->SetCurrentExpansion(expansion);
 	}
 
 	LogInfo(
@@ -40,12 +58,12 @@ WorldContentService *WorldContentService::SetExpansionContext()
 
 std::string WorldContentService::GetCurrentExpansionName()
 {
-	if (content_service.GetCurrentExpansion() == Expansion::EXPANSION_ALL) {
+	if (WorldContentService::Instance()->GetCurrentExpansion() == Expansion::EXPANSION_ALL) {
 		return "All Expansions";
 	}
 
 	if (current_expansion >= Expansion::Classic && current_expansion <= Expansion::MaxId) {
-		return Expansion::ExpansionName[content_service.GetCurrentExpansion()];
+		return Expansion::ExpansionName[WorldContentService::Instance()->GetCurrentExpansion()];
 	}
 
 	return "Unknown Expansion";
@@ -114,7 +132,7 @@ void WorldContentService::SetContentFlags(const std::vector<ContentFlagsReposito
 bool WorldContentService::IsContentFlagEnabled(const std::string &content_flag)
 {
 	for (auto &f: GetContentFlags()) {
-		if (f.flag_name == content_flag && f.enabled == true) {
+		if (f.flag_name == content_flag && f.enabled == 1) {
 			return true;
 		}
 	}
@@ -129,7 +147,7 @@ bool WorldContentService::IsContentFlagEnabled(const std::string &content_flag)
 bool WorldContentService::IsContentFlagDisabled(const std::string &content_flag)
 {
 	for (auto &f: GetContentFlags()) {
-		if (f.flag_name == content_flag && f.enabled == false) {
+		if (f.flag_name == content_flag && f.enabled == 0) {
 			return true;
 		}
 	}
@@ -183,8 +201,8 @@ void WorldContentService::ReloadContentFlags()
 	}
 
 	SetContentFlags(set_content_flags);
-	LoadZones();
 	LoadStaticGlobalZoneInstances();
+	ZoneStore::Instance()->LoadZones(*m_content_database);
 }
 
 Database *WorldContentService::GetDatabase() const
@@ -236,18 +254,6 @@ void WorldContentService::SetContentFlag(const std::string &content_flag_name, b
 	ReloadContentFlags();
 }
 
-// HandleZoneRoutingMiddleware is meant to handle content and context aware zone routing
-//
-// example # 1
-// lavastorm (pre-don) version 0 (classic)
-// lavastorm (don) version 1
-// we want to route players to the correct version of lavastorm based on the current server side expansion
-// in order to do that the simplest and cleanest way we intercept the zoning process and route players to an "instance" of the zone
-// the reason why we're doing this is because all of the zoning logic already is handled by two keys "zone_id" and "instance_id"
-// we can leverage static, never expires instances to handle this but to the client they don't see it any other way than a public normal zone
-// scripts handle all the same way, you don't have to think about instances, the middleware will handle the magic
-// the versions of zones are represented by two zone entries that have potentially different min/max expansion and/or different content flags
-// we decide to route the client to the correct version of the zone based on the current server side expansion
 void WorldContentService::HandleZoneRoutingMiddleware(ZoneChange_Struct *zc)
 {
 	auto r = FindZone(zc->zoneID, zc->instanceID);
@@ -261,93 +267,72 @@ void WorldContentService::HandleZoneRoutingMiddleware(ZoneChange_Struct *zc)
 // LoadStaticGlobalZoneInstances loads all static global zone instances
 // these are zones that are never set to expire and are global
 // these are used commonly in v1/v2/v3 versions of the same zone for expansion routing
-WorldContentService * WorldContentService::LoadStaticGlobalZoneInstances()
+WorldContentService *WorldContentService::LoadStaticGlobalZoneInstances()
 {
-	m_zone_instances = InstanceListRepository::GetWhere(*GetDatabase(), fmt::format("never_expires = 1 AND is_global = 1"));
+	m_zone_static_instances = InstanceListRepository::GetWhere(
+		*GetDatabase(),
+		fmt::format("never_expires = 1 AND is_global = 1")
+	);
 
-	LogInfo("Loaded [{}] zone_instances", m_zone_instances.size());
+	LogInfo("Loaded [{}] zone_instances", m_zone_static_instances.size());
 
 	return this;
 }
 
-// LoadZones sets the zones for the world content service
-// this is used for zone routing middleware
-// we pull the zone list from the zone repository and feed from the zone store for now
-// we're holding a copy in the content service - but we're talking 250kb of data in memory to handle routing of zoning
-WorldContentService * WorldContentService::LoadZones()
-{
-	m_zones = ZoneRepository::All(*GetContentDatabase());
-
-	LogInfo("Loaded [{}] zones", m_zones.size());
-
-	return this;
-}
-
-// FindZone is critical to the zone routing middleware and any logic that needs to route players to the correct zone
-// era contextual routing, multiple version of zones, etc
+// FindZone handles content and context aware zone routing (middleware)
+//
+// this is a middleware function that is meant to be used in the zone change process
+// this hooks all core zone changes within the server and routes the player to the correct zone
+// returning a zone_id of non-zero means the middleware will route the player
+// returning a zone_id of 0 means the middleware will not route the player
+// this is useful for handling multiple versions of the same zone
+//
+// implementation >
+// the zoning and process spawning logic already is handled by two keys "zone_id" and "instance_id"
+// we leverage static, never expires instances to handle this and client still sees it as a normal zone
+//
+// content awareness >
+// simply use the zone_id, server content settings and the middleware will handle the rest
+// you don't have to think about instances in any data tables (use instance_id 0)
+// you don't have to keep track of instance ids in scripts (use instance_id 0)
+// the versions of zones are represented by two zone entries that have potentially different min/max expansion and/or different content flags
+// we decide to route the client to the correct version of the zone based on the current server side expansion
+//
+// example >
+// we want to route players to the correct version of lavastorm based on the current server side expansion (DoesZonePassContentFiltering)
+// lavastorm (pre-don) version 0 (classic)
+//   zone table entry for version = 0, min_expansion = 0, max_expansion = 8
+//   instance_list table entry for lavastorm has version = 0, is_global = 1, never_expires = 1
+// lavastorm (don) version 1
+//   zone table entry for version = 1, min_expansion = 9, max_expansion = 99
+//   instance_list table entry for lavastorm has version = 1, is_global = 1, never_expires = 1
 WorldContentService::FindZoneResult WorldContentService::FindZone(uint32 zone_id, uint32 instance_id)
 {
-	// if there's an active dynamic instance, we don't need to route
-	if (instance_id > 0) {
-		auto inst = InstanceListRepository::FindOne(*GetDatabase(), instance_id);
-		if (inst.id != 0 && !inst.is_global && !inst.never_expires) {
-			return WorldContentService::FindZoneResult{
-				.zone_id = 0,
-			};
-		}
-	}
+	for (const auto &z: ZoneStore::Instance()->GetZones()) {
+		for (auto &i: m_zone_static_instances) {
+			if (
+				z.zoneidnumber == zone_id &&
+				DoesZonePassContentFiltering(z) &&
+				i.zone == zone_id &&
+				i.version == z.version) {
 
-	for (auto &z: m_zones) {
-		if (z.zoneidnumber == zone_id) {
-			auto f = ContentFlags{
-				.min_expansion = z.min_expansion,
-				.max_expansion = z.max_expansion,
-				.content_flags = z.content_flags,
-				.content_flags_disabled = z.content_flags_disabled
-			};
-
-			if (DoesPassContentFiltering(f)) {
-				LogInfo(
-					"Attempting to route player to zone [{}] ({}) version [{}] long_name [{}]",
-					z.short_name,
-					z.zoneidnumber,
-					z.version,
-					z.long_name
-				);
-
-				// first pass, explicit match on public static global zone instances
-				for (auto &i: m_zone_instances) {
-					if (i.zone == zone_id && i.version == z.version) {
-						LogInfo(
-							"Routed player to instance [{}] of zone [{}] ({}) version [{}] long_name [{}] notes [{}]",
-							i.id,
-							z.short_name,
-							z.zoneidnumber,
-							z.version,
-							z.long_name,
-							i.notes
-						);
-
-						return WorldContentService::FindZoneResult{
-							.zone_id = static_cast<uint32>(z.zoneidnumber),
-							.instance = i,
-							.zone = z
-						};
-					}
+				if (instance_id > 0 && i.id != instance_id) {
+					continue;
 				}
 
 				LogInfo(
-					"Routed player to non-instance zone [{}] ({}) version [{}] long_name [{}] notes [{}]",
+					"Routed player to public static instance [{}] of zone [{}] ({}) version [{}] long_name [{}] notes [{}]",
+					i.id,
 					z.short_name,
 					z.zoneidnumber,
 					z.version,
 					z.long_name,
-					z.note
+					i.notes
 				);
 
 				return WorldContentService::FindZoneResult{
 					.zone_id = static_cast<uint32>(z.zoneidnumber),
-					.instance = InstanceListRepository::NewEntity(),
+					.instance = i,
 					.zone = z
 				};
 			}
@@ -359,11 +344,23 @@ WorldContentService::FindZoneResult WorldContentService::FindZone(uint32 zone_id
 
 bool WorldContentService::IsInPublicStaticInstance(uint32 instance_id)
 {
-	for (auto &i: m_zone_instances) {
+	for (auto &i: m_zone_static_instances) {
 		if (i.id == instance_id) {
 			return true;
 		}
 	}
 
 	return false;
+}
+
+bool WorldContentService::DoesZonePassContentFiltering(const ZoneRepository::Zone &z)
+{
+	auto f = ContentFlags{
+		.min_expansion = z.min_expansion,
+		.max_expansion = z.max_expansion,
+		.content_flags = z.content_flags,
+		.content_flags_disabled = z.content_flags_disabled
+	};
+
+	return DoesPassContentFiltering(f);
 }

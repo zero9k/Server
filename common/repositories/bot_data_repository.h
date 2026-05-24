@@ -1,9 +1,26 @@
-#ifndef EQEMU_BOT_DATA_REPOSITORY_H
-#define EQEMU_BOT_DATA_REPOSITORY_H
+/*	EQEmu: EQEmulator
 
-#include "../database.h"
-#include "../strings.h"
-#include "base/base_bot_data_repository.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
+#include "common/repositories/base/base_bot_data_repository.h"
+
+#include "common/database.h"
+#include "common/strings.h"
 
 class BotDataRepository: public BaseBotDataRepository {
 public:
@@ -44,46 +61,4 @@ public:
      */
 
 	// Custom extended repository methods here
-	static bool SaveAllHelmAppearances(Database& db, const uint32 owner_id, const bool show_flag)
-	{
-		auto results = db.QueryDatabase(
-			fmt::format(
-				"UPDATE `{}` SET `show_helm` = {} WHERE `owner_id` = {}",
-				TableName(),
-				show_flag ? 1 : 0,
-				owner_id
-			)
-		);
-
-		return results.Success();
-	}
-
-	static bool ToggleAllHelmAppearances(Database& db, const uint32 owner_id)
-	{
-		auto results = db.QueryDatabase(
-			fmt::format(
-				"UPDATE `{}` SET `show_helm` = (`show_helm` XOR '1') WHERE `owner_id` = {}",
-				TableName(),
-				owner_id
-			)
-		);
-
-		return results.Success();
-	}
-
-	static bool SaveAllFollowDistances(Database& db, const uint32 owner_id, const uint32 follow_distance)
-	{
-		auto results = db.QueryDatabase(
-			fmt::format(
-				"UPDATE `{}` SET `follow_distance` = {} WHERE `owner_id` = {}",
-				TableName(),
-				follow_distance,
-				owner_id
-			)
-		);
-
-		return results.Success();
-	}
 };
-
-#endif //EQEMU_BOT_DATA_REPOSITORY_H

@@ -1,38 +1,38 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2002 EQEMu Development Team (http://eqemu.org)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
-#include "../common/global_define.h"
-#include "../common/eqemu_logsys.h"
-#include "../common/strings.h"
-
-#include "../common/repositories/doors_repository.h"
-
-#include "client.h"
 #include "doors.h"
-#include "entity.h"
-#include "guild_mgr.h"
-#include "mob.h"
-#include "string_ids.h"
-#include "worldserver.h"
-#include "zonedb.h"
-#include "../common/repositories/criteria/content_filter_criteria.h"
 
-#include <string.h>
+#include "common/eqemu_logsys.h"
+#include "common/evolving_items.h"
+#include "common/repositories/criteria/content_filter_criteria.h"
+#include "common/repositories/doors_repository.h"
+#include "common/strings.h"
+#include "zone/client.h"
+#include "zone/entity.h"
+#include "zone/guild_mgr.h"
+#include "zone/mob.h"
+#include "zone/string_ids.h"
+#include "zone/worldserver.h"
+#include "zone/zonedb.h"
+
+#include "glm/ext/matrix_transform.hpp"
+#include <cstring>
+#include <numbers>
 
 #define OPEN_DOOR 0x02
 #define CLOSE_DOOR 0x03
@@ -542,8 +542,8 @@ void Doors::HandleClick(Client *sender, uint8 trigger)
 	if (EQ::ValueWithin(m_open_type, 57, 58) && HasDestinationZone()) {
 		bool has_key_required = (required_key_item && required_key_item == player_key);
 
-		if (sender->GetGM() && has_key_required) {
-			has_key_required = false;
+		if (sender->GetGM() && !has_key_required) {
+			has_key_required = true;
 			sender->Message(Chat::White, "Your GM flag allows you to open this door without a key.");
 		}
 
@@ -609,6 +609,10 @@ void Doors::HandleClick(Client *sender, uint8 trigger)
 				);
 			}
 		}
+	}
+
+	if (GetOpenType() == 40 && sender->GetZoneID() == Zones::CORATHUS) {
+		sender->SendEvolveXPTransferWindow();
 	}
 }
 
@@ -844,11 +848,13 @@ void Doors::CreateDatabaseEntry()
 	const auto& l = DoorsRepository::GetWhere(
 		content_db,
 		fmt::format(
-			"zone = '{}' AND doorid = {}",
+			"zone = '{}' AND (version = {} OR version = -1) AND doorid = {}",
 			zone->GetShortName(),
+			zone->GetInstanceVersion(),
 			GetDoorID()
 		)
 	);
+
 	if (!l.empty()) {
 		auto e = l[0];
 
@@ -964,4 +970,69 @@ bool Doors::GetIsDoorBlacklisted()
 
 bool Doors::IsDoorBlacklisted() {
 	return m_is_blacklisted_to_open;
+}
+
+bool Doors::IsDoorBetween(glm::vec4 loc_a, glm::vec4 loc_c, uint16 door_size, float door_depth, bool draw_box) {
+	glm::vec4 door_loc = GetPosition();
+	float half_size = door_size * 0.5f;
+	float half_depth = door_depth * 0.5f;
+	float normalized_heading = std::fmod(door_loc.w, 512.0f);
+	float heading_radians = normalized_heading * (std::numbers::pi / 256.0f);
+	glm::mat4 door_rotation = glm::rotate(glm::mat4(1.0f), -heading_radians, glm::vec3(0.0f, 0.0f, 1.0f));
+	glm::vec3 box_corner_one = glm::vec3(door_size, -half_depth, 0.0f);
+	glm::vec3 box_corner_two = glm::vec3(-door_size, -half_depth, 0.0f);
+	glm::vec3 box_corner_three = glm::vec3(-door_size, half_depth, 0.0f);
+	glm::vec3 box_corner_four = glm::vec3(door_size, half_depth, 0.0f);
+	glm::vec3 door_center_offset = glm::vec3(-(door_size * 0.75f), half_depth * 0.5f, 0.0f);
+	glm::vec3 door_center = glm::vec3(door_loc) + glm::vec3(door_rotation * glm::vec4(door_center_offset, 1.0f));
+	glm::mat4 transform = glm::translate(glm::mat4(1.0f), door_center) * door_rotation;
+
+	box_corner_one = glm::vec3(transform * glm::vec4(box_corner_one, 1.0f));
+	box_corner_two = glm::vec3(transform * glm::vec4(box_corner_two, 1.0f));
+	box_corner_three = glm::vec3(transform * glm::vec4(box_corner_three, 1.0f));
+	box_corner_four = glm::vec3(transform * glm::vec4(box_corner_four, 1.0f));
+
+	if (draw_box) {
+		NPC::SpawnZonePointNodeNPC("loc_a", loc_a);
+		NPC::SpawnZonePointNodeNPC("door_anchor", door_loc);
+		NPC::SpawnZonePointNodeNPC("loc_c", loc_c);
+		NPC::SpawnZonePointNodeNPC("box_corner_one", glm::vec4(box_corner_one.x, box_corner_one.y, box_corner_one.z, 0));
+		NPC::SpawnZonePointNodeNPC("box_corner_two", glm::vec4(box_corner_two.x, box_corner_two.y, box_corner_two.z, 0));
+		NPC::SpawnZonePointNodeNPC("box_corner_three", glm::vec4(box_corner_three.x, box_corner_three.y, box_corner_three.z, 0));
+		NPC::SpawnZonePointNodeNPC("box_corner_four", glm::vec4(box_corner_four.x, box_corner_four.y, box_corner_four.z, 0));
+		NPC::SpawnZonePointNodeNPC("box_center", glm::vec4(door_center.x, door_center.y, door_center.z, 0));
+	}
+
+	// Check if LoS intersects box
+	auto intersects_box = [](const glm::vec3& a, const glm::vec3& b, const glm::vec3& p1, const glm::vec3& p2) {
+		glm::vec3 ab = b - a;
+		glm::vec3 p1p2 = p2 - p1;
+
+		glm::vec3 cross = glm::cross(ab, p1p2);
+		float cross_magnitude_squared = glm::dot(cross, cross);
+
+		if (cross_magnitude_squared < 1e-6f) {
+			return false; // Lines are parallel or coincident
+		}
+
+		float t = glm::dot(glm::cross(p1 - a, p1p2), cross) / cross_magnitude_squared;
+		float u = glm::dot(glm::cross(p1 - a, ab), cross) / cross_magnitude_squared;
+
+		return (t >= 0.0f && t <= 1.0f && u >= 0.0f && u <= 1.0f);
+		};
+
+	// Check intersection with each edge of the door bounding box
+	glm::vec3 loc_a_vec3(loc_a.x, loc_a.y, loc_a.z);
+	glm::vec3 loc_c_vec3(loc_c.x, loc_c.y, loc_c.z);
+
+	if (
+		intersects_box(loc_a_vec3, loc_c_vec3, box_corner_one, box_corner_two) ||
+		intersects_box(loc_a_vec3, loc_c_vec3, box_corner_two, box_corner_three) ||
+		intersects_box(loc_a_vec3, loc_c_vec3, box_corner_three, box_corner_four) ||
+		intersects_box(loc_a_vec3, loc_c_vec3, box_corner_four, box_corner_one)
+	) {
+		return true;
+	}
+
+	return false;
 }

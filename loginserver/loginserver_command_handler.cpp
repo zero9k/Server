@@ -1,19 +1,31 @@
-#include <iostream>
-#include <random>
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "loginserver_command_handler.h"
-#include "../common/util/uuid.h"
-#include "login_server.h"
-#include "loginserver_webserver.h"
-#include "account_management.h"
+
+#include "common/repositories/login_api_tokens_repository.h"
+#include "common/util/uuid.h"
+#include "loginserver/account_management.h"
+#include "loginserver/login_server.h"
+#include "loginserver/loginserver_webserver.h"
 
 extern LoginServer server;
 
 namespace LoginserverCommandHandler {
-
-	/**
-	 * @param argc
-	 * @param argv
-	 */
 	void CommandHandler(int argc, char **argv)
 	{
 		if (argc == 1) { return; }
@@ -22,14 +34,7 @@ namespace LoginserverCommandHandler {
 		cmd.parse(argc, argv, argh::parser::PREFER_PARAM_FOR_UNREG_OPTION);
 		EQEmuCommand::DisplayDebug(cmd);
 
-		/**
-		 * Declare command mapping
-		 */
 		auto function_map = EQEmuCommand::function_map;
-
-		/**
-		 * Register commands
-		 */
 		function_map["login-user:check-credentials"]          = &LoginserverCommandHandler::CheckLoginserverUserCredentials;
 		function_map["login-user:check-external-credentials"] = &LoginserverCommandHandler::CheckExternalLoginserverUserCredentials;
 		function_map["login-user:create"]                     = &LoginserverCommandHandler::CreateLocalLoginserverAccount;
@@ -43,12 +48,6 @@ namespace LoginserverCommandHandler {
 		EQEmuCommand::HandleMenu(function_map, cmd, argc, argv);
 	}
 
-	/**
-	 * @param argc
-	 * @param argv
-	 * @param cmd
-	 * @param description
-	 */
 	void CreateLoginserverApiToken(int argc, char **argv, argh::parser &cmd, std::string &description)
 	{
 		description = "Creates Loginserver API Token";
@@ -69,22 +68,22 @@ namespace LoginserverCommandHandler {
 		bool can_write = cmd[{"-w", "--write"}];
 
 		if (!can_read || !can_write) {
-			LogInfo("[{0}] --read or --write must be set or both!", __func__);
+			LogInfo("--read or --write must be set or both!");
 			exit(1);
 		}
 
-		std::string token = server.db->CreateLoginserverApiToken(can_write, can_read);
-		if (!token.empty()) {
-			LogInfo("[{0}] Created Loginserver API token [{1}]", __func__, token);
+		auto t = LoginApiTokensRepository::NewEntity();
+		t.can_read   = can_read;
+		t.can_write  = can_write;
+		t.token      = EQ::Util::UUID::Generate().ToString();
+		t.created_at = std::time(nullptr);
+
+		auto created = LoginApiTokensRepository::InsertOne(database, t);
+		if (created.id) {
+			LogInfo("Created Loginserver API token [{}] [{}]", created.id, created.token);
 		}
 	}
 
-	/**
-	 * @param argc
-	 * @param argv
-	 * @param cmd
-	 * @param description
-	 */
 	void ListLoginserverApiTokens(int argc, char **argv, argh::parser &cmd, std::string &description)
 	{
 		description = "Lists Loginserver API Tokens";
@@ -96,9 +95,10 @@ namespace LoginserverCommandHandler {
 		server.token_manager = new LoginserverWebserver::TokenManager;
 		server.token_manager->LoadApiTokens();
 
-		for (auto &it : server.token_manager->loaded_api_tokens) {
+		for (auto &it: server.token_manager->loaded_api_tokens) {
 			LogInfo(
-				"token [{0}] can_write [{1}] can_read [{2}]",
+				"token id [{}] [{}] can_write [{}] can_read [{}]",
+				it.second.id,
 				it.second.token,
 				it.second.can_write,
 				it.second.can_read
@@ -106,12 +106,6 @@ namespace LoginserverCommandHandler {
 		}
 	}
 
-	/**
-	 * @param argc
-	 * @param argv
-	 * @param cmd
-	 * @param description
-	 */
 	void CreateLocalLoginserverAccount(int argc, char **argv, argh::parser &cmd, std::string &description)
 	{
 		description = "Creates Local Loginserver Account";
@@ -130,19 +124,14 @@ namespace LoginserverCommandHandler {
 
 		EQEmuCommand::ValidateCmdInput(arguments, options, cmd, argc, argv);
 
-		AccountManagement::CreateLoginServerAccount(
-			cmd(2).str(),
-			cmd(3).str(),
-			cmd("--email").str()
-		);
+		LoginAccountContext c;
+		c.username = cmd(2).str();
+		c.password = cmd(3).str();
+		c.email    = cmd("--email").str();
+
+		AccountManagement::CreateLoginServerAccount(c);
 	}
 
-	/**
-	 * @param argc
-	 * @param argv
-	 * @param cmd
-	 * @param description
-	 */
 	void CreateLoginserverWorldAdminAccount(int argc, char **argv, argh::parser &cmd, std::string &description)
 	{
 		description = "Creates Loginserver World Administrator Account";
@@ -167,12 +156,6 @@ namespace LoginserverCommandHandler {
 		);
 	}
 
-	/**
-	 * @param argc
-	 * @param argv
-	 * @param cmd
-	 * @param description
-	 */
 	void CheckLoginserverUserCredentials(int argc, char **argv, argh::parser &cmd, std::string &description)
 	{
 		description = "Check user login credentials";
@@ -189,20 +172,15 @@ namespace LoginserverCommandHandler {
 
 		EQEmuCommand::ValidateCmdInput(arguments, options, cmd, argc, argv);
 
-		auto res = AccountManagement::CheckLoginserverUserCredentials(
-			cmd(2).str(),
-			cmd(3).str()
-		);
+		LoginAccountContext c;
+		c.username = cmd(2).str();
+		c.password = cmd(3).str();
 
-		LogInfo("Credentials were {0}", res != 0 ? "accepted" : "not accepted");
+		auto res = AccountManagement::CheckLoginserverUserCredentials(c);
+
+		LogInfo("Credentials were {}", res != 0 ? "accepted" : "not accepted");
 	}
 
-	/**
-	 * @param argc
-	 * @param argv
-	 * @param cmd
-	 * @param description
-	 */
 	void UpdateLoginserverUserCredentials(int argc, char **argv, argh::parser &cmd, std::string &description)
 	{
 		description = "Change user login credentials";
@@ -219,18 +197,12 @@ namespace LoginserverCommandHandler {
 
 		EQEmuCommand::ValidateCmdInput(arguments, options, cmd, argc, argv);
 
-		AccountManagement::UpdateLoginserverUserCredentials(
-			cmd(2).str(),
-			cmd(3).str()
-		);
+		LoginAccountContext c;
+		c.username = cmd(2).str();
+		c.password = cmd(3).str();
+		AccountManagement::UpdateLoginserverUserCredentials(c);
 	}
 
-	/**
-	 * @param argc
-	 * @param argv
-	 * @param cmd
-	 * @param description
-	 */
 	void CheckExternalLoginserverUserCredentials(int argc, char **argv, argh::parser &cmd, std::string &description)
 	{
 		description = "Check user external login credentials";
@@ -247,20 +219,14 @@ namespace LoginserverCommandHandler {
 
 		EQEmuCommand::ValidateCmdInput(arguments, options, cmd, argc, argv);
 
-		auto res = AccountManagement::CheckExternalLoginserverUserCredentials(
-			cmd(2).str(),
-			cmd(3).str()
-		);
+		LoginAccountContext c;
+		c.username = cmd(2).str();
+		c.password = cmd(3).str();
+		auto res = AccountManagement::CheckExternalLoginserverUserCredentials(c);
 
-		LogInfo("Credentials were {0}", res ? "accepted" : "not accepted");
+		LogInfo("Credentials were {}", res ? "accepted" : "not accepted");
 	}
 
-	/**
-	 * @param argc
-	 * @param argv
-	 * @param cmd
-	 * @param description
-	 */
 	void UpdateLoginserverWorldAdminAccountPassword(int argc, char **argv, argh::parser &cmd, std::string &description)
 	{
 		description = "Update world admin account password";
@@ -277,18 +243,12 @@ namespace LoginserverCommandHandler {
 
 		EQEmuCommand::ValidateCmdInput(arguments, options, cmd, argc, argv);
 
-		AccountManagement::UpdateLoginserverWorldAdminAccountPasswordByName(
-			cmd(2).str(),
-			cmd(3).str()
-		);
+		LoginAccountContext c;
+		c.username = cmd(2).str();
+		c.password = cmd(3).str();
+		AccountManagement::UpdateLoginserverWorldAdminAccountPasswordByName(c);
 	}
 
-	/**
-	 * @param argc
-	 * @param argv
-	 * @param cmd
-	 * @param description
-	 */
 	void HealthCheckLogin(int argc, char **argv, argh::parser &cmd, std::string &description)
 	{
 		description = "Checks login health using a test user";

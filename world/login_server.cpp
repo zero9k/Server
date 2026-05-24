@@ -1,45 +1,41 @@
-/*	EQEMu: Everquest Server Emulator
-Copyright (C) 2001-2002 EQEMu Development Team (http://eqemu.org)
+/*	EQEmu: EQEmulator
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+	Copyright (C) 2001-2026 EQEmu Development Team
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY except by those people which sell it, which
-are required to give you total support for your newly bought product;
-without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-#include "../common/global_define.h"
-#include <iostream>
-#include <string.h>
-#include <stdio.h>
-#include <iomanip>
-#include <stdlib.h>
-#include "../common/version.h"
-#include "../common/servertalk.h"
-#include "../common/misc_functions.h"
-#include "../common/eq_packet_structs.h"
-#include "../common/packet_dump.h"
-#include "../common/strings.h"
-#include "../common/eqemu_logsys.h"
 #include "login_server.h"
-#include "login_server_list.h"
-#include "zoneserver.h"
-#include "worlddb.h"
-#include "zonelist.h"
-#include "clientlist.h"
-#include "cliententry.h"
-#include "world_config.h"
 
+#include "common/eq_packet_structs.h"
+#include "common/eqemu_logsys.h"
+#include "common/misc_functions.h"
+#include "common/packet_dump.h"
+#include "common/servertalk.h"
+#include "common/strings.h"
+#include "common/version.h"
+#include "world/cliententry.h"
+#include "world/clientlist.h"
+#include "world/login_server_list.h"
+#include "world/world_config.h"
+#include "world/worlddb.h"
+#include "world/zonelist.h"
+#include "world/zoneserver.h"
 
-extern ZSList        zoneserver_list;
-extern ClientList    client_list;
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>
+
 extern uint32        numzones;
 extern uint32        numplayers;
 extern volatile bool RunLoops;
@@ -64,9 +60,9 @@ void LoginServer::ProcessUsertoWorldReqLeg(uint16_t opcode, EQ::Net::Packet &p)
 	const WorldConfig *Config = WorldConfig::get();
 	LogNetcode("Received ServerPacket from LS OpCode {:#04x}", opcode);
 
-	UsertoWorldRequestLegacy_Struct *utwr  = (UsertoWorldRequestLegacy_Struct *) p.Data();
-	uint32                          id     = database.GetAccountIDFromLSID("eqemu", utwr->lsaccountid);
-	int16                           status = database.CheckStatus(id);
+	UsertoWorldRequestLegacy *utwr = (UsertoWorldRequestLegacy *) p.Data();
+	uint32                   id    = database.GetAccountIDFromLSID("eqemu", utwr->lsaccountid);
+	int16                           status = database.GetAccountStatus(id);
 
 	LogDebug(
 		"id [{}] status [{}] account_id [{}] world_id [{}] from_id [{}] to_id [{}] ip [{}]",
@@ -81,11 +77,11 @@ void LoginServer::ProcessUsertoWorldReqLeg(uint16_t opcode, EQ::Net::Packet &p)
 
 	ServerPacket outpack;
 	outpack.opcode  = ServerOP_UsertoWorldRespLeg;
-	outpack.size    = sizeof(UsertoWorldResponseLegacy_Struct);
+	outpack.size    = sizeof(UsertoWorldResponseLegacy);
 	outpack.pBuffer = new uchar[outpack.size];
 	memset(outpack.pBuffer, 0, outpack.size);
 
-	UsertoWorldResponseLegacy_Struct *utwrs = (UsertoWorldResponseLegacy_Struct *) outpack.pBuffer;
+	UsertoWorldResponseLegacy *utwrs = (UsertoWorldResponseLegacy *) outpack.pBuffer;
 	utwrs->lsaccountid = utwr->lsaccountid;
 	utwrs->ToID        = utwr->FromID;
 	utwrs->worldid     = utwr->worldid;
@@ -126,7 +122,7 @@ void LoginServer::ProcessUsertoWorldReqLeg(uint16_t opcode, EQ::Net::Packet &p)
 	}
 
 	if (RuleB(World, EnforceCharacterLimitAtLogin)) {
-		if (client_list.IsAccountInGame(utwr->lsaccountid)) {
+		if (ClientList::Instance()->IsAccountInGame(utwr->lsaccountid)) {
 			LogDebug("User already online account_id [{0}]", utwr->lsaccountid);
 			utwrs->response = UserToWorldStatusAlreadyOnline;
 			SendPacket(&outpack);
@@ -144,9 +140,9 @@ void LoginServer::ProcessUsertoWorldReq(uint16_t opcode, EQ::Net::Packet &p)
 	const WorldConfig *Config = WorldConfig::get();
 	LogNetcode("Received ServerPacket from LS OpCode {:#04x}", opcode);
 
-	UsertoWorldRequest_Struct *utwr  = (UsertoWorldRequest_Struct *) p.Data();
-	uint32                    id     = database.GetAccountIDFromLSID(utwr->login, utwr->lsaccountid);
-	int16                     status = database.CheckStatus(id);
+	UsertoWorldRequest *utwr = (UsertoWorldRequest *) p.Data();
+	uint32             id    = database.GetAccountIDFromLSID(utwr->login, utwr->lsaccountid);
+	int16                     status = database.GetAccountStatus(id);
 
 	LogDebug(
 		"id [{}] status [{}] account_id [{}] world_id [{}] from_id [{}] to_id [{}] ip [{}]",
@@ -161,11 +157,11 @@ void LoginServer::ProcessUsertoWorldReq(uint16_t opcode, EQ::Net::Packet &p)
 
 	ServerPacket outpack;
 	outpack.opcode  = ServerOP_UsertoWorldResp;
-	outpack.size    = sizeof(UsertoWorldResponse_Struct);
+	outpack.size    = sizeof(UsertoWorldResponse);
 	outpack.pBuffer = new uchar[outpack.size];
 	memset(outpack.pBuffer, 0, outpack.size);
 
-	UsertoWorldResponse_Struct *utwrs = (UsertoWorldResponse_Struct *) outpack.pBuffer;
+	UsertoWorldResponse *utwrs = (UsertoWorldResponse *) outpack.pBuffer;
 	utwrs->lsaccountid = utwr->lsaccountid;
 	utwrs->ToID        = utwr->FromID;
 	strn0cpy(utwrs->login, utwr->login, 64);
@@ -207,7 +203,7 @@ void LoginServer::ProcessUsertoWorldReq(uint16_t opcode, EQ::Net::Packet &p)
 	}
 
 	if (RuleB(World, EnforceCharacterLimitAtLogin)) {
-		if (client_list.IsAccountInGame(utwr->lsaccountid)) {
+		if (ClientList::Instance()->IsAccountInGame(utwr->lsaccountid)) {
 			LogDebug("User already online account_id [{0}]", utwr->lsaccountid);
 			utwrs->response = UserToWorldStatusAlreadyOnline;
 			SendPacket(&outpack);
@@ -226,27 +222,27 @@ void LoginServer::ProcessLSClientAuthLegacy(uint16_t opcode, EQ::Net::Packet &p)
 	LogNetcode("Received ServerPacket from LS OpCode {:#04x}", opcode);
 
 	try {
-		auto client_authentication_request = p.GetSerialize<ClientAuthLegacy_Struct>(0);
+		auto r = p.GetSerialize<ClientAuthLegacy>(0);
 
 		LogDebug(
-			"Processing Loginserver Auth Legacy | account_id [{0}] account_name [{1}] key [{2}] admin [{3}] ip [{4}] "
-			"local_network [{5}]",
-			client_authentication_request.loginserver_account_id,
-			client_authentication_request.loginserver_account_name,
-			client_authentication_request.key,
-			client_authentication_request.is_world_admin,
-			client_authentication_request.ip,
-			client_authentication_request.is_client_from_local_network
+			"Processing Loginserver Auth Legacy | account_id [{}] account_name [{}] key [{}] admin [{}] ip [{}] "
+			"local_network [{}]",
+			r.loginserver_account_id,
+			r.loginserver_account_name,
+			r.key,
+			r.is_world_admin,
+			r.ip_address,
+			r.is_client_from_local_network
 		);
 
-		client_list.CLEAdd(
-			client_authentication_request.loginserver_account_id,
+		ClientList::Instance()->CLEAdd(
+			r.loginserver_account_id,
 			"eqemu",
-			client_authentication_request.loginserver_account_name,
-			client_authentication_request.key,
-			client_authentication_request.is_world_admin,
-			client_authentication_request.ip,
-			client_authentication_request.is_client_from_local_network
+			r.loginserver_account_name,
+			r.key,
+			r.is_world_admin,
+			r.ip_address,
+			r.is_client_from_local_network
 		);
 	}
 	catch (std::exception &ex) {
@@ -260,28 +256,28 @@ void LoginServer::ProcessLSClientAuth(uint16_t opcode, EQ::Net::Packet &p)
 	LogNetcode("Received ServerPacket from LS OpCode {:#04x}", opcode);
 
 	try {
-		auto client_authentication_request = p.GetSerialize<ClientAuth_Struct>(0);
+		auto r = p.GetSerialize<ClientAuth>(0);
 
 		LogDebug(
-			"Processing Loginserver Auth | account_id [{0}] account_name [{1}] loginserver_name [{2}] key [{3}] "
-			"admin [{4}] ip [{5}] local_network [{6}]",
-			client_authentication_request.loginserver_account_id,
-			client_authentication_request.account_name,
-			client_authentication_request.loginserver_name,
-			client_authentication_request.key,
-			client_authentication_request.is_world_admin,
-			client_authentication_request.ip,
-			client_authentication_request.is_client_from_local_network
+			"Processing Loginserver Auth | account_id [{}] account_name [{}] loginserver_name [{}] key [{}] "
+			"admin [{}] ip [{}] local_network [{}]",
+			r.loginserver_account_id,
+			r.account_name,
+			r.loginserver_name,
+			r.key,
+			r.is_world_admin,
+			r.ip_address,
+			r.is_client_from_local_network
 		);
 
-		client_list.CLEAdd(
-			client_authentication_request.loginserver_account_id,
-			client_authentication_request.loginserver_name,
-			client_authentication_request.account_name,
-			client_authentication_request.key,
-			client_authentication_request.is_world_admin,
-			client_authentication_request.ip,
-			client_authentication_request.is_client_from_local_network
+		ClientList::Instance()->CLEAdd(
+			r.loginserver_account_id,
+			r.loginserver_name,
+			r.account_name,
+			r.key,
+			r.is_world_admin,
+			r.ip_address,
+			r.is_client_from_local_network
 		);
 	}
 	catch (std::exception &ex) {
@@ -304,7 +300,7 @@ void LoginServer::ProcessLSFatalError(uint16_t opcode, EQ::Net::Packet &p)
 	if (error.find("Worldserver Account / Password INVALID") != std::string::npos) {
 		reason = "Usually this indicates you do not have a valid [account] and [password] (worldserver) account associated with your loginserver configuration. ";
 		if (fmt::format("{}", m_loginserver_address).find("login.eqemulator.net") != std::string::npos) {
-			reason += "For Legacy EQEmulator connections, you need to register your server @ http://www.eqemulator.org/account/?LS";
+			reason += "For Legacy EQEmulator connections, you need to register your server @ https://www.eqemulator.org/index.php?pageid=ws_mgmt";
 		}
 	}
 
@@ -315,6 +311,13 @@ void LoginServer::ProcessLSFatalError(uint16_t opcode, EQ::Net::Packet &p)
 		error,
 		reason
 	);
+
+	if (m_legacy_client) {
+		m_legacy_client.release();
+	}
+	else if (m_client) {
+		m_client.release();
+	}
 }
 
 void LoginServer::ProcessSystemwideMessage(uint16_t opcode, EQ::Net::Packet &p)
@@ -323,7 +326,7 @@ void LoginServer::ProcessSystemwideMessage(uint16_t opcode, EQ::Net::Packet &p)
 	LogNetcode("Received ServerPacket from LS OpCode {:#04x}", opcode);
 
 	ServerSystemwideMessage *swm = (ServerSystemwideMessage *) p.Data();
-	zoneserver_list.SendEmoteMessageRaw(
+	ZSList::Instance()->SendEmoteMessageRaw(
 		0,
 		0,
 		AccountStatus::Player,
@@ -387,7 +390,7 @@ bool LoginServer::Connect()
 
 					SendInfo();
 					SendStatus();
-					zoneserver_list.SendLSZones();
+					ZSList::Instance()->SendLSZones();
 
 					m_statusupdate_timer = std::make_unique<EQ::Timer>(
 						LoginServer_StatusUpdateInterval, true, [this](EQ::Timer *t) {
@@ -496,7 +499,7 @@ bool LoginServer::Connect()
 					);
 					SendInfo();
 					SendStatus();
-					zoneserver_list.SendLSZones();
+					ZSList::Instance()->SendLSZones();
 
 					m_statusupdate_timer = std::make_unique<EQ::Timer>(
 						LoginServer_StatusUpdateInterval, true, [this](EQ::Timer *t) {
@@ -588,25 +591,25 @@ bool LoginServer::Connect()
 		);
 	}
 
-	m_keepalive = std::make_unique<EQ::Timer>(
-		1000,
-		true,
-		std::bind(&LoginServer::OnKeepAlive, this, std::placeholders::_1));
-
 	return true;
 }
 
 void LoginServer::SendInfo()
 {
+	if (m_client == nullptr && m_legacy_client == nullptr) {
+		LogDebug("No client to send info to loginserver");
+		return;
+	}
+
 	const WorldConfig *Config = WorldConfig::get();
 
 	auto pack = new ServerPacket;
 	pack->opcode  = ServerOP_NewLSInfo;
-	pack->size    = sizeof(ServerNewLSInfo_Struct);
+	pack->size    = sizeof(LoginserverNewWorldRequest);
 	pack->pBuffer = new uchar[pack->size];
 	memset(pack->pBuffer, 0, pack->size);
 
-	auto *l = (ServerNewLSInfo_Struct *) pack->pBuffer;
+	auto *l = (LoginserverNewWorldRequest *) pack->pBuffer;
 	strcpy(l->protocol_version, EQEMU_PROTOCOL_VERSION);
 	strcpy(l->server_version, LOGIN_VERSION);
 	strcpy(l->server_long_name, Config->LongName.c_str());
@@ -643,12 +646,17 @@ void LoginServer::SendInfo()
 
 void LoginServer::SendStatus()
 {
+	if (m_client == nullptr && m_legacy_client == nullptr) {
+		LogDebug("No client to send status to loginserver");
+		return;
+	}
+
 	auto pack = new ServerPacket;
 	pack->opcode  = ServerOP_LSStatus;
-	pack->size    = sizeof(ServerLSStatus_Struct);
+	pack->size    = sizeof(LoginserverWorldStatusUpdate);
 	pack->pBuffer = new uchar[pack->size];
 	memset(pack->pBuffer, 0, pack->size);
-	auto loginserver_status = (ServerLSStatus_Struct *) pack->pBuffer;
+	auto loginserver_status = (LoginserverWorldStatusUpdate *) pack->pBuffer;
 
 	if (WorldConfig::get()->Locked) {
 		loginserver_status->status = -2;
@@ -666,40 +674,33 @@ void LoginServer::SendStatus()
 	delete pack;
 }
 
-/**
- * @param pack
- */
 void LoginServer::SendPacket(ServerPacket *pack)
 {
-	if (m_is_legacy) {
-		if (m_legacy_client) {
-			m_legacy_client->SendPacket(pack);
-		}
+	if (m_legacy_client) {
+		m_legacy_client->SendPacket(pack);
 	}
-	else {
-		if (m_client) {
-			m_client->SendPacket(pack);
-		}
+	else if (m_client) {
+		m_client->SendPacket(pack);
 	}
 }
 
 void LoginServer::SendAccountUpdate(ServerPacket *pack)
 {
-	auto *ls_account_update = (ServerLSAccountUpdate_Struct *) pack->pBuffer;
+	if (m_client == nullptr && m_legacy_client == nullptr) {
+		LogDebug("No client to send account update to loginserver");
+		return;
+	}
+
+	auto *req = (LoginserverAccountUpdate *) pack->pBuffer;
 	if (CanUpdate()) {
 		LogInfo(
 			"Sending ServerOP_LSAccountUpdate packet to loginserver: [{0}]:[{1}]",
 			m_loginserver_address,
 			m_loginserver_port
 		);
-		strn0cpy(ls_account_update->worldaccount, m_login_account.c_str(), 30);
-		strn0cpy(ls_account_update->worldpassword, m_login_password.c_str(), 30);
+		strn0cpy(req->world_account, m_login_account.c_str(), 30);
+		strn0cpy(req->world_password, m_login_password.c_str(), 30);
 		SendPacket(pack);
 	}
 }
 
-void LoginServer::OnKeepAlive(EQ::Timer *t)
-{
-	ServerPacket pack(ServerOP_KeepAlive, 0);
-	SendPacket(&pack);
-}

@@ -1,12 +1,30 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #ifdef LUA_EQEMU
 
-#include "lua.hpp"
-#include <luabind/luabind.hpp>
-#include <luabind/iterator_policy.hpp>
-
-#include "corpse.h"
 #include "lua_corpse.h"
-#include "lua_client.h"
+
+#include "zone/corpse.h"
+#include "zone/lua_client.h"
+
+#include "lua.hpp"
+#include "luabind/iterator_policy.hpp"
+#include "luabind/luabind.hpp"
 
 struct Lua_Corpse_Loot_List {
 	std::vector<uint32> entries;
@@ -177,7 +195,7 @@ bool Lua_Corpse::HasItem(uint32 item_id) {
 	return self->HasItem(item_id);
 }
 
-uint16 Lua_Corpse::CountItem(uint32 item_id) {
+uint32 Lua_Corpse::CountItem(uint32 item_id) {
 	Lua_Safe_Call_Int();
 	return self->CountItem(item_id);
 }
@@ -226,7 +244,7 @@ luabind::scope lua_register_corpse() {
 	.def("AllowMobLoot", (void(Lua_Corpse::*)(Lua_Mob, uint8))&Lua_Corpse::AllowMobLoot)
 	.def("Bury", (void(Lua_Corpse::*)(void))&Lua_Corpse::Bury)
 	.def("CanMobLoot", (bool(Lua_Corpse::*)(int))&Lua_Corpse::CanMobLoot)
-	.def("CountItem", (uint16(Lua_Corpse::*)(uint32))&Lua_Corpse::CountItem)
+	.def("CountItem", (uint32(Lua_Corpse::*)(uint32))&Lua_Corpse::CountItem)
 	.def("CountItems", (uint32(Lua_Corpse::*)(void))&Lua_Corpse::CountItems)
 	.def("Delete", (void(Lua_Corpse::*)(void))&Lua_Corpse::Delete)
 	.def("Depop", (void(Lua_Corpse::*)(void))&Lua_Corpse::Depop)
@@ -266,4 +284,4 @@ luabind::scope lua_register_corpse_loot_list() {
 	.def_readwrite("entries", &Lua_Corpse_Loot_List::entries, luabind::return_stl_iterator);
 }
 
-#endif
+#endif // LUA_EQEMU

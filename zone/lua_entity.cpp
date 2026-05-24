@@ -1,17 +1,35 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #ifdef LUA_EQEMU
 
-#include <luabind/luabind.hpp>
-
-#include "entity.h"
 #include "lua_entity.h"
-#include "lua_mob.h"
-#include "lua_client.h"
-#include "lua_npc.h"
-#include "lua_corpse.h"
-#include "lua_object.h"
-#include "lua_door.h"
 
-#include "lua_bot.h"
+#include "zone/entity.h"
+#include "zone/lua_bot.h"
+#include "zone/lua_client.h"
+#include "zone/lua_corpse.h"
+#include "zone/lua_door.h"
+#include "zone/lua_merc.h"
+#include "zone/lua_mob.h"
+#include "zone/lua_npc.h"
+#include "zone/lua_object.h"
+
+#include "luabind/luabind.hpp"
 
 bool Lua_Entity::IsClient() {
 	Lua_Safe_Call_Bool();
@@ -140,6 +158,12 @@ Lua_Bot Lua_Entity::CastToBot() {
 	return Lua_Bot(b);
 }
 
+Lua_Merc Lua_Entity::CastToMerc() {
+	void *d = GetLuaPtrData();
+	Merc *m = reinterpret_cast<Merc*>(d);
+	return Lua_Merc(m);
+}
+
 luabind::scope lua_register_entity() {
 	return luabind::class_<Lua_Entity>("Entity")
 	.def(luabind::constructor<>())
@@ -149,6 +173,7 @@ luabind::scope lua_register_entity() {
 	.def("CastToClient", &Lua_Entity::CastToClient)
 	.def("CastToCorpse", &Lua_Entity::CastToCorpse)
 	.def("CastToDoor", &Lua_Entity::CastToDoor)
+	.def("CastToMerc", &Lua_Entity::CastToMerc)
 	.def("CastToMob", &Lua_Entity::CastToMob)
 	.def("CastToNPC", &Lua_Entity::CastToNPC)
 	.def("CastToObject", &Lua_Entity::CastToObject)

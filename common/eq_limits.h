@@ -1,34 +1,31 @@
-/*	EQEMu: Everquest Server Emulator
-	
-	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
-	
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-	
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#pragma once
 
-#ifndef COMMON_EQ_LIMITS_H
-#define COMMON_EQ_LIMITS_H
-
-#include "types.h"
-#include "eq_constants.h"
-#include "emu_versions.h"
-#include "../common/patches/titanium_limits.h"
-#include "../common/patches/sof_limits.h"
-#include "../common/patches/sod_limits.h"
-#include "../common/patches/uf_limits.h"
-#include "../common/patches/rof_limits.h"
-#include "../common/patches/rof2_limits.h"
+#include "common/emu_versions.h"
+#include "common/eq_constants.h"
+#include "common/patches/rof_limits.h"
+#include "common/patches/rof2_limits.h"
+#include "common/patches/sod_limits.h"
+#include "common/patches/sof_limits.h"
+#include "common/patches/titanium_limits.h"
+#include "common/patches/uf_limits.h"
+#include "common/types.h"
 
 
 namespace EQ
@@ -42,6 +39,7 @@ namespace EQ
 			uint32 ExpansionsMask;
 			int16 CharacterCreationLimit;
 			size_t SayLinkBodySize;
+			uint32 BazaarTraderLimit;
 			
 			LookupEntry(const LookupEntry *lookup_entry) { }
 			LookupEntry(
@@ -49,13 +47,15 @@ namespace EQ
 				uint32 ExpansionBit,
 				uint32 ExpansionsMask,
 				int16 CharacterCreationLimit,
-				size_t SayLinkBodySize
+				size_t SayLinkBodySize,
+				uint32 BazaarTraderLimit
 			) :
 				Expansion(Expansion),
 				ExpansionBit(ExpansionBit),
 				ExpansionsMask(ExpansionsMask),
 				CharacterCreationLimit(CharacterCreationLimit),
-				SayLinkBodySize(SayLinkBodySize)
+				SayLinkBodySize(SayLinkBodySize),
+				BazaarTraderLimit(BazaarTraderLimit)
 			{ }
 		};
 
@@ -84,7 +84,7 @@ namespace EQ
 				int16 ViewMODPC,	ViewMODBank,		ViewMODSharedBank;
 				int16 ViewMODLimbo,	AltStorage,			Archived;
 				int16 Mail,			GuildTrophyTribute,	Krono;
-				int16 Other;
+				int16 GuildBankMain,GuildBankDeposit,   Other;
 
 				InventoryTypeSize_Struct(
 					int16 Possessions,	int16 Bank,					int16 SharedBank,
@@ -95,7 +95,7 @@ namespace EQ
 					int16 ViewMODPC,	int16 ViewMODBank,			int16 ViewMODSharedBank,
 					int16 ViewMODLimbo,	int16 AltStorage,			int16 Archived,
 					int16 Mail,			int16 GuildTrophyTribute,	int16 Krono,
-					int16 Other
+					int16 GuildBankMain,int16 GuildBankDeposit,     int16 Other
 				) :
 					Possessions(Possessions),	Bank(Bank),								SharedBank(SharedBank),
 					Trade(Trade),				World(World),							Limbo(Limbo),
@@ -105,7 +105,7 @@ namespace EQ
 					ViewMODPC(ViewMODPC),		ViewMODBank(ViewMODBank),				ViewMODSharedBank(ViewMODSharedBank),
 					ViewMODLimbo(ViewMODLimbo),	AltStorage(AltStorage),					Archived(Archived),
 					Mail(Mail),					GuildTrophyTribute(GuildTrophyTribute),	Krono(Krono),
-					Other(Other)
+					GuildBankMain(GuildBankMain), GuildBankDeposit(GuildBankDeposit),   Other(Other)
 				{ }
 			};
 
@@ -265,5 +265,3 @@ namespace Client62
 	} // namespace constants
 
 } /*Client62*/
-
-#endif /*COMMON_EQ_LIMITS_H*/

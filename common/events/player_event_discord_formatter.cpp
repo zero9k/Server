@@ -1,10 +1,31 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "player_event_discord_formatter.h"
-#include "../repositories/character_data_repository.h"
-#include "../json/json_archive_single_line.h"
+
+#include "common/json/json_archive_single_line.h"
+#include "common/repositories/character_data_repository.h"
+
+#include "cereal/archives/json.hpp"
+#include "cereal/types/vector.hpp"
+#include "fmt/format.h"
+#include "fmt/ranges.h"
+
 #include <vector>
-#include <fmt/format.h>
-#include <cereal/archives/json.hpp>
-#include <cereal/types/vector.hpp>
 
 std::string PlayerEventDiscordFormatter::GetCurrentTimestamp()
 {
@@ -714,6 +735,18 @@ std::string PlayerEventDiscordFormatter::FormatNPCHandinEvent(
 				h.charges > 1 ? fmt::format(" Charges: {}", h.charges) : "",
 				h.attuned ? " (Attuned)" : ""
 			);
+
+			for (int i = 0; i < h.augment_ids.size(); i++) {
+				if (!h.augment_names[i].empty()) {
+					const uint8 slot_id = (i + 1);
+					handin_items_info += fmt::format(
+						"Augment {}: {} ({})\n",
+						slot_id,
+						h.augment_names[i],
+						h.augment_ids[i]
+					);
+				}
+			}
 		}
 	}
 
@@ -727,6 +760,18 @@ std::string PlayerEventDiscordFormatter::FormatNPCHandinEvent(
 				r.charges > 1 ? fmt::format(" Charges: {}", r.charges) : "",
 				r.attuned ? " (Attuned)" : ""
 			);
+
+			for (int i = 0; i < r.augment_ids.size(); i++) {
+				if (!r.augment_names[i].empty()) {
+					const uint8 slot_id = (i + 1);
+					return_items_info += fmt::format(
+						"Augment {}: {} ({})\n",
+						slot_id,
+						r.augment_names[i],
+						r.augment_ids[i]
+					);
+				}
+			}
 		}
 	}
 
@@ -789,50 +834,36 @@ std::string PlayerEventDiscordFormatter::FormatNPCHandinEvent(
 		);
 	}
 
+	std::string npc_info = fmt::format(
+		"{} ({})\n",
+		e.npc_name,
+		e.npc_id
+	);
+
+	npc_info += fmt::format(
+		"Is Quest Handin: {}",
+		e.is_quest_handin ? "Yes" : "No"
+	);
+
 	std::vector<DiscordField> f = {};
 
+
+	BuildDiscordField(&f, "NPC", npc_info);
+
 	if (!handin_items_info.empty()) {
-		BuildDiscordField(
-			&f,
-			"Handin Items",
-			fmt::format(
-				"{}",
-				handin_items_info
-			)
-		);
+		BuildDiscordField(&f, "Handin Items", handin_items_info);
 	}
 
 	if (!handin_money_info.empty()) {
-		BuildDiscordField(
-			&f,
-			"Handin Money",
-			fmt::format(
-				"{}",
-				handin_money_info
-			)
-		);
+		BuildDiscordField(&f, "Handin Money", handin_money_info);
 	}
 
 	if (!return_items_info.empty()) {
-		BuildDiscordField(
-			&f,
-			"Return Items",
-			fmt::format(
-				"{}",
-				return_items_info
-			)
-		);
+		BuildDiscordField(&f, "Return Items", return_items_info);
 	}
 
 	if (!return_money_info.empty()) {
-		BuildDiscordField(
-			&f,
-			"Return Money",
-			fmt::format(
-				"{}",
-				return_money_info
-			)
-		);
+		BuildDiscordField(&f, "Return Money", return_money_info);
 	}
 
 	std::vector<DiscordEmbed> embeds = {};
@@ -1071,51 +1102,51 @@ std::string PlayerEventDiscordFormatter::FormatTradeEvent(
 	if (!e.character_1_give_items.empty()) {
 		for (const auto &i: e.character_1_give_items) {
 			std::string augment_info;
-			if (i.aug_1_item_id > 0) {
+			if (i.augment_1_id > 0) {
 				augment_info += fmt::format(
 					"Augment 1: {} ({})",
-					i.aug_1_item_name,
-					i.aug_1_item_id
+					i.augment_1_name,
+					i.augment_1_id
 				);
 			}
 
-			if (i.aug_2_item_id > 0) {
+			if (i.augment_2_id > 0) {
 				augment_info += fmt::format(
 					"Augment 2: {} ({})",
-					i.aug_2_item_name,
-					i.aug_2_item_id
+					i.augment_2_name,
+					i.augment_2_id
 				);
 			}
 
-			if (i.aug_3_item_id > 0) {
+			if (i.augment_3_id > 0) {
 				augment_info += fmt::format(
 					"Augment 3: {} ({})",
-					i.aug_3_item_name,
-					i.aug_3_item_id
+					i.augment_3_name,
+					i.augment_3_id
 				);
 			}
 
-			if (i.aug_4_item_id > 0) {
+			if (i.augment_4_id > 0) {
 				augment_info += fmt::format(
 					"Augment 4: {} ({})\n",
-					i.aug_4_item_name,
-					i.aug_4_item_id
+					i.augment_4_name,
+					i.augment_4_id
 				);
 			}
 
-			if (i.aug_5_item_id > 0) {
+			if (i.augment_5_id > 0) {
 				augment_info += fmt::format(
 					"Augment 5: {} ({})\n",
-					i.aug_5_item_name,
-					i.aug_5_item_id
+					i.augment_5_name,
+					i.augment_5_id
 				);
 			}
 
-			if (i.aug_6_item_id > 0) {
+			if (i.augment_6_id > 0) {
 				augment_info += fmt::format(
 					"Augment 6: {} ({})",
-					i.aug_6_item_name,
-					i.aug_6_item_id
+					i.augment_6_name,
+					i.augment_6_id
 				);
 			}
 
@@ -1136,51 +1167,51 @@ std::string PlayerEventDiscordFormatter::FormatTradeEvent(
 	if (!e.character_2_give_items.empty()) {
 		for (const auto &i: e.character_2_give_items) {
 			std::string augment_info;
-			if (i.aug_1_item_id > 0) {
+			if (i.augment_1_id > 0) {
 				augment_info += fmt::format(
 					"Augment 1: {} ({})",
-					i.aug_1_item_name,
-					i.aug_1_item_id
+					i.augment_1_name,
+					i.augment_1_id
 				);
 			}
 
-			if (i.aug_2_item_id > 0) {
+			if (i.augment_2_id > 0) {
 				augment_info += fmt::format(
 					"Augment 2: {} ({})",
-					i.aug_2_item_name,
-					i.aug_2_item_id
+					i.augment_2_name,
+					i.augment_2_id
 				);
 			}
 
-			if (i.aug_3_item_id > 0) {
+			if (i.augment_3_id > 0) {
 				augment_info += fmt::format(
 					"Augment 3: {} ({})",
-					i.aug_3_item_name,
-					i.aug_3_item_id
+					i.augment_3_name,
+					i.augment_3_id
 				);
 			}
 
-			if (i.aug_4_item_id > 0) {
+			if (i.augment_4_id > 0) {
 				augment_info += fmt::format(
 					"Augment 4: {} ({})\n",
-					i.aug_4_item_name,
-					i.aug_4_item_id
+					i.augment_4_name,
+					i.augment_4_id
 				);
 			}
 
-			if (i.aug_5_item_id > 0) {
+			if (i.augment_5_id > 0) {
 				augment_info += fmt::format(
 					"Augment 5: {} ({})\n",
-					i.aug_5_item_name,
-					i.aug_5_item_id
+					i.augment_5_name,
+					i.augment_5_id
 				);
 			}
 
-			if (i.aug_6_item_id > 0) {
+			if (i.augment_6_id > 0) {
 				augment_info += fmt::format(
 					"Augment 6: {} ({})",
-					i.aug_6_item_name,
-					i.aug_6_item_id
+					i.augment_6_name,
+					i.augment_6_id
 				);
 			}
 

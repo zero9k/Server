@@ -1,3 +1,20 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
  * DO NOT MODIFY THIS FILE
  *
@@ -6,14 +23,14 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://docs.eqemu.io/developer/repositories
+ * @docs https://docs.eqemu.dev/developer/repositories
  */
 
-#ifndef EQEMU_BASE_HORSES_REPOSITORY_H
-#define EQEMU_BASE_HORSES_REPOSITORY_H
+#pragma once
 
-#include "../../database.h"
-#include "../../strings.h"
+#include "common/database.h"
+#include "common/strings.h"
+
 #include <ctime>
 
 class BaseHorsesRepository {
@@ -24,6 +41,7 @@ public:
 		int16_t     race;
 		int8_t      gender;
 		int8_t      texture;
+		int8_t      helmtexture;
 		float       mountspeed;
 		std::string notes;
 	};
@@ -41,6 +59,7 @@ public:
 			"race",
 			"gender",
 			"texture",
+			"helmtexture",
 			"mountspeed",
 			"notes",
 		};
@@ -54,6 +73,7 @@ public:
 			"race",
 			"gender",
 			"texture",
+			"helmtexture",
 			"mountspeed",
 			"notes",
 		};
@@ -96,13 +116,14 @@ public:
 	{
 		Horses e{};
 
-		e.id         = 0;
-		e.filename   = "";
-		e.race       = 216;
-		e.gender     = 0;
-		e.texture    = 0;
-		e.mountspeed = 0.75;
-		e.notes      = "Notes";
+		e.id          = 0;
+		e.filename    = "";
+		e.race        = 216;
+		e.gender      = 0;
+		e.texture     = 0;
+		e.helmtexture = -1;
+		e.mountspeed  = 0.75;
+		e.notes       = "Notes";
 
 		return e;
 	}
@@ -139,13 +160,14 @@ public:
 		if (results.RowCount() == 1) {
 			Horses e{};
 
-			e.id         = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
-			e.filename   = row[1] ? row[1] : "";
-			e.race       = row[2] ? static_cast<int16_t>(atoi(row[2])) : 216;
-			e.gender     = row[3] ? static_cast<int8_t>(atoi(row[3])) : 0;
-			e.texture    = row[4] ? static_cast<int8_t>(atoi(row[4])) : 0;
-			e.mountspeed = row[5] ? strtof(row[5], nullptr) : 0.75;
-			e.notes      = row[6] ? row[6] : "Notes";
+			e.id          = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
+			e.filename    = row[1] ? row[1] : "";
+			e.race        = row[2] ? static_cast<int16_t>(atoi(row[2])) : 216;
+			e.gender      = row[3] ? static_cast<int8_t>(atoi(row[3])) : 0;
+			e.texture     = row[4] ? static_cast<int8_t>(atoi(row[4])) : 0;
+			e.helmtexture = row[5] ? static_cast<int8_t>(atoi(row[5])) : -1;
+			e.mountspeed  = row[6] ? strtof(row[6], nullptr) : 0.75;
+			e.notes       = row[7] ? row[7] : "Notes";
 
 			return e;
 		}
@@ -183,8 +205,9 @@ public:
 		v.push_back(columns[2] + " = " + std::to_string(e.race));
 		v.push_back(columns[3] + " = " + std::to_string(e.gender));
 		v.push_back(columns[4] + " = " + std::to_string(e.texture));
-		v.push_back(columns[5] + " = " + std::to_string(e.mountspeed));
-		v.push_back(columns[6] + " = '" + Strings::Escape(e.notes) + "'");
+		v.push_back(columns[5] + " = " + std::to_string(e.helmtexture));
+		v.push_back(columns[6] + " = " + std::to_string(e.mountspeed));
+		v.push_back(columns[7] + " = '" + Strings::Escape(e.notes) + "'");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -211,6 +234,7 @@ public:
 		v.push_back(std::to_string(e.race));
 		v.push_back(std::to_string(e.gender));
 		v.push_back(std::to_string(e.texture));
+		v.push_back(std::to_string(e.helmtexture));
 		v.push_back(std::to_string(e.mountspeed));
 		v.push_back("'" + Strings::Escape(e.notes) + "'");
 
@@ -247,6 +271,7 @@ public:
 			v.push_back(std::to_string(e.race));
 			v.push_back(std::to_string(e.gender));
 			v.push_back(std::to_string(e.texture));
+			v.push_back(std::to_string(e.helmtexture));
 			v.push_back(std::to_string(e.mountspeed));
 			v.push_back("'" + Strings::Escape(e.notes) + "'");
 
@@ -282,13 +307,14 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			Horses e{};
 
-			e.id         = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
-			e.filename   = row[1] ? row[1] : "";
-			e.race       = row[2] ? static_cast<int16_t>(atoi(row[2])) : 216;
-			e.gender     = row[3] ? static_cast<int8_t>(atoi(row[3])) : 0;
-			e.texture    = row[4] ? static_cast<int8_t>(atoi(row[4])) : 0;
-			e.mountspeed = row[5] ? strtof(row[5], nullptr) : 0.75;
-			e.notes      = row[6] ? row[6] : "Notes";
+			e.id          = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
+			e.filename    = row[1] ? row[1] : "";
+			e.race        = row[2] ? static_cast<int16_t>(atoi(row[2])) : 216;
+			e.gender      = row[3] ? static_cast<int8_t>(atoi(row[3])) : 0;
+			e.texture     = row[4] ? static_cast<int8_t>(atoi(row[4])) : 0;
+			e.helmtexture = row[5] ? static_cast<int8_t>(atoi(row[5])) : -1;
+			e.mountspeed  = row[6] ? strtof(row[6], nullptr) : 0.75;
+			e.notes       = row[7] ? row[7] : "Notes";
 
 			all_entries.push_back(e);
 		}
@@ -313,13 +339,14 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			Horses e{};
 
-			e.id         = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
-			e.filename   = row[1] ? row[1] : "";
-			e.race       = row[2] ? static_cast<int16_t>(atoi(row[2])) : 216;
-			e.gender     = row[3] ? static_cast<int8_t>(atoi(row[3])) : 0;
-			e.texture    = row[4] ? static_cast<int8_t>(atoi(row[4])) : 0;
-			e.mountspeed = row[5] ? strtof(row[5], nullptr) : 0.75;
-			e.notes      = row[6] ? row[6] : "Notes";
+			e.id          = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
+			e.filename    = row[1] ? row[1] : "";
+			e.race        = row[2] ? static_cast<int16_t>(atoi(row[2])) : 216;
+			e.gender      = row[3] ? static_cast<int8_t>(atoi(row[3])) : 0;
+			e.texture     = row[4] ? static_cast<int8_t>(atoi(row[4])) : 0;
+			e.helmtexture = row[5] ? static_cast<int8_t>(atoi(row[5])) : -1;
+			e.mountspeed  = row[6] ? strtof(row[6], nullptr) : 0.75;
+			e.notes       = row[7] ? row[7] : "Notes";
 
 			all_entries.push_back(e);
 		}
@@ -399,6 +426,7 @@ public:
 		v.push_back(std::to_string(e.race));
 		v.push_back(std::to_string(e.gender));
 		v.push_back(std::to_string(e.texture));
+		v.push_back(std::to_string(e.helmtexture));
 		v.push_back(std::to_string(e.mountspeed));
 		v.push_back("'" + Strings::Escape(e.notes) + "'");
 
@@ -428,6 +456,7 @@ public:
 			v.push_back(std::to_string(e.race));
 			v.push_back(std::to_string(e.gender));
 			v.push_back(std::to_string(e.texture));
+			v.push_back(std::to_string(e.helmtexture));
 			v.push_back(std::to_string(e.mountspeed));
 			v.push_back("'" + Strings::Escape(e.notes) + "'");
 
@@ -447,5 +476,3 @@ public:
 		return (results.Success() ? results.RowsAffected() : 0);
 	}
 };
-
-#endif //EQEMU_BASE_HORSES_REPOSITORY_H

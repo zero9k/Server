@@ -1,59 +1,77 @@
+/*	EQEmu: EQEmulator
 
-#include "../common/eqemu_logsys.h"
-#include "../common/extprofile.h"
-#include "../common/rulesys.h"
-#include "../common/strings.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
 
-#include "client.h"
-#include "corpse.h"
-#include "groups.h"
-#include "merc.h"
-#include "zone.h"
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "zonedb.h"
-#include "aura.h"
-#include "../common/repositories/blocked_spells_repository.h"
-#include "../common/repositories/character_tribute_repository.h"
-#include "../common/repositories/character_data_repository.h"
-#include "../common/repositories/character_disciplines_repository.h"
-#include "../common/repositories/npc_types_repository.h"
-#include "../common/repositories/character_bind_repository.h"
-#include "../common/repositories/character_pet_buffs_repository.h"
-#include "../common/repositories/character_pet_inventory_repository.h"
-#include "../common/repositories/character_pet_info_repository.h"
-#include "../common/repositories/character_buffs_repository.h"
-#include "../common/repositories/character_languages_repository.h"
-#include "../common/repositories/criteria/content_filter_criteria.h"
-#include "../common/repositories/spawn2_disabled_repository.h"
-#include "../common/repositories/character_leadership_abilities_repository.h"
-#include "../common/repositories/character_material_repository.h"
-#include "../common/repositories/character_memmed_spells_repository.h"
-#include "../common/repositories/character_spells_repository.h"
-#include "../common/repositories/character_skills_repository.h"
-#include "../common/repositories/character_potionbelt_repository.h"
-#include "../common/repositories/character_bandolier_repository.h"
-#include "../common/repositories/character_currency_repository.h"
-#include "../common/repositories/character_alternate_abilities_repository.h"
-#include "../common/repositories/character_auras_repository.h"
-#include "../common/repositories/character_alt_currency_repository.h"
-#include "../common/repositories/character_item_recast_repository.h"
-#include "../common/repositories/account_repository.h"
-#include "../common/repositories/respawn_times_repository.h"
-#include "../common/repositories/object_contents_repository.h"
-#include "../common/repositories/mercs_repository.h"
-#include "../common/repositories/merc_buffs_repository.h"
-#include "../common/repositories/merc_inventory_repository.h"
-#include "../common/repositories/merc_subtypes_repository.h"
-#include "../common/repositories/npc_types_tint_repository.h"
-#include "../common/repositories/merchantlist_temp_repository.h"
-#include "../common/repositories/character_exp_modifiers_repository.h"
-#include "../common/repositories/character_data_repository.h"
-#include "../common/repositories/character_corpses_repository.h"
-#include "../common/repositories/character_corpse_items_repository.h"
-#include "../common/repositories/zone_repository.h"
 
+#include "common/eqemu_logsys.h"
+#include "common/extprofile.h"
+#include "common/repositories/account_repository.h"
+#include "common/repositories/blocked_spells_repository.h"
+#include "common/repositories/character_alt_currency_repository.h"
+#include "common/repositories/character_alternate_abilities_repository.h"
+#include "common/repositories/character_auras_repository.h"
+#include "common/repositories/character_bandolier_repository.h"
+#include "common/repositories/character_bind_repository.h"
+#include "common/repositories/character_buffs_repository.h"
+#include "common/repositories/character_corpse_items_repository.h"
+#include "common/repositories/character_corpses_repository.h"
+#include "common/repositories/character_currency_repository.h"
+#include "common/repositories/character_data_repository.h"
+#include "common/repositories/character_data_repository.h"
+#include "common/repositories/character_disciplines_repository.h"
+#include "common/repositories/character_evolving_items_repository.h"
+#include "common/repositories/character_exp_modifiers_repository.h"
+#include "common/repositories/character_item_recast_repository.h"
+#include "common/repositories/character_languages_repository.h"
+#include "common/repositories/character_leadership_abilities_repository.h"
+#include "common/repositories/character_material_repository.h"
+#include "common/repositories/character_memmed_spells_repository.h"
+#include "common/repositories/character_pet_buffs_repository.h"
+#include "common/repositories/character_pet_info_repository.h"
+#include "common/repositories/character_pet_inventory_repository.h"
+#include "common/repositories/character_potionbelt_repository.h"
+#include "common/repositories/character_skills_repository.h"
+#include "common/repositories/character_spells_repository.h"
+#include "common/repositories/character_tribute_repository.h"
+#include "common/repositories/criteria/content_filter_criteria.h"
+#include "common/repositories/merc_buffs_repository.h"
+#include "common/repositories/merc_inventory_repository.h"
+#include "common/repositories/merc_subtypes_repository.h"
+#include "common/repositories/merchantlist_temp_repository.h"
+#include "common/repositories/mercs_repository.h"
+#include "common/repositories/npc_types_repository.h"
+#include "common/repositories/npc_types_tint_repository.h"
+#include "common/repositories/object_contents_repository.h"
+#include "common/repositories/respawn_times_repository.h"
+#include "common/repositories/spawn2_disabled_repository.h"
+#include "common/repositories/trader_repository.h"
+#include "common/repositories/zone_repository.h"
+#include "common/rulesys.h"
+#include "common/strings.h"
+#include "zone/aura.h"
+#include "zone/client.h"
+#include "zone/corpse.h"
+#include "zone/groups.h"
+#include "zone/merc.h"
+#include "zone/zone.h"
+
+#include "fmt/format.h"
 #include <ctime>
 #include <iostream>
-#include <fmt/format.h>
 
 extern Zone* zone;
 
@@ -161,6 +179,7 @@ void ZoneDatabase::UpdateRespawnTime(uint32 spawn2_id, uint16 instance_id, uint3
 			.id = static_cast<int32_t>(spawn2_id),
 			.start = static_cast<int32_t>(current_time),
 			.duration = static_cast<int32_t>(time_left),
+			.expire_at = current_time + time_left,
 			.instance_id = static_cast<int16_t>(instance_id)
 		}
 	);
@@ -302,205 +321,115 @@ void ZoneDatabase::DeleteWorldContainer(uint32 parent_id, uint32 zone_id)
 	);
 }
 
-Trader_Struct* ZoneDatabase::LoadTraderItem(uint32 char_id)
+std::unique_ptr<EQ::ItemInstance> ZoneDatabase::LoadSingleTraderItem(uint32 char_id, int serial_number)
 {
-	auto loadti = new Trader_Struct;
-	memset(loadti,0,sizeof(Trader_Struct));
+	auto results = TraderRepository::GetWhere(
+		database,
+		fmt::format(
+			"`char_id` = '{}' AND `item_sn` = '{}' ORDER BY slot_id",
+			char_id,
+			serial_number
+		)
+	);
 
-	std::string query = StringFormat("SELECT * FROM trader WHERE char_id = %i ORDER BY slot_id LIMIT 80", char_id);
-	auto results = QueryDatabase(query);
-	if (!results.Success()) {
-		LogTrading("Failed to load trader information!\n");
-		return loadti;
+	if (results.empty()) {
+		LogTrading("Could not find item serial number {} for character id {}", serial_number, char_id);
+		return nullptr;
 	}
 
-	loadti->Code = BazaarTrader_ShowItems;
-	for (auto& row = results.begin(); row != results.end(); ++row) {
-		if (Strings::ToInt(row[5]) >= 80 || Strings::ToInt(row[4]) < 0) {
-			LogTrading("Bad Slot number when trying to load trader information!\n");
-			continue;
-		}
+	int item_id = results.at(0).item_id;
+	int charges = results.at(0).item_charges;
+	int cost    = results.at(0).item_cost;
 
-		loadti->Items[Strings::ToInt(row[5])] = Strings::ToInt(row[1]);
-		loadti->ItemCost[Strings::ToInt(row[5])] = Strings::ToInt(row[4]);
+	const EQ::ItemData *item = database.GetItem(item_id);
+	if (!item) {
+		LogTrading("Unable to create item.");
+		return nullptr;
 	}
-	return loadti;
+
+	if (item->NoDrop == 0) {
+		return nullptr;
+	}
+
+	std::unique_ptr<EQ::ItemInstance> inst(
+		database.CreateItem(
+			item_id,
+			charges,
+			results.at(0).aug_slot_1,
+			results.at(0).aug_slot_2,
+			results.at(0).aug_slot_3,
+			results.at(0).aug_slot_4,
+			results.at(0).aug_slot_5,
+			results.at(0).aug_slot_6
+		)
+	);
+	if (!inst) {
+		LogTrading("Unable to create item instance.");
+		return nullptr;
+	}
+
+	inst->SetCharges(charges);
+	inst->SetSerialNumber(serial_number);
+	inst->SetMerchantSlot(serial_number);
+	inst->SetPrice(cost);
+
+	if (inst->IsStackable()) {
+		inst->SetMerchantCount(charges);
+	}
+
+	return std::move(inst);
 }
 
-TraderCharges_Struct* ZoneDatabase::LoadTraderItemWithCharges(uint32 char_id)
-{
-	auto loadti = new TraderCharges_Struct;
-	memset(loadti,0,sizeof(TraderCharges_Struct));
+void ZoneDatabase::UpdateTraderItemPrice(int char_id, uint32 item_id, uint32 charges, uint32 new_price) {
 
-	std::string query = StringFormat("SELECT * FROM trader WHERE char_id=%i ORDER BY slot_id LIMIT 80", char_id);
-	auto results = QueryDatabase(query);
-	if (!results.Success()) {
-		LogTrading("Failed to load trader information!\n");
-		return loadti;
-	}
-
-	for (auto& row = results.begin(); row != results.end(); ++row) {
-		if (Strings::ToInt(row[5]) >= 80 || Strings::ToInt(row[5]) < 0) {
-			LogTrading("Bad Slot number when trying to load trader information!\n");
-			continue;
-		}
-
-		loadti->ItemID[Strings::ToInt(row[5])] = Strings::ToInt(row[1]);
-		loadti->SerialNumber[Strings::ToInt(row[5])] = Strings::ToInt(row[2]);
-		loadti->Charges[Strings::ToInt(row[5])] = Strings::ToInt(row[3]);
-		loadti->ItemCost[Strings::ToInt(row[5])] = Strings::ToInt(row[4]);
-	}
-	return loadti;
-}
-
-EQ::ItemInstance* ZoneDatabase::LoadSingleTraderItem(uint32 CharID, int SerialNumber) {
-	std::string query = StringFormat("SELECT * FROM trader WHERE char_id = %i AND serialnumber = %i "
-                                    "ORDER BY slot_id LIMIT 80", CharID, SerialNumber);
-    auto results = QueryDatabase(query);
-    if (!results.Success())
-        return nullptr;
-
-	if (results.RowCount() == 0) {
-    LogTrading("Bad result from query\n"); fflush(stdout);
-        return nullptr;
-    }
-
-    auto& row = results.begin();
-
-    int ItemID = Strings::ToInt(row[1]);
-	int Charges = Strings::ToInt(row[3]);
-	int Cost = Strings::ToInt(row[4]);
-
-	const EQ::ItemData *item = database.GetItem(ItemID);
+	LogTrading("ZoneDatabase::UpdateTraderPrice([{}], [{}], [{}], [{}])", char_id, item_id, charges, new_price);
+	const EQ::ItemData *item = database.GetItem(item_id);
 
 	if(!item) {
-		LogTrading("Unable to create item\n");
-		fflush(stdout);
-		return nullptr;
-	}
-
-    if (item->NoDrop == 0)
-        return nullptr;
-
-    EQ::ItemInstance* inst = database.CreateItem(item);
-	if(!inst) {
-		LogTrading("Unable to create item instance\n");
-		fflush(stdout);
-		return nullptr;
-	}
-
-    inst->SetCharges(Charges);
-	inst->SetSerialNumber(SerialNumber);
-	inst->SetMerchantSlot(SerialNumber);
-	inst->SetPrice(Cost);
-
-	if(inst->IsStackable())
-		inst->SetMerchantCount(Charges);
-
-	return inst;
-}
-
-void ZoneDatabase::SaveTraderItem(uint32 CharID, uint32 ItemID, uint32 SerialNumber, int32 Charges, uint32 ItemCost, uint8 Slot){
-
-	std::string query = StringFormat("REPLACE INTO trader VALUES(%i, %i, %i, %i, %i, %i)",
-                                    CharID, ItemID, SerialNumber, Charges, ItemCost, Slot);
-    auto results = QueryDatabase(query);
-    if (!results.Success())
-        LogDebug("[CLIENT] Failed to save trader item: [{}] for char_id: [{}], the error was: [{}]\n", ItemID, CharID, results.ErrorMessage().c_str());
-
-}
-
-void ZoneDatabase::UpdateTraderItemCharges(int CharID, uint32 SerialNumber, int32 Charges) {
-	LogTrading("ZoneDatabase::UpdateTraderItemCharges([{}], [{}], [{}])", CharID, SerialNumber, Charges);
-
-	std::string query = StringFormat("UPDATE trader SET charges = %i WHERE char_id = %i AND serialnumber = %i",
-                                    Charges, CharID, SerialNumber);
-    auto results = QueryDatabase(query);
-    if (!results.Success())
-		LogDebug("[CLIENT] Failed to update charges for trader item: [{}] for char_id: [{}], the error was: [{}]\n", SerialNumber, CharID, results.ErrorMessage().c_str());
-
-}
-
-void ZoneDatabase::UpdateTraderItemPrice(int CharID, uint32 ItemID, uint32 Charges, uint32 NewPrice) {
-
-	LogTrading("ZoneDatabase::UpdateTraderPrice([{}], [{}], [{}], [{}])", CharID, ItemID, Charges, NewPrice);
-
-	const EQ::ItemData *item = database.GetItem(ItemID);
-
-	if(!item)
 		return;
+	}
 
-	if(NewPrice == 0) {
-		LogTrading("Removing Trader items from the DB for CharID [{}], ItemID [{}]", CharID, ItemID);
+	if (new_price == 0) {
+		LogTrading("Removing Trader items from the DB for char_id [{}], item_id [{}]", char_id, item_id);
 
-        std::string query = StringFormat("DELETE FROM trader WHERE char_id = %i AND item_id = %i",CharID, ItemID);
-        auto results = QueryDatabase(query);
-        if (!results.Success())
-			LogDebug("[CLIENT] Failed to remove trader item(s): [{}] for char_id: [{}], the error was: [{}]\n", ItemID, CharID, results.ErrorMessage().c_str());
+		auto results = TraderRepository::DeleteWhere(
+			database,
+			fmt::format(
+				"`char_id` = '{}' AND `item_id` = {}",
+				char_id,
+				item_id
+			)
+		);
+		if (!results) {
+			LogDebug("[CLIENT] Failed to remove trader item(s): [{}] for char_id: [{}]",
+					 item_id,
+					 char_id
+			);
+		}
 
 		return;
 	}
 
-    if(!item->Stackable) {
-        std::string query = StringFormat("UPDATE trader SET item_cost = %i "
-                                        "WHERE char_id = %i AND item_id = %i AND charges=%i",
-                                        NewPrice, CharID, ItemID, Charges);
-        auto results = QueryDatabase(query);
-        if (!results.Success())
-            LogDebug("[CLIENT] Failed to update price for trader item: [{}] for char_id: [{}], the error was: [{}]\n", ItemID, CharID, results.ErrorMessage().c_str());
-
-        return;
-    }
-
-    std::string query = StringFormat("UPDATE trader SET item_cost = %i "
-                                    "WHERE char_id = %i AND item_id = %i",
-                                    NewPrice, CharID, ItemID);
-    auto results = QueryDatabase(query);
-    if (!results.Success())
-            LogDebug("[CLIENT] Failed to update price for trader item: [{}] for char_id: [{}], the error was: [{}]\n", ItemID, CharID, results.ErrorMessage().c_str());
-}
-
-void ZoneDatabase::DeleteTraderItem(uint32 char_id){
-
-	if(char_id==0) {
-        const std::string query = "DELETE FROM trader";
-        auto results = QueryDatabase(query);
-		if (!results.Success())
-			LogDebug("[CLIENT] Failed to delete all trader items data, the error was: [{}]\n", results.ErrorMessage().c_str());
-
-        return;
+	if (!item->Stackable) {
+		auto results = TraderRepository::UpdateItem(database, char_id, new_price, item_id, charges);
+		if (!results) {
+			LogTrading(
+				"Failed to update price for trader item [{}] for char_id: [{}]",
+				item_id,
+				char_id
+			);
+		}
+		return;
 	}
 
-	std::string query = StringFormat("DELETE FROM trader WHERE char_id = %i", char_id);
-	auto results = QueryDatabase(query);
-    if (!results.Success())
-        LogDebug("[CLIENT] Failed to delete trader item data for char_id: [{}], the error was: [{}]\n", char_id, results.ErrorMessage().c_str());
-
-}
-void ZoneDatabase::DeleteTraderItem(uint32 CharID,uint16 SlotID) {
-
-	std::string query = StringFormat("DELETE FROM trader WHERE char_id = %i And slot_id = %i", CharID, SlotID);
-	auto results = QueryDatabase(query);
-	if (!results.Success())
-		LogDebug("[CLIENT] Failed to delete trader item data for char_id: [{}], the error was: [{}]\n",CharID, results.ErrorMessage().c_str());
-}
-
-void ZoneDatabase::DeleteBuyLines(uint32 CharID) {
-
-	if(CharID==0) {
-        const std::string query = "DELETE FROM buyer";
-		auto results = QueryDatabase(query);
-        if (!results.Success())
-			LogDebug("[CLIENT] Failed to delete all buyer items data, the error was: [{}]\n",results.ErrorMessage().c_str());
-
-        return;
+	auto results = TraderRepository::UpdateItem(database, char_id, new_price, item_id, 0);
+	if (!results) {
+		LogTrading(
+			"Failed to update price for trader item [{}] for char_id: [{}]",
+			item_id,
+			char_id
+		);
 	}
-
-    std::string query = StringFormat("DELETE FROM buyer WHERE charid = %i", CharID);
-	auto results = QueryDatabase(query);
-	if (!results.Success())
-			LogDebug("[CLIENT] Failed to delete buyer item data for charid: [{}], the error was: [{}]\n",CharID,results.ErrorMessage().c_str());
-
 }
 
 void ZoneDatabase::AddBuyLine(uint32 CharID, uint32 BuySlot, uint32 ItemID, const char* ItemName, uint32 Quantity, uint32 Price) {
@@ -526,10 +455,22 @@ void ZoneDatabase::UpdateBuyLine(uint32 CharID, uint32 BuySlot, uint32 Quantity)
 		return;
 	}
 
-	std::string query = StringFormat("UPDATE buyer SET quantity = %i WHERE charid = %i AND buyslot = %i", Quantity, CharID, BuySlot);
-    auto results = QueryDatabase(query);
-	if (!results.Success())
-		LogDebug("[CLIENT] Failed to update quantity in buyslot [{}] for charid: [{}], the error was: [{}]\n", BuySlot, CharID, results.ErrorMessage().c_str());
+	std::string query = StringFormat(
+		"UPDATE buyer SET quantity = %i WHERE charid = %i AND buyslot = %i",
+		Quantity,
+		CharID,
+		BuySlot
+	);
+
+	auto results = QueryDatabase(query);
+	if (!results.Success()) {
+		LogTrading(
+			"Failed to update quantity in buyslot [{}] for charid [{}], the error was [{}]\n",
+			BuySlot,
+			CharID,
+			results.ErrorMessage().c_str()
+		);
+	}
 
 }
 
@@ -630,6 +571,7 @@ bool ZoneDatabase::LoadCharacterData(uint32 character_id, PlayerProfile_Struct* 
 	pp->raidAutoconsent          = e.raid_auto_consent;
 	pp->guildAutoconsent         = e.guild_auto_consent;
 	pp->RestTimer                = e.RestTimer;
+	pp->char_id                  = e.id;
 	m_epp->aa_effects            = e.e_aa_effects;
 	m_epp->perAA                 = e.e_percent_to_aa;
 	m_epp->expended_aa           = e.e_expended_aa_spent;
@@ -745,12 +687,16 @@ bool ZoneDatabase::LoadCharacterLeadershipAbilities(uint32 character_id, PlayerP
 	return true;
 }
 
-bool ZoneDatabase::LoadCharacterDisciplines(uint32 character_id, PlayerProfile_Struct* pp){
+bool ZoneDatabase::LoadCharacterDisciplines(Client* c)
+{
+	if (!c) {
+		return false;
+	}
 
 	const auto& l = CharacterDisciplinesRepository::GetWhere(
 		database, fmt::format(
 			"`id` = {} ORDER BY `slot_id`",
-			character_id
+			c->CharacterID()
 		)
 	);
 
@@ -758,15 +704,17 @@ bool ZoneDatabase::LoadCharacterDisciplines(uint32 character_id, PlayerProfile_S
 		return false;
 	}
 
-	for (int slot_id = 0; slot_id < MAX_PP_DISCIPLINES; slot_id++) { // Initialize Disciplines
-		pp->disciplines.values[slot_id] = 0;
+	for (int slot_id = 0; slot_id < MAX_PP_DISCIPLINES; slot_id++) {
+		c->GetPP().disciplines.values[slot_id] = 0;
 	}
 
 	for (const auto& e : l) {
 		if (IsValidSpell(e.disc_id) && e.slot_id < MAX_PP_DISCIPLINES) {
-			pp->disciplines.values[e.slot_id] = e.disc_id;
+			c->GetPP().disciplines.values[e.slot_id] = e.disc_id;
 		}
 	}
+
+	c->SendDisciplineUpdate();
 
 	return true;
 }
@@ -1226,6 +1174,7 @@ bool ZoneDatabase::SaveCharacterData(
 	e.e_expended_aa_spent     = m_epp->expended_aa;
 	e.e_last_invsnapshot      = m_epp->last_invsnapshot_time;
 	e.mailkey                 = c->GetMailKeyFull();
+	e.illusion_block          = c->GetIllusionBlock();
 
 	const int replaced = CharacterDataRepository::ReplaceOne(database, e);
 
@@ -1401,30 +1350,32 @@ bool ZoneDatabase::SaveCharacterInvSnapshot(uint32 character_id) {
 		" `custom_data`,"
 		" `ornamenticon`,"
 		" `ornamentidfile`,"
-		" `ornament_hero_model`"
+		" `ornament_hero_model`,"
+		" `guid`"
 		") "
 		"SELECT"
 		" %u,"
-		" `charid`,"
-		" `slotid`,"
-		" `itemid`,"
+		" `character_id`,"
+		" `slot_id`,"
+		" `item_id`,"
 		" `charges`,"
 		" `color`,"
-		" `augslot1`,"
-		" `augslot2`,"
-		" `augslot3`,"
-		" `augslot4`,"
-		" `augslot5`,"
-		" `augslot6`,"
+		" `augment_one`,"
+		" `augment_two`,"
+		" `augment_three`,"
+		" `augment_four`,"
+		" `augment_five`,"
+		" `augment_six`,"
 		" `instnodrop`,"
 		" `custom_data`,"
-		" `ornamenticon`,"
-		" `ornamentidfile`,"
-		" `ornament_hero_model` "
+		" `ornament_icon`,"
+		" `ornament_idfile`,"
+		" `ornament_hero_model`,"
+		" `guid` "
 		"FROM"
 		" `inventory` "
 		"WHERE"
-		" `charid` = %u",
+		" `character_id` = %u",
 		time_index,
 		character_id
 	);
@@ -1578,13 +1529,13 @@ void ZoneDatabase::DivergeCharacterInvSnapshotFromInventory(uint32 character_id,
 		"JOIN"
 		" `inventory` b "
 		"USING"
-		" (`slotid`, `itemid`) "
+		" (`slot_id`, `item_id`) "
 		"WHERE"
 		" a.`time_index` = %u "
 		"AND"
 		" a.`charid` = %u "
 		"AND"
-		" b.`charid` = %u"
+		" b.`character_id` = %u"
 		")",
 		timestamp,
 		character_id,
@@ -1609,7 +1560,7 @@ void ZoneDatabase::DivergeCharacterInventoryFromInvSnapshot(uint32 character_id,
 		"FROM"
 		" `inventory` "
 		"WHERE"
-		" `charid` = %u "
+		" `character_id` = %u "
 		"AND"
 		" `slotid` NOT IN "
 		"("
@@ -1626,7 +1577,7 @@ void ZoneDatabase::DivergeCharacterInventoryFromInvSnapshot(uint32 character_id,
 		"AND"
 		" b.`charid` = %u "
 		"AND"
-		" a.`charid` = %u"
+		" a.`character_id` = %u"
 		")",
 		character_id,
 		timestamp,
@@ -1655,7 +1606,7 @@ bool ZoneDatabase::RestoreCharacterInvSnapshot(uint32 character_id, uint32 times
 		"FROM"
 		" `inventory` "
 		"WHERE"
-		" `charid` = %u",
+		" `character_id` = %u",
 		character_id
 	);
 	auto results = database.QueryDatabase(query);
@@ -1666,22 +1617,23 @@ bool ZoneDatabase::RestoreCharacterInvSnapshot(uint32 character_id, uint32 times
 		"INSERT "
 		"INTO"
 		" `inventory` "
-		"(`charid`,"
-		" `slotid`,"
-		" `itemid`,"
+		"(`character_id`,"
+		" `slot_id`,"
+		" `item_id`,"
 		" `charges`,"
 		" `color`,"
-		" `augslot1`,"
-		" `augslot2`,"
-		" `augslot3`,"
-		" `augslot4`,"
-		" `augslot5`,"
-		" `augslot6`,"
+		" `augment_one`,"
+		" `augment_two`,"
+		" `augment_three`,"
+		" `augment_four`,"
+		" `augment_five`,"
+		" `augment_six`,"
 		" `instnodrop`,"
 		" `custom_data`,"
-		" `ornamenticon`,"
-		" `ornamentidfile`,"
-		" `ornament_hero_model`"
+		" `ornament_icon`,"
+		" `ornament_idfile`,"
+		" `ornament_hero_model`,"
+		" `guid` "
 		") "
 		"SELECT"
 		" `charid`,"
@@ -1699,7 +1651,8 @@ bool ZoneDatabase::RestoreCharacterInvSnapshot(uint32 character_id, uint32 times
 		" `custom_data`,"
 		" `ornamenticon`,"
 		" `ornamentidfile`,"
-		" `ornament_hero_model` "
+		" `ornament_hero_model`, "
+		" `guid` "
 		"FROM"
 		" `inventory_snapshots` "
 		"WHERE"
@@ -1793,6 +1746,8 @@ const NPCType *ZoneDatabase::LoadNPCTypesData(uint32 npc_type_id, bool bulk_load
 		t->max_dmg            = n.maxdmg;
 		t->attack_count       = n.attack_count;
 		t->is_parcel_merchant = n.is_parcel_merchant ? true : false;
+		t->greed              = n.greed;
+		t->m_npc_tint_id      = n.npc_tint_id;
 
 		if (!n.special_abilities.empty()) {
 			strn0cpy(t->special_abilities, n.special_abilities.c_str(), 512);
@@ -1968,6 +1923,7 @@ const NPCType *ZoneDatabase::LoadNPCTypesData(uint32 npc_type_id, bool bulk_load
 		t->heroic_strikethrough   = n.heroic_strikethrough;
 		t->faction_amount         = n.faction_amount;
 		t->keeps_sold_items       = n.keeps_sold_items;
+		t->multiquest_enabled     = n.multiquest_enabled != 0;
 
 		// If NPC with duplicate NPC id already in table,
 		// free item we attempted to add.
@@ -1985,8 +1941,6 @@ const NPCType *ZoneDatabase::LoadNPCTypesData(uint32 npc_type_id, bool bulk_load
 			npc_ids.emplace_back(t->npc_id);
 		}
 	}
-
-	DataBucket::BulkLoadEntities(DataBucketLoadType::NPC, npc_ids);
 
 	if (!npc_faction_ids.empty()) {
 		zone->LoadNPCFactions(npc_faction_ids);
@@ -2271,7 +2225,7 @@ bool ZoneDatabase::LoadCurrentMercenary(Client* c)
 {
 	const uint8 mercenary_slot = c->GetMercSlot();
 
-	if (mercenary_slot > MAXMERCS) {
+	if (mercenary_slot >= MAXMERCS) {
 		return false;
 	}
 
@@ -2323,7 +2277,7 @@ bool ZoneDatabase::SaveMercenary(Merc* m)
 		auto e = MercsRepository::NewEntity();
 
 		e.OwnerCharacterID = m->GetMercenaryCharacterID();
-		e.Slot             = (c->GetNumberOfMercenaries() - 1);
+		e.Slot             = c->GetMercSlot();
 		e.Name             = m->GetCleanName();
 		e.TemplateID       = m->GetMercenaryTemplateID();
 		e.SuspendedTime    = c->GetMercInfo().SuspendedTime;
@@ -2364,7 +2318,7 @@ bool ZoneDatabase::SaveMercenary(Merc* m)
 	auto e = MercsRepository::FindOne(*this, m->GetMercenaryID());
 
 	e.OwnerCharacterID = m->GetMercenaryCharacterID();
-	e.Slot             = (c->GetNumberOfMercenaries() - 1);
+	e.Slot             = c->GetMercSlot();
 	e.Name             = m->GetCleanName();
 	e.TemplateID       = m->GetMercenaryTemplateID();
 	e.SuspendedTime    = c->GetMercInfo().SuspendedTime;
@@ -2700,7 +2654,7 @@ int64 ZoneDatabase::GetBlockedSpellsCount(uint32 zone_id)
 
 bool ZoneDatabase::LoadBlockedSpells(int64 blocked_spells_count, ZoneSpellsBlocked* into, uint32 zone_id)
 {
-	LogInfo("Loading Blocked Spells from database for {} ({}).", zone_store.GetZoneName(zone_id, true), zone_id);
+	LogInfo("Loading Blocked Spells from database for {} ({}).", ZoneStore::Instance()->GetZoneName(zone_id, true), zone_id);
 
 	const auto& l = BlockedSpellsRepository::GetWhere(
 		*this,
@@ -2722,7 +2676,7 @@ bool ZoneDatabase::LoadBlockedSpells(int64 blocked_spells_count, ZoneSpellsBlock
 			LogError(
 				"Blocked spells count of {} exceeded for {} ({}).",
 				blocked_spells_count,
-				zone_store.GetZoneName(zone_id, true),
+				ZoneStore::Instance()->GetZoneName(zone_id, true),
 				zone_id
 			);
 			break;
@@ -3070,12 +3024,12 @@ void ZoneDatabase::LoadBuffs(Client *client)
 			continue;
 		}
 
-		if (IsEffectInSpell(buffs[slot_id].spellid, SE_Charm)) {
+		if (IsEffectInSpell(buffs[slot_id].spellid, SpellEffect::Charm)) {
 			buffs[slot_id].spellid = SPELL_UNKNOWN;
 			break;
 		}
 
-		if (IsEffectInSpell(buffs[slot_id].spellid, SE_Illusion)) {
+		if (IsEffectInSpell(buffs[slot_id].spellid, SpellEffect::Illusion)) {
 			if (buffs[slot_id].persistant_buff) {
 				break;
 			}
@@ -3535,6 +3489,9 @@ bool ZoneDatabase::LoadFactionData()
 	}
 
     auto& fmr_row = faction_max_results.begin();
+	if (fmr_row[0] == nullptr) {
+		return false;
+	}
 
 	max_faction = Strings::ToUnsignedInt(fmr_row[0]);
 	faction_array = new Faction *[max_faction + 1];
@@ -4329,4 +4286,29 @@ void ZoneDatabase::SaveCharacterEXPModifier(Client* c)
 			.exp_modifier = m.exp_modifier
 		}
 	);
+}
+
+void ZoneDatabase::LoadCharacterTitleSets(Client* c)
+{
+	if (!zone || !c) {
+		return;
+	}
+
+	const auto& l = PlayerTitlesetsRepository::GetWhere(
+		*this,
+		fmt::format(
+			"`char_id` = {}",
+			c->CharacterID()
+		)
+	);
+
+	if (l.empty()) {
+		return;
+	}
+
+	const uint32 character_id = c->CharacterID();
+
+	for (const auto& e : l) {
+		c->EnableTitle(e.title_set, false);
+	}
 }

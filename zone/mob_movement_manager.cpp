@@ -1,17 +1,35 @@
-#include "mob_movement_manager.h"
-#include "client.h"
-#include "mob.h"
-#include "zone.h"
-#include "position.h"
-#include "water_map.h"
-#include "../common/eq_packet_structs.h"
-#include "../common/misc_functions.h"
-#include "../common/data_verification.h"
+/*	EQEmu: EQEmulator
 
-#include <vector>
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#include "mob_movement_manager.h"
+
+#include "common/data_verification.h"
+#include "common/eq_packet_structs.h"
+#include "common/misc_functions.h"
+#include "zone/client.h"
+#include "zone/mob.h"
+#include "zone/position.h"
+#include "zone/water_map.h"
+#include "zone/zone.h"
+
+#include <cstdlib>
 #include <deque>
 #include <map>
-#include <stdlib.h>
+#include <vector>
 
 extern double frame_time;
 extern Zone   *zone;
@@ -127,11 +145,6 @@ public:
 
 	}
 
-	/**
-	 * @param mob_movement_manager
-	 * @param mob
-	 * @return
-	 */
 	virtual bool Process(MobMovementManager *mob_movement_manager, Mob *mob)
 	{
 		if (!mob->IsAIControlled()) {
@@ -286,11 +299,6 @@ public:
 
 	}
 
-	/**
-	 * @param mob_movement_manager
-	 * @param mob
-	 * @return
-	 */
 	virtual bool Process(MobMovementManager *mob_movement_manager, Mob *mob)
 	{
 		if (!mob->IsAIControlled()) {
@@ -707,33 +715,21 @@ void MobMovementManager::Process()
 	}
 }
 
-/**
- * @param mob
- */
 void MobMovementManager::AddMob(Mob *mob)
 {
 	_impl->Entries.insert(std::make_pair(mob, MobMovementEntry()));
 }
 
-/**
- * @param mob
- */
 void MobMovementManager::RemoveMob(Mob *mob)
 {
 	_impl->Entries.erase(mob);
 }
 
-/**
- * @param client
- */
 void MobMovementManager::AddClient(Client *client)
 {
 	_impl->Clients.push_back(client);
 }
 
-/**
- * @param client
- */
 void MobMovementManager::RemoveClient(Client *client)
 {
 	auto iter = _impl->Clients.begin();
@@ -747,11 +743,6 @@ void MobMovementManager::RemoveClient(Client *client)
 	}
 }
 
-/**
- * @param who
- * @param to
- * @param mob_movement_mode
- */
 void MobMovementManager::RotateTo(Mob *who, float to, MobMovementMode mob_movement_mode)
 {
 	auto iter = _impl->Entries.find(who);
@@ -764,13 +755,6 @@ void MobMovementManager::RotateTo(Mob *who, float to, MobMovementMode mob_moveme
 	PushRotateTo(ent.second, who, to, mob_movement_mode);
 }
 
-/**
- * @param who
- * @param x
- * @param y
- * @param z
- * @param heading
- */
 void MobMovementManager::Teleport(Mob *who, float x, float y, float z, float heading)
 {
 	auto iter = _impl->Entries.find(who);
@@ -781,13 +765,6 @@ void MobMovementManager::Teleport(Mob *who, float x, float y, float z, float hea
 	PushTeleportTo(ent.second, x, y, z, heading);
 }
 
-/**
- * @param who
- * @param x
- * @param y
- * @param z
- * @param mode
- */
 void MobMovementManager::NavigateTo(Mob *who, float x, float y, float z, MobMovementMode mode)
 {
 	if (IsPositionEqualWithinCertainZ(glm::vec3(x, y, z), glm::vec3(who->GetX(), who->GetY(), who->GetZ()), 6.0f)) {
@@ -824,9 +801,6 @@ void MobMovementManager::NavigateTo(Mob *who, float x, float y, float z, MobMove
 	}
 }
 
-/**
- * @param who
- */
 void MobMovementManager::StopNavigation(Mob *who)
 {
 	auto iter = _impl->Entries.find(who);
@@ -852,16 +826,6 @@ void MobMovementManager::StopNavigation(Mob *who)
 	PushStopMoving(ent.second);
 }
 
-/**
- * @param mob
- * @param delta_x
- * @param delta_y
- * @param delta_z
- * @param delta_heading
- * @param anim
- * @param range
- * @param single_client
- */
 void MobMovementManager::SendCommandToClients(
 	Mob *mob,
 	float delta_x,
@@ -878,8 +842,8 @@ void MobMovementManager::SendCommandToClients(
 		return;
 	}
 
-	EQApplicationPacket outapp(OP_ClientUpdate, sizeof(PlayerPositionUpdateServer_Struct));
-	auto                *spu = (PlayerPositionUpdateServer_Struct *) outapp.pBuffer;
+	static EQApplicationPacket p(OP_ClientUpdate, sizeof(PlayerPositionUpdateServer_Struct));
+	auto                       *spu = (PlayerPositionUpdateServer_Struct *) p.pBuffer;
 
 	FillCommandStruct(spu, mob, delta_x, delta_y, delta_z, delta_heading, anim);
 
@@ -890,6 +854,10 @@ void MobMovementManager::SendCommandToClients(
 			}
 
 			if (ignore_client && c == ignore_client) {
+				continue;
+			}
+
+			if (c->IsIdle()) {
 				continue;
 			}
 
@@ -905,12 +873,24 @@ void MobMovementManager::SendCommandToClients(
 				_impl->Stats.TotalSentPosition++;
 			}
 
-			c->QueuePacket(&outapp, false);
+			if (!mob->IsClient() && c->m_last_seen_mob_position.contains(mob->GetID())) {
+				if (c->m_last_seen_mob_position[mob->GetID()] == mob->GetPosition() && anim == 0) {
+					LogPositionUpdate(
+						"Mob [{}] has already been sent to client [{}] at this position, skipping",
+						mob->GetCleanName(),
+						c->GetCleanName()
+					);
+					continue;
+				}
+			}
+
+			c->QueuePacket(&p, false);
+			c->m_last_seen_mob_position[mob->GetID()] = mob->GetPosition();
 		}
 	}
 	else {
 		float short_range = RuleR(Pathing, ShortMovementUpdateRange);
-		float long_range  = zone->GetNpcPositionUpdateDistance();
+		float long_range  = RuleI(Range, MobCloseScanDistance);
 
 		for (auto &c : _impl->Clients) {
 			if (single_client && c != single_client) {
@@ -918,6 +898,10 @@ void MobMovementManager::SendCommandToClients(
 			}
 
 			if (ignore_client && c == ignore_client) {
+				continue;
+			}
+
+			if (c->IsIdle()) {
 				continue;
 			}
 
@@ -955,33 +939,33 @@ void MobMovementManager::SendCommandToClients(
 					_impl->Stats.TotalSentPosition++;
 				}
 
-				c->QueuePacket(&outapp, false);
+				if (!mob->IsClient() && c->m_last_seen_mob_position.contains(mob->GetID())) {
+					if (c->m_last_seen_mob_position[mob->GetID()] == mob->GetPosition() && anim == 0) {
+						LogPositionUpdate(
+							"Mob [{}] has already been sent to client [{}] at this position, skipping",
+							mob->GetCleanName(),
+							c->GetCleanName()
+						);
+						continue;
+					}
+				}
+
+				c->QueuePacket(&p, false);
+				c->m_last_seen_mob_position[mob->GetID()] = mob->GetPosition();
 			}
 		}
 	}
 }
 
-/**
- * @param in
- * @return
- */
 float MobMovementManager::FixHeading(float in)
 {
-	auto h = in;
-	while (h > 512.0) {
-		h -= 512.0;
+	int h = static_cast<int>(in) % 512;
+	if (h < 0) {
+		h += 512;
 	}
-
-	while (h < 0.0) {
-		h += 512.0;
-	}
-
-	return h;
+	return static_cast<float>(h);
 }
 
-/**
- * @param client
- */
 void MobMovementManager::DumpStats(Client *client)
 {
 	auto current_time = static_cast<double>(Timer::GetCurrentTime()) / 1000.0;
@@ -1062,13 +1046,6 @@ void MobMovementManager::FillCommandStruct(
 	}
 }
 
-/**
- * @param who
- * @param x
- * @param y
- * @param z
- * @param mob_movement_mode
- */
 void MobMovementManager::UpdatePath(Mob *who, float x, float y, float z, MobMovementMode mob_movement_mode)
 {
 	Mob *target=who->GetTarget();
@@ -1114,13 +1091,6 @@ void MobMovementManager::UpdatePath(Mob *who, float x, float y, float z, MobMove
 	}
 }
 
-/**
- * @param who
- * @param x
- * @param y
- * @param z
- * @param mode
- */
 void MobMovementManager::UpdatePathGround(Mob *who, float x, float y, float z, MobMovementMode mode)
 {
 	PathfinderOptions opts;
@@ -1253,13 +1223,6 @@ void MobMovementManager::UpdatePathGround(Mob *who, float x, float y, float z, M
 	}
 }
 
-/**
- * @param who
- * @param x
- * @param y
- * @param z
- * @param movement_mode
- */
 void MobMovementManager::UpdatePathUnderwater(Mob *who, float x, float y, float z, MobMovementMode movement_mode)
 {
 	auto eiter = _impl->Entries.find(who);
@@ -1368,13 +1331,6 @@ void MobMovementManager::UpdatePathUnderwater(Mob *who, float x, float y, float 
 	}
 }
 
-/**
- * @param who
- * @param x
- * @param y
- * @param z
- * @param mode
- */
 void MobMovementManager::UpdatePathBoat(Mob *who, float x, float y, float z, MobMovementMode mode)
 {
 	auto eiter = _impl->Entries.find(who);
@@ -1386,48 +1342,21 @@ void MobMovementManager::UpdatePathBoat(Mob *who, float x, float y, float z, Mob
 	PushStopMoving(ent.second);
 }
 
-/**
- * @param ent
- * @param x
- * @param y
- * @param z
- * @param heading
- */
 void MobMovementManager::PushTeleportTo(MobMovementEntry &ent, float x, float y, float z, float heading)
 {
 	ent.Commands.emplace_back(std::unique_ptr<IMovementCommand>(new TeleportToCommand(x, y, z, heading)));
 }
 
-/**
- * @param ent
- * @param x
- * @param y
- * @param z
- * @param mob_movement_mode
- */
 void MobMovementManager::PushMoveTo(MobMovementEntry &ent, float x, float y, float z, MobMovementMode mob_movement_mode)
 {
 	ent.Commands.emplace_back(std::unique_ptr<IMovementCommand>(new MoveToCommand(x, y, z, mob_movement_mode)));
 }
 
-/**
- * @param ent
- * @param x
- * @param y
- * @param z
- * @param mob_movement_mode
- */
 void MobMovementManager::PushSwimTo(MobMovementEntry &ent, float x, float y, float z, MobMovementMode mob_movement_mode)
 {
 	ent.Commands.emplace_back(std::unique_ptr<IMovementCommand>(new SwimToCommand(x, y, z, mob_movement_mode)));
 }
 
-/**
- * @param ent
- * @param who
- * @param to
- * @param mob_movement_mode
- */
 void MobMovementManager::PushRotateTo(MobMovementEntry &ent, Mob *who, float to, MobMovementMode mob_movement_mode)
 {
 	auto from = FixHeading(who->GetHeading());
@@ -1450,41 +1379,21 @@ void MobMovementManager::PushRotateTo(MobMovementEntry &ent, Mob *who, float to,
 	ent.Commands.emplace_back(std::unique_ptr<IMovementCommand>(new RotateToCommand(to, diff > 0 ? 1.0 : -1.0, mob_movement_mode)));
 }
 
-/**
- * @param ent
- * @param x
- * @param y
- * @param z
- * @param mob_movement_mode
- */
 void MobMovementManager::PushFlyTo(MobMovementEntry &ent, float x, float y, float z, MobMovementMode mob_movement_mode)
 {
 	ent.Commands.emplace_back(std::unique_ptr<IMovementCommand>(new FlyToCommand(x, y, z, mob_movement_mode)));
 }
 
-/**
- * @param mob_movement_entry
- */
 void MobMovementManager::PushStopMoving(MobMovementEntry &mob_movement_entry)
 {
 	mob_movement_entry.Commands.emplace_back(std::unique_ptr<IMovementCommand>(new StopMovingCommand()));
 }
 
-/**
- * @param mob_movement_entry
- */
 void MobMovementManager::PushEvadeCombat(MobMovementEntry &mob_movement_entry)
 {
 	mob_movement_entry.Commands.emplace_back(std::unique_ptr<IMovementCommand>(new EvadeCombatCommand()));
 }
 
-/**
- * @param who
- * @param x
- * @param y
- * @param z
- * @param mob_movement_mode
- */
 void MobMovementManager::HandleStuckBehavior(Mob *who, float x, float y, float z, MobMovementMode mob_movement_mode)
 {
 	LogDebug("Handle stuck behavior for {0} at ({1}, {2}, {3}) with movement_mode {4}", who->GetName(), x, y, z, static_cast<int>(mob_movement_mode));

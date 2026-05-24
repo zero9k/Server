@@ -1,7 +1,25 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "door_manipulation.h"
-#include "../doors.h"
-#include "../../common/misc_functions.h"
-#include "../../common/strings.h"
+
+#include "common/misc_functions.h"
+#include "common/strings.h"
+#include "zone/doors.h"
 
 #define MAX_CLIENT_MESSAGE_LENGTH 2000
 
@@ -33,6 +51,26 @@ void DoorManipulation::CommandHandler(Client *c, const Seperator *sep)
 			table_name,
 			url
 		);
+	}
+
+	if (arg1 == "drawbox") {
+		Doors *door = entity_list.GetDoorsByID(c->GetDoorToolEntityId());
+
+		if (door) {
+			uint16 door_size = 15;
+			float door_depth = 5.0f;
+
+			if (sep->IsNumber(2) && atof(sep->arg[2]) > 0) {
+				door_size = atof(sep->arg[2]);
+			}
+
+			if (sep->IsNumber(3) && atof(sep->arg[3]) > 0) {
+				door_depth = atof(sep->arg[3]);
+			}
+
+
+			door->IsDoorBetween(c->GetPosition(), (c->GetTarget() ? c->GetTarget()->GetPosition() : c->GetPosition()), door_size, door_depth, true);
+		}
 	}
 
 	// edit menu
@@ -409,15 +447,15 @@ void DoorManipulation::CommandHandler(Client *c, const Seperator *sep)
 
 	if (arg1 == "setinclineinc") {
 		std::map<float, std::string> incline_values = {
-			{.01,    "Upright"},
-			{63.75,  "45 Degrees",},
-			{130,    "90 Degrees"},
-			{192.5,  "135 Degrees"},
-			{255,    "180 Degrees"},
-			{321.25, "225 Degrees"},
-			{385,    "270 Degrees"},
-			{448.75, "315 Degrees"},
-			{512.5,  "360 Degrees"}
+			{.01f,     "Upright"},
+			{63.75f,   "45 Degrees",},
+			{130.f,    "90 Degrees"},
+			{192.5f,   "135 Degrees"},
+			{255.f,    "180 Degrees"},
+			{321.25f,  "225 Degrees"},
+			{385.f,    "270 Degrees"},
+			{448.75f,  "315 Degrees"},
+			{512.5f,   "360 Degrees"}
 		};
 
 		std::vector<std::string> incline_normal_options;
@@ -544,6 +582,13 @@ void DoorManipulation::CommandHandler(Client *c, const Seperator *sep)
 		c->Message(Chat::White, "#door setinvertstate [0|1] | Sets selected door invert state");
 		c->Message(Chat::White, "#door setincline <incline> | Sets selected door incline");
 		c->Message(Chat::White, "#door opentype <opentype> | Sets selected door opentype");
+		c->Message(
+			Chat::White,
+			fmt::format(
+				"{} <door_size> <door_depth> | Draws a box for the door, default size = 15, depth = 5 if none defined",
+				Saylink::Silent("#door drawbox")
+			).c_str()
+		);
 		c->Message(
 			Chat::White,
 			fmt::format(

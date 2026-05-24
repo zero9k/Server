@@ -1,30 +1,29 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2004 EQEMu Development Team (http://eqemulator.net)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
-#include "../common/spdat.h"
-#include "../common/strings.h"
-
-#include "client.h"
-#include "entity.h"
-#include "mob.h"
 #include "trap.h"
-#include "../common/repositories/criteria/content_filter_criteria.h"
-#include "../common/repositories/traps_repository.h"
+
+#include "common/repositories/criteria/content_filter_criteria.h"
+#include "common/repositories/traps_repository.h"
+#include "common/spdat.h"
+#include "common/strings.h"
+#include "zone/client.h"
+#include "zone/entity.h"
+#include "zone/mob.h"
 
 /*
 
@@ -462,10 +461,6 @@ bool ZoneDatabase::LoadTraps(const std::string& zone_short_name, int16 instance_
 		)
 	);
 
-	if (l.empty()) {
-		return false;
-	}
-
 	for (const auto& e : l) {
 		if (e.group_) {
 			if (entity_list.IsTrapGroupSpawned(e.id, e.group_)) {
@@ -521,7 +516,7 @@ void Trap::CreateHiddenTrigger()
 	make_npc->current_hp = 100000;
 	strcpy(make_npc->name, "a_trap");
 	make_npc->runspeed = 0.0f;
-	make_npc->bodytype = BT_Special;
+	make_npc->bodytype = BodyType::Special;
 	make_npc->race = 127;
 	make_npc->gender = Gender::Male;
 	make_npc->loottable_id = 0;

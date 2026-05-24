@@ -1,45 +1,38 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2002 EQEMu Development Team (http://eqemu.org)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef NPC_H
-#define NPC_H
+#pragma once
 
-#include "../common/rulesys.h"
-
-#include "mob.h"
-#include "qglobals.h"
-#include "zonedb.h"
-#include "../common/zone_store.h"
-#include "zonedump.h"
-#include "../common/repositories/npc_faction_entries_repository.h"
-#include "../common/repositories/loottable_repository.h"
-#include "../common/repositories/loottable_entries_repository.h"
-#include "../common/repositories/lootdrop_repository.h"
-#include "../common/repositories/lootdrop_entries_repository.h"
+#include "common/repositories/lootdrop_entries_repository.h"
+#include "common/repositories/lootdrop_repository.h"
+#include "common/repositories/loottable_entries_repository.h"
+#include "common/repositories/loottable_repository.h"
+#include "common/repositories/npc_faction_entries_repository.h"
+#include "common/rulesys.h"
+#include "common/zone_store.h"
+#include "zone/mob.h"
+#include "zone/qglobals.h"
+#include "zone/zonedb.h"
+#include "zone/zonedump.h"
 
 #include <deque>
 #include <list>
 
-
-#ifdef _WINDOWS
-	#define M_PI	3.141592
-#endif
-
-typedef struct {
+struct NPCProximity {
 	float	min_x;
 	float	max_x;
 	float	min_y;
@@ -48,7 +41,7 @@ typedef struct {
 	float	max_z;
 	bool	say;
 	bool	proximity_set;
-} NPCProximity;
+};
 
 struct AISpells_Struct {
 	uint32	type;			// 0 = never, must be one (and only one) of the defined values
@@ -222,7 +215,7 @@ public:
 	void RemoveLootCash();
 	void QueryLoot(Client *to, bool is_pet_query = false);
 	bool HasItem(uint32 item_id);
-	uint16 CountItem(uint32 item_id);
+	uint32 CountItem(uint32 item_id);
 	uint32 GetLootItemIDBySlot(uint16 loot_slot);
 	uint16 GetFirstLootSlotByItemID(uint32 item_id);
 	std::vector<int> GetLootList();
@@ -248,6 +241,7 @@ public:
 
 	uint16 GetWaypointMax() const { return wp_m; }
 	int32 GetGrid() const { return grid; }
+	Spawn2* GetSpawn() { return respawn2 ? respawn2 : nullptr; }
 	uint32 GetSpawnGroupId() const { return spawn_group_id; }
 	uint32 GetSpawnPointID() const;
 
@@ -268,6 +262,7 @@ public:
 	inline void	MerchantOpenShop() { merchant_open = true; }
 	inline void	MerchantCloseShop() { merchant_open = false; }
 	inline bool	IsMerchantOpen() { return merchant_open; }
+	inline uint8 GetGreedPercent() { return NPCTypedata->greed; }
 	inline bool GetParcelMerchant() { return NPCTypedata->is_parcel_merchant; }
 	void	Depop(bool start_spawn_timer = false);
 	void	Stun(int duration);
@@ -312,7 +307,7 @@ public:
 	float GetSlowMitigation() const { return slow_mitigation; }
 	float	GetAttackSpeed() const {return attack_speed;}
 	int		GetAttackDelay() const {return attack_delay;}
-	bool	IsAnimal() const { return(bodytype == BT_Animal); }
+	bool	IsAnimal() const { return(bodytype == BodyType::Animal); }
 	uint16	GetPetSpellID() const {return pet_spell_id;}
 	void	SetPetSpellID(uint16 amt) {pet_spell_id = amt;}
 	uint32	GetMaxDamage(uint8 tlevel);
@@ -344,7 +339,7 @@ public:
 	int64 GetNPCHPRegen() const { return hp_regen + itembonuses.HPRegen + spellbonuses.HPRegen; }
 	inline const char* GetAmmoIDfile() const { return ammo_idfile; }
 
-	void ModifyStatsOnCharm(bool is_charm_removed);
+	void ModifyStatsOnCharm(bool remove_charm, Mob* charmer);
 
 	//waypoint crap
 	int					GetMaxWp() const { return max_wp; }
@@ -481,7 +476,8 @@ public:
 	NPC_Emote_Struct* GetNPCEmote(uint32 emote_id, uint8 event_);
 	void DoNPCEmote(uint8 event_, uint32 emote_id, Mob* t = nullptr);
 	bool CanTalk();
-	void DoQuestPause(Mob *other);
+	void DoQuestPause(Mob* m);
+	bool FacesTarget();
 
 	inline void SetSpellScale(float amt)		{ spellscale = amt; }
 	inline float GetSpellScale()				{ return spellscale; }
@@ -549,12 +545,91 @@ public:
 
 	void ScaleNPC(uint8 npc_level, bool always_scale = false, bool override_special_abilities = false);
 
+	uint32 GetNPCTintIndex() { return m_npc_tint_id; }
+	void SetNPCTintIndex(uint32 index);
+
 	void RecalculateSkills();
 	void ReloadSpells();
 
 	void SendPositionToClients();
 
 	bool CanPathTo(float x, float y, float z);
+
+	void DoNpcToNpcAggroScan();
+
+	// hand-ins
+	bool CanPetTakeItem(const EQ::ItemInstance *inst);
+
+	struct HandinEntry {
+		std::string      item_id            = "0";
+		uint32           count              = 0;
+		EQ::ItemInstance *item              = nullptr;
+		bool             is_multiquest_item = false; // state
+	};
+
+	struct HandinMoney {
+		uint32 platinum = 0;
+		uint32 gold     = 0;
+		uint32 silver   = 0;
+		uint32 copper   = 0;
+	};
+
+	struct Handin {
+		std::vector<HandinEntry> original_items = {}; // this is what the player originally handed in, never modified
+		std::vector<HandinEntry> items          = {}; // items can be removed from this set as successful handins are made
+		HandinMoney              original_money = {}; // this is what the player originally handed in, never modified
+		HandinMoney              money          = {}; // money can be removed from this set as successful handins are made
+	};
+
+	// NPC Hand-in
+	bool IsMultiQuestEnabled() { return m_multiquest_enabled; }
+	void MultiQuestEnable() { m_multiquest_enabled = true; }
+	bool IsGuildmasterForClient(Client *c);
+	bool CheckHandin(
+		Client *c,
+		std::map<std::string, uint32> handin,
+		std::map<std::string, uint32> required,
+		std::vector<EQ::ItemInstance *> items
+	);
+	Handin ReturnHandinItems(Client *c);
+	void ResetHandin();
+	void ResetMultiQuest();
+	bool HasProcessedHandinReturn() { return m_has_processed_handin_return; }
+	bool HandinStarted() { return m_handin_started; }
+
+	// zone state save
+	inline void SetQueuedToCorpse() { m_queued_for_corpse = true; }
+	inline bool IsQueuedForCorpse() const { return m_queued_for_corpse; }
+	inline void SetResumedFromZoneSuspend(bool state = true) { m_resumed_from_zone_suspend = state; }
+	inline bool IsResumedFromZoneSuspend() const { return m_resumed_from_zone_suspend; }
+
+	inline void LoadBuffsFromState(std::vector<Buffs_Struct> in_buffs) {
+		int i = 0;
+		for (auto &b: in_buffs) {
+			buffs[i].spellid     = b.spellid;
+			buffs[i].casterlevel = b.casterlevel;
+			buffs[i].casterid    = b.casterid;
+			strncpy(buffs[i].caster_name, b.caster_name, 64);
+			buffs[i].ticsremaining     = b.ticsremaining;
+			buffs[i].counters          = b.counters;
+			buffs[i].hit_number        = b.hit_number;
+			buffs[i].melee_rune        = b.melee_rune;
+			buffs[i].magic_rune        = b.magic_rune;
+			buffs[i].dot_rune          = b.dot_rune;
+			buffs[i].caston_x          = b.caston_x;
+			buffs[i].caston_y          = b.caston_y;
+			buffs[i].caston_z          = b.caston_z;
+			buffs[i].ExtraDIChance     = b.ExtraDIChance;
+			buffs[i].RootBreakChance   = b.RootBreakChance;
+			buffs[i].instrument_mod    = b.instrument_mod;
+			buffs[i].virus_spread_time = b.virus_spread_time;
+			buffs[i].persistant_buff   = b.persistant_buff;
+			buffs[i].client            = b.client;
+			buffs[i].UpdateClient      = b.UpdateClient;
+			i++;
+		}
+		CalcBonuses();
+	}
 
 protected:
 
@@ -576,6 +651,15 @@ protected:
 	uint32    m_loot_gold;
 	uint32    m_loot_platinum;
 	LootItems m_loot_items;
+
+	// zone state
+	bool m_resumed_from_zone_suspend = false;
+	bool m_queued_for_corpse         = false; // this is to check for corpse creation on zone state restore
+
+	// this is a timer that protects a NPC from having double assignment of loot
+	// this is to prevent a player from killing a NPC and then zoning out and back in to get loot again
+	// if loot was to be assigned via script again, this protects double assignment for a short time
+	Timer m_resumed_from_zone_suspend_shutoff_timer = {};
 
 	std::list<NpcFactionEntriesRepository::NpcFactionEntries> faction_list;
 
@@ -697,6 +781,17 @@ protected:
 	bool raid_target;
 	bool ignore_despawn; //NPCs with this set to 1 will ignore the despawn value in spawngroup
 
+	// NPC Hand-in
+	bool m_multiquest_enabled          = false;
+	bool m_handin_started              = false;
+	bool m_has_processed_handin_return = false;
+
+	// this is the working handin data from the player
+	// items can be decremented from this as each successful
+	// check is ran in scripts, the remainder is what is returned
+	Handin m_hand_in = {};
+public:
+	const Handin GetHandin() { return m_hand_in; }
 
 private:
 	uint32              m_loottable_id;
@@ -706,6 +801,3 @@ private:
 	bool                m_record_loot_stats;
 	std::vector<uint32> m_rolled_items = {};
 };
-
-#endif
-

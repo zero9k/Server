@@ -1,61 +1,42 @@
-#ifndef EQEMU_CLIENTMANAGER_H
-#define EQEMU_CLIENTMANAGER_H
+/*	EQEmu: EQEmulator
 
-#include "../common/global_define.h"
-#include "../common/opcodemgr.h"
-#include "../common/net/eqstream.h"
-#include "client.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
+#include "common/net/eqstream.h"
+#include "loginserver/client.h"
+
 #include <list>
 
-/**
-* Client manager class, holds all the client objects and does basic processing.
-*/
 class ClientManager {
 public:
-	/**
-	 * Constructor: sets up the stream factories and opcode managers
-	 */
 	ClientManager();
-
-	/**
-	 * Destructor: shuts down the streams and opcode managers
-	 */
 	~ClientManager();
-
-	/**
-	 * Processes every client in the internal list, removes them if necessary.
-	 */
 	void Process();
-
-	/**
-	 * Removes a client with a certain account id
-	 *
-	 * @param account_id
-	 * @param loginserver
-	 */
-	void RemoveExistingClient(unsigned int account_id, const std::string &loginserver);
-
-	/**
-	 * Gets a client (if exists) by their account id
-	 *
-	 * @param account_id
-	 * @param loginserver
-	 * @return
-	 */
-	Client *GetClient(unsigned int account_id, const std::string &loginserver);
+	void RemoveExistingClient(unsigned int c, const std::string &loginserver);
+	Client *GetClient(unsigned int c, const std::string &loginserver);
 private:
-
-	/**
-	 * Processes disconnected clients, removes them if necessary
-	 */
 	void ProcessDisconnect();
 
-	std::list<Client *>      clients;
-	OpcodeManager            *titanium_ops;
-	EQ::Net::EQStreamManager *titanium_stream;
-	OpcodeManager            *sod_ops;
-	EQ::Net::EQStreamManager *sod_stream;
+	std::list<Client *>      m_clients;
+	OpcodeManager            *m_titanium_ops;
+	EQ::Net::EQStreamManager *m_titanium_stream;
+	OpcodeManager            *m_sod_ops;
+	EQ::Net::EQStreamManager *m_sod_stream;
+	OpcodeManager            *m_larion_ops;
+	EQ::Net::EQStreamManager *m_larion_stream;
 };
-
-#endif
-

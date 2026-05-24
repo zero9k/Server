@@ -1,7 +1,23 @@
-#ifndef MERC_H
-#define MERC_H
+/*	EQEmu: EQEmulator
 
-#include "npc.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
+#include "zone/npc.h"
 
 class Client;
 class Corpse;
@@ -17,7 +33,7 @@ namespace EQ
 	struct ItemData;
 }
 
-#define MAXMERCS 1
+constexpr int MAXMERCS = 11;
 #define TANK 1
 #define HEALER 2
 #define MELEEDPS 9
@@ -146,6 +162,9 @@ public:
 	bool IsMedding() { return _medding; };
 	bool IsSuspended() { return _suspended; };
 
+	void Signal(int signal_id);
+	void SendPayload(int payload_id, std::string payload_value);
+
 	static uint32 CalcPurchaseCost( uint32 templateID , uint8 level, uint8 currency_type = 0);
 	static uint32 CalcUpkeepCost( uint32 templateID , uint8 level, uint8 currency_type = 0);
 
@@ -162,7 +181,7 @@ public:
 	uint8 GetTierID() { return _TierID; }
 	uint32 GetCostFormula() { return _CostFormula; }
 	uint32 GetMercNameType() { return _NameType; }
-	EQ::constants::StanceType GetStance() { return _currentStance; }
+	uint8 GetStance() { return _currentStance; }
 	int GetHatedCount() { return _hatedCount; }
 
 	inline const uint8 GetClientVersion() const { return _OwnerClientVersion; }
@@ -252,7 +271,7 @@ public:
 	void SetMercNameType( uint8 nametype ) { _NameType = nametype; }
 	void SetClientVersion(uint8 clientVersion) { _OwnerClientVersion = clientVersion; }
 	void SetSuspended(bool suspended) { _suspended = suspended; }
-	void SetStance( EQ::constants::StanceType stance ) { _currentStance = stance; }
+	void SetStance(uint8 stance_id) { _currentStance = stance_id; }
 	void SetHatedCount( int count ) { _hatedCount = count; }
 
 	void Sit();
@@ -364,7 +383,7 @@ private:
 	uint8 _CostFormula;
 	uint8 _NameType;
 	uint8 _OwnerClientVersion;
-	EQ::constants::StanceType _currentStance;
+	uint8 _currentStance;
 
 	EQ::InventoryProfile m_inv;
 	int64 max_end;
@@ -381,5 +400,3 @@ private:
 	Timer confidence_timer;
 	Timer check_target_timer;
 };
-
-#endif // MERC_H

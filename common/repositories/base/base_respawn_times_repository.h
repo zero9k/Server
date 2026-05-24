@@ -1,3 +1,20 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
  * DO NOT MODIFY THIS FILE
  *
@@ -6,23 +23,24 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://docs.eqemu.io/developer/repositories
+ * @docs https://docs.eqemu.dev/developer/repositories
  */
 
-#ifndef EQEMU_BASE_RESPAWN_TIMES_REPOSITORY_H
-#define EQEMU_BASE_RESPAWN_TIMES_REPOSITORY_H
+#pragma once
 
-#include "../../database.h"
-#include "../../strings.h"
+#include "common/database.h"
+#include "common/strings.h"
+
 #include <ctime>
 
 class BaseRespawnTimesRepository {
 public:
 	struct RespawnTimes {
-		int32_t id;
-		int32_t start;
-		int32_t duration;
-		int16_t instance_id;
+		int32_t  id;
+		int32_t  start;
+		int32_t  duration;
+		uint32_t expire_at;
+		int16_t  instance_id;
 	};
 
 	static std::string PrimaryKey()
@@ -36,6 +54,7 @@ public:
 			"id",
 			"start",
 			"duration",
+			"expire_at",
 			"instance_id",
 		};
 	}
@@ -46,6 +65,7 @@ public:
 			"id",
 			"start",
 			"duration",
+			"expire_at",
 			"instance_id",
 		};
 	}
@@ -90,6 +110,7 @@ public:
 		e.id          = 0;
 		e.start       = 0;
 		e.duration    = 0;
+		e.expire_at   = 0;
 		e.instance_id = 0;
 
 		return e;
@@ -130,7 +151,8 @@ public:
 			e.id          = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
 			e.start       = row[1] ? static_cast<int32_t>(atoi(row[1])) : 0;
 			e.duration    = row[2] ? static_cast<int32_t>(atoi(row[2])) : 0;
-			e.instance_id = row[3] ? static_cast<int16_t>(atoi(row[3])) : 0;
+			e.expire_at   = row[3] ? static_cast<uint32_t>(strtoul(row[3], nullptr, 10)) : 0;
+			e.instance_id = row[4] ? static_cast<int16_t>(atoi(row[4])) : 0;
 
 			return e;
 		}
@@ -167,7 +189,8 @@ public:
 		v.push_back(columns[0] + " = " + std::to_string(e.id));
 		v.push_back(columns[1] + " = " + std::to_string(e.start));
 		v.push_back(columns[2] + " = " + std::to_string(e.duration));
-		v.push_back(columns[3] + " = " + std::to_string(e.instance_id));
+		v.push_back(columns[3] + " = " + std::to_string(e.expire_at));
+		v.push_back(columns[4] + " = " + std::to_string(e.instance_id));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -192,6 +215,7 @@ public:
 		v.push_back(std::to_string(e.id));
 		v.push_back(std::to_string(e.start));
 		v.push_back(std::to_string(e.duration));
+		v.push_back(std::to_string(e.expire_at));
 		v.push_back(std::to_string(e.instance_id));
 
 		auto results = db.QueryDatabase(
@@ -225,6 +249,7 @@ public:
 			v.push_back(std::to_string(e.id));
 			v.push_back(std::to_string(e.start));
 			v.push_back(std::to_string(e.duration));
+			v.push_back(std::to_string(e.expire_at));
 			v.push_back(std::to_string(e.instance_id));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
@@ -262,7 +287,8 @@ public:
 			e.id          = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
 			e.start       = row[1] ? static_cast<int32_t>(atoi(row[1])) : 0;
 			e.duration    = row[2] ? static_cast<int32_t>(atoi(row[2])) : 0;
-			e.instance_id = row[3] ? static_cast<int16_t>(atoi(row[3])) : 0;
+			e.expire_at   = row[3] ? static_cast<uint32_t>(strtoul(row[3], nullptr, 10)) : 0;
+			e.instance_id = row[4] ? static_cast<int16_t>(atoi(row[4])) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -290,7 +316,8 @@ public:
 			e.id          = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
 			e.start       = row[1] ? static_cast<int32_t>(atoi(row[1])) : 0;
 			e.duration    = row[2] ? static_cast<int32_t>(atoi(row[2])) : 0;
-			e.instance_id = row[3] ? static_cast<int16_t>(atoi(row[3])) : 0;
+			e.expire_at   = row[3] ? static_cast<uint32_t>(strtoul(row[3], nullptr, 10)) : 0;
+			e.instance_id = row[4] ? static_cast<int16_t>(atoi(row[4])) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -368,6 +395,7 @@ public:
 		v.push_back(std::to_string(e.id));
 		v.push_back(std::to_string(e.start));
 		v.push_back(std::to_string(e.duration));
+		v.push_back(std::to_string(e.expire_at));
 		v.push_back(std::to_string(e.instance_id));
 
 		auto results = db.QueryDatabase(
@@ -394,6 +422,7 @@ public:
 			v.push_back(std::to_string(e.id));
 			v.push_back(std::to_string(e.start));
 			v.push_back(std::to_string(e.duration));
+			v.push_back(std::to_string(e.expire_at));
 			v.push_back(std::to_string(e.instance_id));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
@@ -412,5 +441,3 @@ public:
 		return (results.Success() ? results.RowsAffected() : 0);
 	}
 };
-
-#endif //EQEMU_BASE_RESPAWN_TIMES_REPOSITORY_H

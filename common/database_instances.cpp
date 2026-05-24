@@ -1,54 +1,43 @@
-/*	EQEMu: Everquest Server Emulator
-Copyright (C) 2001-2015 EQEMu Development Team (http://eqemulator.net)
+/*	EQEmu: EQEmulator
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+	Copyright (C) 2001-2026 EQEmu Development Team
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY except by those people which sell it, which
-are required to give you total support for your newly bought product;
-without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
-#include "../common/global_define.h"
-#include "../common/rulesys.h"
-#include "../common/strings.h"
-#include "../common/timer.h"
-#include "../common/repositories/character_corpses_repository.h"
-#include "../common/repositories/dynamic_zone_members_repository.h"
-#include "../common/repositories/dynamic_zones_repository.h"
-#include "../common/repositories/group_id_repository.h"
-#include "../common/repositories/instance_list_repository.h"
-#include "../common/repositories/instance_list_player_repository.h"
-#include "../common/repositories/raid_members_repository.h"
-#include "../common/repositories/respawn_times_repository.h"
-#include "../common/repositories/spawn_condition_values_repository.h"
-#include "repositories/spawn2_disabled_repository.h"
-
-
 #include "database.h"
 
-#include <iomanip>
-#include <iostream>
+#include "common/platform/inet.h"
+#include "common/platform/platform.h"
+#include "common/platform/win/include_windows.h"
+#include "common/repositories/character_corpses_repository.h"
+#include "common/repositories/data_buckets_repository.h"
+#include "common/repositories/dynamic_zone_members_repository.h"
+#include "common/repositories/dynamic_zones_repository.h"
+#include "common/repositories/group_id_repository.h"
+#include "common/repositories/instance_list_player_repository.h"
+#include "common/repositories/instance_list_repository.h"
+#include "common/repositories/raid_members_repository.h"
+#include "common/repositories/respawn_times_repository.h"
+#include "common/repositories/spawn_condition_values_repository.h"
+#include "common/repositories/spawn2_disabled_repository.h"
+#include "common/repositories/zone_state_spawns_repository.h"
+#include "common/rulesys.h"
+#include "common/strings.h"
+#include "common/timer.h"
+#include "common/unix.h"
+#include "zone/zonedb.h"
 
-// Disgrace: for windows compile
-#ifdef _WINDOWS
-#include <windows.h>
-#define snprintf	_snprintf
-#define strncasecmp	_strnicmp
-#define strcasecmp	_stricmp
-#else
-#include "unix.h"
-#include "../zone/zonedb.h"
-#include <netinet/in.h>
-#include <sys/time.h>
-#endif
 
 
 bool Database::AddClientToInstance(uint16 instance_id, uint32 character_id)
@@ -114,7 +103,9 @@ bool Database::CheckInstanceExpired(uint16 instance_id)
 	timeval tv{};
 	gettimeofday(&tv, nullptr);
 
-	return (i.start_time + i.duration) <= tv.tv_sec;
+	// Use uint64_t for the addition to prevent overflow
+	uint64_t expiration_time = static_cast<uint64_t>(i.start_time) + static_cast<uint64_t>(i.duration);
+	return expiration_time <= tv.tv_sec;
 }
 
 bool Database::CreateInstance(uint16 instance_id, uint32 zone_id, uint32 version, uint32 duration)
@@ -126,11 +117,35 @@ bool Database::CreateInstance(uint16 instance_id, uint32 zone_id, uint32 version
 	e.version = version;
 	e.start_time = std::time(nullptr);
 	e.duration = duration;
+	e.expire_at = e.start_time + duration;
 
-	return InstanceListRepository::InsertOne(*this, e).id;
+	RespawnTimesRepository::ClearInstanceTimers(*this, e.id);
+	InstanceListRepository::ReplaceOne(*this, e);
+	return instance_id > 0 && e.id;
 }
 
 bool Database::GetUnusedInstanceID(uint16 &instance_id)
+{
+	// attempt to get an unused instance id
+	for (int a = 0; a < 10; a++) {
+		uint16 attempted_id = 0;
+		if (TryGetUnusedInstanceID(attempted_id)) {
+			auto i = InstanceListRepository::NewEntity();
+			i.id    = attempted_id;
+			i.notes = "Prefetching";
+			auto n = InstanceListRepository::InsertOne(*this, i);
+			if (n.id > 0) {
+				instance_id = n.id;
+				return true;
+			}
+		}
+	}
+
+	instance_id = 0;
+	return false;
+}
+
+bool Database::TryGetUnusedInstanceID(uint16 &instance_id)
 {
 	uint32 max_reserved_instance_id = RuleI(Instances, ReservedInstances);
 	uint32 max_instance_id          = 32000;
@@ -469,16 +484,18 @@ void Database::AssignRaidToInstance(uint32 raid_id, uint32 instance_id)
 
 void Database::DeleteInstance(uint16 instance_id)
 {
+	// I'm not sure why this isn't in here but we should add it in a later change and make sure it's tested
+	// InstanceListRepository::DeleteWhere(*this, fmt::format("id = {}", instance_id));
 	InstanceListPlayerRepository::DeleteWhere(*this, fmt::format("id = {}", instance_id));
-
 	RespawnTimesRepository::DeleteWhere(*this, fmt::format("instance_id = {}", instance_id));
-
 	SpawnConditionValuesRepository::DeleteWhere(*this, fmt::format("instance_id = {}", instance_id));
-
 	DynamicZoneMembersRepository::DeleteByInstance(*this, instance_id);
 	DynamicZonesRepository::DeleteWhere(*this, fmt::format("instance_id = {}", instance_id));
-
 	CharacterCorpsesRepository::BuryInstance(*this, instance_id);
+	DataBucketsRepository::DeleteWhere(*this, fmt::format("instance_id = {}", instance_id));
+	if (RuleB(Zone, StateSavingOnShutdown)) {
+		ZoneStateSpawnsRepository::DeleteWhere(*this, fmt::format("`instance_id` = {}", instance_id));
+	}
 }
 
 void Database::FlagInstanceByGroupLeader(uint32 zone_id, int16 version, uint32 character_id, uint32 group_id)
@@ -533,14 +550,12 @@ void Database::GetCharactersInInstance(uint16 instance_id, std::list<uint32> &ch
 
 void Database::PurgeExpiredInstances()
 {
-	/**
-	 * Delay purging by a day so that we can continue using adjacent free instance id's
-	 * from the table without risking the chance we immediately re-allocate a zone that freshly expired but
-	 * has not been fully de-allocated
-	 */
 	auto l = InstanceListRepository::GetWhere(
 		*this,
-		"(start_time + duration) <= (UNIX_TIMESTAMP() - 86400) AND never_expires = 0"
+		fmt::format(
+			"expire_at <= (UNIX_TIMESTAMP() - {}) and expire_at != 0 AND never_expires = 0",
+			RuleI(Instances, ExpireOffsetTimeSeconds)
+		)
 	);
 	if (l.empty()) {
 		return;
@@ -551,16 +566,24 @@ void Database::PurgeExpiredInstances()
 		instance_ids.emplace_back(std::to_string(e.id));
 	}
 
-	const auto imploded_instance_ids = Strings::Implode(",", instance_ids);
+	const auto ids = Strings::Implode(",", instance_ids);
 
-	InstanceListRepository::DeleteWhere(*this, fmt::format("id IN ({})", imploded_instance_ids));
-	InstanceListPlayerRepository::DeleteWhere(*this, fmt::format("id IN ({})", imploded_instance_ids));
-	RespawnTimesRepository::DeleteWhere(*this, fmt::format("instance_id IN ({})", imploded_instance_ids));
-	SpawnConditionValuesRepository::DeleteWhere(*this, fmt::format("instance_id IN ({})", imploded_instance_ids));
-	CharacterCorpsesRepository::BuryInstances(*this, imploded_instance_ids);
-	DynamicZoneMembersRepository::DeleteByManyInstances(*this, imploded_instance_ids);
-	DynamicZonesRepository::DeleteWhere(*this, fmt::format("instance_id IN ({})", imploded_instance_ids));
-	Spawn2DisabledRepository::DeleteWhere(*this, fmt::format("instance_id IN ({})", imploded_instance_ids));
+	TransactionBegin();
+	InstanceListRepository::DeleteWhere(*this, fmt::format("id IN ({})", ids));
+	InstanceListPlayerRepository::DeleteWhere(*this, fmt::format("id IN ({})", ids));
+	RespawnTimesRepository::DeleteWhere(*this, fmt::format("instance_id IN ({})", ids));
+	SpawnConditionValuesRepository::DeleteWhere(*this, fmt::format("instance_id IN ({})", ids));
+	CharacterCorpsesRepository::BuryInstances(*this, ids);
+	DynamicZoneMembersRepository::DeleteByManyInstances(*this, ids);
+	DynamicZonesRepository::DeleteWhere(*this, fmt::format("instance_id IN ({})", ids));
+	Spawn2DisabledRepository::DeleteWhere(*this, fmt::format("instance_id IN ({})", ids));
+	DataBucketsRepository::DeleteWhere(*this, fmt::format("instance_id != 0 and instance_id IN ({})", ids));
+	if (RuleB(Zone, StateSavingOnShutdown)) {
+		ZoneStateSpawnsRepository::DeleteWhere(*this, fmt::format("`instance_id` IN ({})", ids));
+	}
+	TransactionCommit();
+
+	LogInfo("Purged [{}] expired instances", l.size());
 }
 
 void Database::SetInstanceDuration(uint16 instance_id, uint32 new_duration)
@@ -572,6 +595,7 @@ void Database::SetInstanceDuration(uint16 instance_id, uint32 new_duration)
 
 	i.start_time = std::time(nullptr);
 	i.duration = new_duration;
+	i.expire_at = i.start_time + i.duration;
 
 	InstanceListRepository::UpdateOne(*this, i);
 }

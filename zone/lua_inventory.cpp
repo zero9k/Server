@@ -1,12 +1,31 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #ifdef LUA_EQEMU
 
-#include "lua.hpp"
-#include <luabind/luabind.hpp>
-
-#include "masterentity.h"
 #include "lua_inventory.h"
-#include "lua_iteminst.h"
-#include "lua_item.h"
+
+#include "zone/lua_item.h"
+#include "zone/lua_iteminst.h"
+#include "zone/masterentity.h"
+
+#include "lua.hpp"
+#include "luabind/luabind.hpp"
+
 
 Lua_ItemInst Lua_Inventory::GetItem(int slot_id) {
 	Lua_Safe_Call_Class(Lua_ItemInst);
@@ -164,7 +183,7 @@ int Lua_Inventory::GetSlotByItemInst(Lua_ItemInst inst) {
 	return self->GetSlotByItemInst(inst);
 }
 
-int Lua_Inventory::CountAugmentEquippedByID(uint32 item_id) {
+uint32 Lua_Inventory::CountAugmentEquippedByID(uint32 item_id) {
 	Lua_Safe_Call_Int();
 	return self->CountAugmentEquippedByID(item_id);
 }
@@ -174,7 +193,7 @@ bool Lua_Inventory::HasAugmentEquippedByID(uint32 item_id) {
 	return self->HasAugmentEquippedByID(item_id);
 }
 
-int Lua_Inventory::CountItemEquippedByID(uint32 item_id) {
+uint32 Lua_Inventory::CountItemEquippedByID(uint32 item_id) {
 	Lua_Safe_Call_Int();
 	return self->CountItemEquippedByID(item_id);
 }
@@ -208,8 +227,8 @@ luabind::scope lua_register_inventory() {
 	.def("CalcSlotId", (int(Lua_Inventory::*)(int,int))&Lua_Inventory::CalcSlotId)
 	.def("CanItemFitInContainer", (bool(Lua_Inventory::*)(Lua_Item,Lua_Item))&Lua_Inventory::CanItemFitInContainer)
 	.def("CheckNoDrop", (bool(Lua_Inventory::*)(int))&Lua_Inventory::CheckNoDrop)
-	.def("CountAugmentEquippedByID", (int(Lua_Inventory::*)(uint32))&Lua_Inventory::CountAugmentEquippedByID)
-	.def("CountItemEquippedByID", (int(Lua_Inventory::*)(uint32))&Lua_Inventory::CountItemEquippedByID)
+	.def("CountAugmentEquippedByID", (uint32(Lua_Inventory::*)(uint32))&Lua_Inventory::CountAugmentEquippedByID)
+	.def("CountItemEquippedByID", (uint32(Lua_Inventory::*)(uint32))&Lua_Inventory::CountItemEquippedByID)
 	.def("DeleteItem", (bool(Lua_Inventory::*)(int))&Lua_Inventory::DeleteItem)
 	.def("DeleteItem", (bool(Lua_Inventory::*)(int,int))&Lua_Inventory::DeleteItem)
 	.def("FindFreeSlot", (int(Lua_Inventory::*)(bool,bool))&Lua_Inventory::FindFreeSlot)
@@ -237,4 +256,4 @@ luabind::scope lua_register_inventory() {
 	.def("SwapItem", (bool(Lua_Inventory::*)(int,int))&Lua_Inventory::SwapItem);
 }
 
-#endif
+#endif // LUA_EQEMU

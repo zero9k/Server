@@ -1,29 +1,28 @@
-/*	EQEMu: Everquest Server Emulator
+/*	EQEmu: EQEmulator
 
-	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#pragma once
 
-#ifndef COMMON_UF_STRUCTS_H
-#define COMMON_UF_STRUCTS_H
+#include "common/eq_packet_structs.h"
+#include "common/patches/uf_limits.h"
+#include "common/textures.h"
+#include "common/types.h"
 
-
-namespace UF
-{
-	namespace structs {
+namespace UF { namespace structs {
 
 
 static const uint32 BUFF_COUNT = 30;
@@ -32,6 +31,7 @@ static const uint32 BUFF_COUNT = 30;
 ** Compiler override to ensure
 ** byte aligned structures
 */
+#pragma pack(push)
 #pragma pack(1)
 
 struct LoginInfo_Struct {
@@ -2640,23 +2640,23 @@ struct EnvDamage2_Struct {
 //Bazaar Stuff
 
 enum {
-	BazaarTrader_StartTraderMode = 1,
-	BazaarTrader_EndTraderMode = 2,
-	BazaarTrader_UpdatePrice = 3,
-	BazaarTrader_EndTransaction = 4,
-	BazaarSearchResults = 7,
-	BazaarWelcome = 9,
-	BazaarBuyItem = 10,
-	BazaarTrader_ShowItems = 11,
-	BazaarSearchDone = 12,
+	BazaarTrader_StartTraderMode  = 1,
+	BazaarTrader_EndTraderMode    = 2,
+	BazaarTrader_UpdatePrice      = 3,
+	BazaarTrader_EndTransaction   = 4,
+	BazaarSearchResults           = 7,
+	BazaarWelcome                 = 9,
+	BazaarBuyItem                 = 10,
+	BazaarTrader_ShowItems        = 11,
+	BazaarSearchDone              = 12,
 	BazaarTrader_CustomerBrowsing = 13
 };
 
 enum {
-	BazaarPriceChange_Fail = 0,
+	BazaarPriceChange_Fail        = 0,
 	BazaarPriceChange_UpdatePrice = 1,
-	BazaarPriceChange_RemoveItem = 2,
-	BazaarPriceChange_AddItem = 3
+	BazaarPriceChange_RemoveItem  = 2,
+	BazaarPriceChange_AddItem     = 3
 };
 
 struct BazaarWindowStart_Struct {
@@ -2687,10 +2687,14 @@ struct BazaarSearch_Struct {
 	uint32	Minlevel;
 	uint32	MaxLlevel;
 };
-struct BazaarInspect_Struct{
-	uint32 ItemID;
-	uint32 Unknown004;
-	char Name[64];
+
+struct BazaarInspect_Struct {
+	uint32 action;
+	char   player_name[64];
+	uint32 unknown_068;
+	uint32 serial_number;
+	uint32 unknown_076;
+	uint32 item_id;
 };
 
 struct NewBazaarInspect_Struct {
@@ -2929,10 +2933,17 @@ struct	WhoAllPlayerPart4 {
 };
 
 struct Trader_Struct {
-	uint32	code;
-	uint32	itemid[160];
-	uint32	unknown;
-	uint32	itemcost[80];
+	uint32 action;
+	uint32 unknown004;
+	uint64 item_id[80];
+	uint32 item_cost[80];
+};
+
+struct BeginTrader_Struct {
+	uint32 action;
+	uint32 unknown04;
+	uint64 serial_number[80];
+	uint32 cost[80];
 };
 
 struct ClickTrader_Struct {
@@ -2945,30 +2956,30 @@ struct GetItems_Struct{
 	uint32	items[80];
 };
 
-struct BecomeTrader_Struct{
-	uint32 id;
-	uint32 code;
+struct BecomeTrader_Struct {
+	uint32 entity_id;
+	uint32 action;
+	char   trader_name[64];
 };
 
 struct Trader_ShowItems_Struct{
-	uint32 code;
-	uint32 traderid;
+	uint32 action;
+	uint32 entity_id;
 	uint32 unknown08[3];
 };
 
 struct TraderBuy_Struct {
-/*000*/ uint32   Action;
-/*004*/	uint32	Unknown004;
-/*008*/ uint32   Price;
-/*012*/	uint32	Unknown008;	// Probably high order bits of a 64 bit price.
-/*016*/ uint32   TraderID;
-/*020*/ char    ItemName[64];
-/*084*/ uint32   Unknown076;
-/*088*/ uint32   ItemID;
-/*092*/ uint32   AlreadySold;
-/*096*/ uint32   Quantity;
-/*100*/ uint32   Unknown092;
-/*104*/
+	uint32 action;
+	uint32 unknown_004;
+	uint32 price;
+	uint32 unknown_008;    // Probably high order bits of a 64 bit price.
+	uint32 trader_id;
+	char   item_name[64];
+	uint32 unknown_076;
+	uint32 item_id;
+	uint32 already_sold;
+	uint32 quantity;
+	uint32 unknown_092;
 };
 
 struct TraderItemUpdate_Struct{
@@ -3002,8 +3013,9 @@ struct TraderDelItem_Struct{
 };
 
 struct TraderClick_Struct{
-	uint32 traderid;
-	uint32 unknown4[2];
+	uint32 trader_id;
+	uint32 action;
+	uint32 unknown_004;
 	uint32 approval;
 };
 
@@ -4674,8 +4686,31 @@ struct SayLinkBodyFrame_Struct {
 /*050*/
 };
 
-	}; /*structs*/
+struct TraderPriceUpdate_Struct {
+/*000*/    uint32 action;
+/*004*/    uint32 sub_action;
+/*008*/    int32  serial_number;
+/*012*/    uint32 unknown_012;
+/*016*/    uint32 new_price;
+/*020*/    uint32 unknown_016;
+};
 
-}; /*UF*/
+enum UFBazaarTraderBuyerActions {
+	Zero            = 0,
+	BeginTraderMode = 1,
+	EndTraderMode   = 2,
+	PriceUpdate     = 3,
+	EndTransaction  = 4,
+	BazaarSearch    = 7,
+	WelcomeMessage  = 9,
+	BuyTraderItem   = 10,
+	ListTraderItems = 11,
+	BazaarInspect   = 18,
+	ItemMove        = 19,
+	ReconcileItems  = 20
+};
 
-#endif /*COMMON_UF_STRUCTS_H*/
+#pragma pack(pop)
+
+} /*structs*/
+} /*UF*/

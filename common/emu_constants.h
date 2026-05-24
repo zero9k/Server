@@ -1,31 +1,98 @@
-/*	EQEMu: Everquest Server Emulator
+/*	EQEmu: EQEmulator
 
-	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#pragma once
 
-#ifndef COMMON_EMU_CONSTANTS_H
-#define COMMON_EMU_CONSTANTS_H
+#include "common/bodytypes.h"
+#include "common/emu_versions.h"
+#include "common/eq_limits.h"
 
-#include "eq_limits.h"
-#include "emu_versions.h"
-#include "bodytypes.h"
+#include <cstring>
 
-#include <string.h>
+namespace AccountStatus {
+	constexpr uint8 Player          = 0;
+	constexpr uint8 Steward         = 10;
+	constexpr uint8 ApprenticeGuide = 20;
+	constexpr uint8 Guide           = 50;
+	constexpr uint8 QuestTroupe     = 80;
+	constexpr uint8 SeniorGuide     = 81;
+	constexpr uint8 GMTester        = 85;
+	constexpr uint8 EQSupport       = 90;
+	constexpr uint8 GMStaff         = 95;
+	constexpr uint8 GMAdmin         = 100;
+	constexpr uint8 GMLeadAdmin     = 150;
+	constexpr uint8 QuestMaster     = 160;
+	constexpr uint8 GMAreas         = 170;
+	constexpr uint8 GMCoder         = 180;
+	constexpr uint8 GMMgmt          = 200;
+	constexpr uint8 GMImpossible    = 250;
+	constexpr uint8 Max             = 255;
 
+	std::string GetName(uint8 account_status);
+}
+
+static std::map<uint8, std::string> account_status_names = {
+	{ AccountStatus::Player,          "Player" },
+	{ AccountStatus::Steward,         "Steward" },
+	{ AccountStatus::ApprenticeGuide, "Apprentice Guide" },
+	{ AccountStatus::Guide,           "Guide" },
+	{ AccountStatus::QuestTroupe,     "Quest Troupe" },
+	{ AccountStatus::SeniorGuide,     "Senior Guide" },
+	{ AccountStatus::GMTester,        "GM Tester" },
+	{ AccountStatus::EQSupport,       "EQ Support" },
+	{ AccountStatus::GMStaff,         "GM Staff" },
+	{ AccountStatus::GMAdmin,         "GM Admin" },
+	{ AccountStatus::GMLeadAdmin,     "GM Lead Admin" },
+	{ AccountStatus::QuestMaster,     "Quest Master" },
+	{ AccountStatus::GMAreas,         "GM Areas" },
+	{ AccountStatus::GMCoder,         "GM Coder" },
+	{ AccountStatus::GMMgmt,          "GM Mgmt" },
+	{ AccountStatus::GMImpossible,    "GM Impossible" },
+	{ AccountStatus::Max,             "GM Max" }
+};
+
+namespace ComparisonType {
+	constexpr uint8 Equal          = 0;
+	constexpr uint8 NotEqual       = 1;
+	constexpr uint8 GreaterOrEqual = 2;
+	constexpr uint8 LesserOrEqual  = 3;
+	constexpr uint8 Greater        = 4;
+	constexpr uint8 Lesser         = 5;
+	constexpr uint8 Any            = 6;
+	constexpr uint8 NotAny         = 7;
+	constexpr uint8 Between        = 8;
+	constexpr uint8 NotBetween     = 9;
+
+	std::string GetName(uint8 type);
+	bool IsValid(uint8 type);
+}
+
+static std::map<uint8, std::string> comparison_types = {
+	{ ComparisonType::Equal,          "Equal" },
+	{ ComparisonType::NotEqual,       "Not Equal" },
+	{ ComparisonType::GreaterOrEqual, "Greater or Equal" },
+	{ ComparisonType::LesserOrEqual,  "Lesser or Equal" },
+	{ ComparisonType::Greater,        "Greater" },
+	{ ComparisonType::Lesser,         "Lesser" },
+	{ ComparisonType::Any,            "Any" },
+	{ ComparisonType::NotAny,         "Not Any" },
+	{ ComparisonType::Between,        "Between" },
+	{ ComparisonType::NotBetween,     "Not Between" },
+};
 
 // local definitions are the result of using hybrid-client or server-only values and methods
 namespace EQ
@@ -60,9 +127,11 @@ namespace EQ
 		using RoF2::invtype::MAIL_SIZE;
 		using RoF2::invtype::GUILD_TROPHY_TRIBUTE_SIZE;
 		using RoF2::invtype::KRONO_SIZE;
+		using RoF2::invtype::GUILD_BANK_MAIN_SIZE;
+		using RoF2::invtype::GUILD_BANK_DEPOSIT_SIZE;
 		using RoF2::invtype::OTHER_SIZE;
 
-		using Titanium::invtype::TRADE_NPC_SIZE;
+		using RoF2::invtype::TRADE_NPC_SIZE;
 
 		using RoF2::invtype::TYPE_INVALID;
 		using RoF2::invtype::TYPE_BEGIN;
@@ -89,7 +158,7 @@ namespace EQ
 		using RoF2::invslot::SLOT_INVALID;
 		using RoF2::invslot::SLOT_BEGIN;
 
-		using Titanium::invslot::SLOT_TRADESKILL_EXPERIMENT_COMBINE;
+		using RoF2::invslot::SLOT_TRADESKILL_EXPERIMENT_COMBINE;
 
 		const int16 SLOT_AUGMENT_GENERIC_RETURN = 1001; // clients don't appear to use this method... (internal inventory return value)
 
@@ -109,28 +178,28 @@ namespace EQ
 		using RoF2::invslot::BONUS_STAT_END;
 		using RoF2::invslot::BONUS_SKILL_END;
 
-		using Titanium::invslot::BANK_BEGIN;
-		using SoF::invslot::BANK_END;
+		using RoF2::invslot::BANK_BEGIN;
+		using RoF2::invslot::BANK_END;
 
-		using Titanium::invslot::SHARED_BANK_BEGIN;
-		using Titanium::invslot::SHARED_BANK_END;
+		using RoF2::invslot::SHARED_BANK_BEGIN;
+		using RoF2::invslot::SHARED_BANK_END;
 
-		using Titanium::invslot::TRADE_BEGIN;
-		using Titanium::invslot::TRADE_END;
+		using RoF2::invslot::TRADE_BEGIN;
+		using RoF2::invslot::TRADE_END;
 
-		using Titanium::invslot::TRADE_NPC_END;
+		using RoF2::invslot::TRADE_NPC_END;
 
-		using Titanium::invslot::WORLD_BEGIN;
-		using Titanium::invslot::WORLD_END;
+		using RoF2::invslot::WORLD_BEGIN;
+		using RoF2::invslot::WORLD_END;
 
-		using Titanium::invslot::TRIBUTE_BEGIN;
-		using Titanium::invslot::TRIBUTE_END;
+		using RoF2::invslot::TRIBUTE_BEGIN;
+		using RoF2::invslot::TRIBUTE_END;
 
-		using Titanium::invslot::GUILD_TRIBUTE_BEGIN;
-		using Titanium::invslot::GUILD_TRIBUTE_END;
+		using RoF2::invslot::GUILD_TRIBUTE_BEGIN;
+		using RoF2::invslot::GUILD_TRIBUTE_END;
 
 		const int16 CORPSE_BEGIN = invslot::slotGeneral1;
-		const int16 CORPSE_END = CORPSE_BEGIN + invslot::slotCursor;
+		const int16 CORPSE_END   = CORPSE_BEGIN + invslot::slotCursor;
 
 		using RoF2::invslot::EQUIPMENT_BITMASK;
 		using RoF2::invslot::GENERAL_BITMASK;
@@ -144,38 +213,40 @@ namespace EQ
 	} // namespace invslot
 
 	namespace invbag {
-		using Titanium::invbag::SLOT_INVALID;
-		using Titanium::invbag::SLOT_BEGIN;
-		using Titanium::invbag::SLOT_END;
-		using Titanium::invbag::SLOT_COUNT;
+		using RoF2::invbag::SLOT_INVALID;
+		using RoF2::invbag::SLOT_BEGIN;
+		using RoF2::invbag::SLOT_END;
+		using RoF2::invbag::SLOT_COUNT;
 
-		using Titanium::invbag::GENERAL_BAGS_BEGIN;
+		using RoF2::invslot::WORLD_END;
+
+		const int16 GENERAL_BAGS_BEGIN = WORLD_END + 1;
 		const int16 GENERAL_BAGS_COUNT = invslot::GENERAL_COUNT * SLOT_COUNT;
-		const int16 GENERAL_BAGS_END = (GENERAL_BAGS_BEGIN + GENERAL_BAGS_COUNT) - 1;
+		const int16 GENERAL_BAGS_END   = (GENERAL_BAGS_BEGIN + GENERAL_BAGS_COUNT) - 1;
 
 		const int16 GENERAL_BAGS_8_COUNT = 8 * SLOT_COUNT;
-		const int16 GENERAL_BAGS_8_END = (GENERAL_BAGS_BEGIN + GENERAL_BAGS_8_COUNT) - 1;
+		const int16 GENERAL_BAGS_8_END   = (GENERAL_BAGS_BEGIN + GENERAL_BAGS_8_COUNT) - 1;
 
-		const int16 CURSOR_BAG_BEGIN = 351;
+		const int16 CURSOR_BAG_BEGIN = GENERAL_BAGS_END + 1;
 		const int16 CURSOR_BAG_COUNT = SLOT_COUNT;
-		const int16 CURSOR_BAG_END = (CURSOR_BAG_BEGIN + CURSOR_BAG_COUNT) - 1;
+		const int16 CURSOR_BAG_END   = (CURSOR_BAG_BEGIN + CURSOR_BAG_COUNT) - 1;
 
-		using Titanium::invbag::BANK_BAGS_BEGIN;
+		const int16 BANK_BAGS_BEGIN = CURSOR_BAG_END + 1;
 		const int16 BANK_BAGS_COUNT = (invtype::BANK_SIZE * SLOT_COUNT);
-		const int16 BANK_BAGS_END = (BANK_BAGS_BEGIN + BANK_BAGS_COUNT) - 1;
+		const int16 BANK_BAGS_END   = (BANK_BAGS_BEGIN + BANK_BAGS_COUNT) - 1;
 
 		const int16 BANK_BAGS_16_COUNT = 16 * SLOT_COUNT;
-		const int16 BANK_BAGS_16_END = (BANK_BAGS_BEGIN + BANK_BAGS_16_COUNT) - 1;
+		const int16 BANK_BAGS_16_END   = (BANK_BAGS_BEGIN + BANK_BAGS_16_COUNT) - 1;
 
-		using Titanium::invbag::SHARED_BANK_BAGS_BEGIN;
+		const int16 SHARED_BANK_BAGS_BEGIN = BANK_BAGS_END + 1;
 		const int16 SHARED_BANK_BAGS_COUNT = invtype::SHARED_BANK_SIZE * SLOT_COUNT;
-		const int16 SHARED_BANK_BAGS_END = (SHARED_BANK_BAGS_BEGIN + SHARED_BANK_BAGS_COUNT) - 1;
+		const int16 SHARED_BANK_BAGS_END   = (SHARED_BANK_BAGS_BEGIN + SHARED_BANK_BAGS_COUNT) - 1;
 
-		using Titanium::invbag::TRADE_BAGS_BEGIN;
+		const int16 TRADE_BAGS_BEGIN = SHARED_BANK_BAGS_END + 1;
 		const int16 TRADE_BAGS_COUNT = invtype::TRADE_SIZE * SLOT_COUNT;
-		const int16 TRADE_BAGS_END = (TRADE_BAGS_BEGIN + TRADE_BAGS_COUNT) - 1;
+		const int16 TRADE_BAGS_END   = (TRADE_BAGS_BEGIN + TRADE_BAGS_COUNT) - 1;
 
-		using Titanium::invbag::GetInvBagIndexName;
+		using RoF2::invbag::GetInvBagIndexName;
 
 	} // namespace invbag
 
@@ -203,19 +274,6 @@ namespace EQ
 		const size_t SAY_LINK_TEXT_SIZE = 256; // this may be varied until it breaks something (tested:374) - the others are constant
 		const size_t SAY_LINK_CLOSER_SIZE = 1;
 		const size_t SAY_LINK_MAXIMUM_SIZE = (SAY_LINK_OPENER_SIZE + SAY_LINK_BODY_SIZE + SAY_LINK_TEXT_SIZE + SAY_LINK_CLOSER_SIZE);
-
-		enum StanceType : int {
-			stanceUnknown = 0,
-			stancePassive,
-			stanceBalanced,
-			stanceEfficient,
-			stanceReactive,
-			stanceAggressive,
-			stanceAssist,
-			stanceBurn,
-			stanceEfficient2,
-			stanceBurnAE
-		};
 
 		enum BotSpellIDs : int {
 			Warrior = 3001,
@@ -267,70 +325,6 @@ namespace EQ
 			Looting
 		};
 
-		enum ObjectTypes : int {
-			SmallBag,
-			LargeBag,
-			Quiver,
-			BeltPouch,
-			WristPouch,
-			Backpack,
-			SmallChest,
-			LargeChest,
-			Bandolier,
-			Medicine,
-			Tinkering,
-			Lexicon,
-			PoisonMaking,
-			Quest,
-			MixingBowl,
-			Baking,
-			Tailoring,
-			Blacksmithing,
-			Fletching,
-			Brewing,
-			JewelryMaking,
-			Pottery,
-			Kiln,
-			KeyMaker,
-			ResearchWIZ,
-			ResearchMAG,
-			ResearchNEC,
-			ResearchENC,
-			Unknown,
-			ResearchPractice,
-			Alchemy,
-			HighElfForge,
-			DarkElfForge,
-			OgreForge,
-			DwarfForge,
-			GnomeForge,
-			BarbarianForge,
-			IksarForge,
-			HumanForgeOne,
-			HumanForgeTwo,
-			HalflingTailoringOne,
-			HalflingTailoringTwo,
-			EruditeTailoring,
-			WoodElfTailoring,
-			WoodElfFletching,
-			IksarPottery,
-			Fishing,
-			TrollForge,
-			WoodElfForge,
-			HalflingForge,
-			EruditeForge,
-			Merchant,
-			FroglokForge,
-			Augmenter,
-			Churn,
-			TransformationMold,
-			DetransformationMold,
-			Unattuner,
-			TradeskillBag,
-			CollectibleBag,
-			NoDeposit
-		};
-
 		enum WeatherTypes : uint8 {
 			None,
 			Raining,
@@ -356,23 +350,11 @@ namespace EQ
 			Proximity
 		};
 
-		const char *GetStanceName(StanceType stance_type);
-		int ConvertStanceTypeToIndex(StanceType stance_type);
-
 		extern const std::map<uint8, std::string>& GetLanguageMap();
 		std::string GetLanguageName(uint8 language_id);
 
-		extern const std::map<uint32, std::string>& GetLDoNThemeMap();
-		std::string GetLDoNThemeName(uint32 theme_id);
-
 		extern const std::map<int8, std::string>& GetFlyModeMap();
 		std::string GetFlyModeName(int8 flymode_id);
-
-		extern const std::map<bodyType, std::string>& GetBodyTypeMap();
-		std::string GetBodyTypeName(bodyType bodytype_id);
-
-		extern const std::map<uint8, std::string>& GetAccountStatusMap();
-		std::string GetAccountStatusName(uint8 account_status);
 
 		extern const std::map<uint8, std::string>& GetConsiderLevelMap();
 		std::string GetConsiderLevelName(uint8 consider_level);
@@ -386,9 +368,6 @@ namespace EQ
 		extern const std::map<uint8, std::string>& GetSpawnAnimationMap();
 		std::string GetSpawnAnimationName(uint8 animation_id);
 
-		extern const std::map<int, std::string>& GetObjectTypeMap();
-		std::string GetObjectTypeName(int object_type);
-
 		extern const std::map<uint8, std::string>& GetWeatherTypeMap();
 		std::string GetWeatherTypeName(uint8 weather_type);
 
@@ -401,15 +380,8 @@ namespace EQ
 		extern const std::map<uint32, std::string>& GetAppearanceTypeMap();
 		std::string GetAppearanceTypeName(uint32 animation_type);
 
-		extern const std::map<uint32, std::string>& GetSpecialAbilityMap();
-		std::string GetSpecialAbilityName(uint32 ability_id);
-
 		extern const std::map<uint32, std::string>& GetConsiderColorMap();
 		std::string GetConsiderColorName(uint32 consider_color);
-
-		const int STANCE_TYPE_FIRST = stancePassive;
-		const int STANCE_TYPE_LAST = stanceBurnAE;
-		const int STANCE_TYPE_COUNT = stanceBurnAE;
 
 	} /*constants*/
 
@@ -464,37 +436,6 @@ namespace EQ
 
 	} // namespace spells
 
-	namespace bug {
-		enum CategoryID : uint32 {
-			catOther = 0,
-			catVideo,
-			catAudio,
-			catPathing,
-			catQuest,
-			catTradeskills,
-			catSpellStacking,
-			catDoorsPortals,
-			catItems,
-			catNPC,
-			catDialogs,
-			catLoNTCG,
-			catMercenaries
-		};
-
-		enum OptionalInfoFlag : uint32 {
-			infoNoOptionalInfo = 0x0,
-			infoCanDuplicate = 0x1,
-			infoCrashBug = 0x2,
-			infoTargetInfo = 0x4,
-			infoCharacterFlags = 0x8,
-			infoUnknownValue = 0xFFFFFFF0
-		};
-
-		const char* CategoryIDToCategoryName(CategoryID category_id);
-		CategoryID CategoryNameToCategoryID(const char* category_name);
-
-	} // namespace bug
-
 	enum WaypointStatus : int {
 		RoamBoxPauseInProgress = -3,
 		QuestControlNoGrid = -2,
@@ -508,33 +449,13 @@ namespace EQ
 			Raid,
 			Guild
 		};
-	}; // namespace consent
+	};
 } /*EQEmu*/
 
 enum ServerLockType : int {
 	List,
 	Lock,
 	Unlock
-};
-
-enum AccountStatus : uint8 {
-	Player = 0,
-	Steward = 10,
-	ApprenticeGuide = 20,
-	Guide = 50,
-	QuestTroupe = 80,
-	SeniorGuide = 81,
-	GMTester = 85,
-	EQSupport = 90,
-	GMStaff = 95,
-	GMAdmin = 100,
-	GMLeadAdmin = 150,
-	QuestMaster = 160,
-	GMAreas = 170,
-	GMCoder = 180,
-	GMMgmt = 200,
-	GMImpossible = 250,
-	Max = 255
 };
 
 enum Invisibility : uint8 {
@@ -588,19 +509,6 @@ enum ReloadWorld : uint8 {
 	ForceRepop
 };
 
-enum BucketComparison : uint8 {
-	BucketEqualTo = 0,
-	BucketNotEqualTo,
-	BucketGreaterThanOrEqualTo,
-	BucketLesserThanOrEqualTo,
-	BucketGreaterThan,
-	BucketLesserThan,
-	BucketIsAny,
-	BucketIsNotAny,
-	BucketIsBetween,
-	BucketIsNotBetween
-};
-
 enum class EntityFilterType {
 	All,
 	Bots,
@@ -614,67 +522,131 @@ enum class ApplySpellType {
 	Raid
 };
 
-enum {
-	SPECATK_SUMMON            = 1,
-	SPECATK_ENRAGE            = 2,
-	SPECATK_RAMPAGE           = 3,
-	SPECATK_AREA_RAMPAGE      = 4,
-	SPECATK_FLURRY            = 5,
-	SPECATK_TRIPLE            = 6,
-	SPECATK_QUAD              = 7,
-	SPECATK_INNATE_DW         = 8,
-	SPECATK_BANE              = 9,
-	SPECATK_MAGICAL           = 10,
-	SPECATK_RANGED_ATK        = 11,
-	UNSLOWABLE                = 12,
-	UNMEZABLE                 = 13,
-	UNCHARMABLE               = 14,
-	UNSTUNABLE                = 15,
-	UNSNAREABLE               = 16,
-	UNFEARABLE                = 17,
-	UNDISPELLABLE             = 18,
-	IMMUNE_MELEE              = 19,
-	IMMUNE_MAGIC              = 20,
-	IMMUNE_FLEEING            = 21,
-	IMMUNE_MELEE_EXCEPT_BANE  = 22,
-	IMMUNE_MELEE_NONMAGICAL   = 23,
-	IMMUNE_AGGRO              = 24,
-	IMMUNE_AGGRO_ON           = 25,
-	IMMUNE_CASTING_FROM_RANGE = 26,
-	IMMUNE_FEIGN_DEATH        = 27,
-	IMMUNE_TAUNT              = 28,
-	NPC_TUNNELVISION          = 29,
-	NPC_NO_BUFFHEAL_FRIENDS   = 30,
-	IMMUNE_PACIFY             = 31,
-	LEASH                     = 32,
-	TETHER                    = 33,
-	DESTRUCTIBLE_OBJECT       = 34,
-	NO_HARM_FROM_CLIENT       = 35,
-	ALWAYS_FLEE               = 36,
-	FLEE_PERCENT              = 37,
-	ALLOW_BENEFICIAL          = 38,
-	DISABLE_MELEE             = 39,
-	NPC_CHASE_DISTANCE        = 40,
-	ALLOW_TO_TANK             = 41,
-	IGNORE_ROOT_AGGRO_RULES   = 42,
-	CASTING_RESIST_DIFF       = 43,
-	COUNTER_AVOID_DAMAGE      = 44, // Modify by percent NPC's opponents chance to riposte, block, parry or dodge individually, or for all skills
-	PROX_AGGRO                = 45,
-	IMMUNE_RANGED_ATTACKS     = 46,
-	IMMUNE_DAMAGE_CLIENT      = 47,
-	IMMUNE_DAMAGE_NPC         = 48,
-	IMMUNE_AGGRO_CLIENT       = 49,
-	IMMUNE_AGGRO_NPC          = 50,
-	MODIFY_AVOID_DAMAGE       = 51, // Modify by percent the NPCs chance to riposte, block, parry or dodge individually, or for all skills
-	IMMUNE_FADING_MEMORIES    = 52,
-	IMMUNE_OPEN               = 53,
-	IMMUNE_ASSASSINATE        = 54,
-	IMMUNE_HEADSHOT           = 55,
-	IMMUNE_AGGRO_BOT          = 56,
-	IMMUNE_DAMAGE_BOT         = 57,
-	MAX_SPECIAL_ATTACK        = 58
-};
+namespace SpecialAbility {
+	constexpr int Summon                     = 1;
+	constexpr int Enrage                     = 2;
+	constexpr int Rampage                    = 3;
+	constexpr int AreaRampage                = 4;
+	constexpr int Flurry                     = 5;
+	constexpr int TripleAttack               = 6;
+	constexpr int QuadrupleAttack            = 7;
+	constexpr int DualWield                  = 8;
+	constexpr int BaneAttack                 = 9;
+	constexpr int MagicalAttack              = 10;
+	constexpr int RangedAttack               = 11;
+	constexpr int SlowImmunity               = 12;
+	constexpr int MesmerizeImmunity          = 13;
+	constexpr int CharmImmunity              = 14;
+	constexpr int StunImmunity               = 15;
+	constexpr int SnareImmunity              = 16;
+	constexpr int FearImmunity               = 17;
+	constexpr int DispellImmunity            = 18;
+	constexpr int MeleeImmunity              = 19;
+	constexpr int MagicImmunity              = 20;
+	constexpr int FleeingImmunity            = 21;
+	constexpr int MeleeImmunityExceptBane    = 22;
+	constexpr int MeleeImmunityExceptMagical = 23;
+	constexpr int AggroImmunity              = 24;
+	constexpr int BeingAggroImmunity         = 25;
+	constexpr int CastingFromRangeImmunity   = 26;
+	constexpr int FeignDeathImmunity         = 27;
+	constexpr int TauntImmunity              = 28;
+	constexpr int TunnelVision               = 29;
+	constexpr int NoBuffHealFriends          = 30;
+	constexpr int PacifyImmunity             = 31;
+	constexpr int Leash                      = 32;
+	constexpr int Tether                     = 33;
+	constexpr int DestructibleObject         = 34;
+	constexpr int HarmFromClientImmunity     = 35;
+	constexpr int AlwaysFlee                 = 36;
+	constexpr int FleePercent                = 37;
+	constexpr int AllowBeneficial            = 38;
+	constexpr int DisableMelee               = 39;
+	constexpr int NPCChaseDistance           = 40;
+	constexpr int AllowedToTank              = 41;
+	constexpr int IgnoreRootAggroRules       = 42;
+	constexpr int CastingResistDifficulty    = 43;
+	constexpr int CounterAvoidDamage         = 44;
+	constexpr int ProximityAggro             = 45;
+	constexpr int RangedAttackImmunity       = 46;
+	constexpr int ClientDamageImmunity       = 47;
+	constexpr int NPCDamageImmunity          = 48;
+	constexpr int ClientAggroImmunity        = 49;
+	constexpr int NPCAggroImmunity           = 50;
+	constexpr int ModifyAvoidDamage          = 51;
+	constexpr int MemoryFadeImmunity         = 52;
+	constexpr int OpenImmunity               = 53;
+	constexpr int AssassinateImmunity        = 54;
+	constexpr int HeadshotImmunity           = 55;
+	constexpr int BotAggroImmunity           = 56;
+	constexpr int BotDamageImmunity          = 57;
+	constexpr int Max                        = 58;
 
+	constexpr int MaxParameters = 9;
+
+	std::string GetName(int ability_id);
+	bool IsValid(int ability_id);
+}
+
+static std::map<int, std::string> special_ability_names = {
+	{ SpecialAbility::Summon,                     "Summon" },
+	{ SpecialAbility::Enrage,                     "Enrage" },
+	{ SpecialAbility::Rampage,                    "Rampage" },
+	{ SpecialAbility::AreaRampage,                "Area Rampage" },
+	{ SpecialAbility::Flurry,                     "Flurry" },
+	{ SpecialAbility::TripleAttack,               "Triple Attack" },
+	{ SpecialAbility::QuadrupleAttack,            "Quadruple Attack" },
+	{ SpecialAbility::DualWield,                  "Dual Wield" },
+	{ SpecialAbility::BaneAttack,                 "Bane Attack" },
+	{ SpecialAbility::MagicalAttack,              "Magical Attack" },
+	{ SpecialAbility::RangedAttack,               "Ranged Attack" },
+	{ SpecialAbility::SlowImmunity,               "Immune to Slow" },
+	{ SpecialAbility::MesmerizeImmunity,          "Immune to Mesmerize" },
+	{ SpecialAbility::CharmImmunity,              "Immune to Charm" },
+	{ SpecialAbility::StunImmunity,               "Immune to Stun" },
+	{ SpecialAbility::SnareImmunity,              "Immune to Snare" },
+	{ SpecialAbility::FearImmunity,               "Immune to Fear" },
+	{ SpecialAbility::DispellImmunity,            "Immune to Dispell" },
+	{ SpecialAbility::MeleeImmunity,              "Immune to Melee" },
+	{ SpecialAbility::MagicImmunity,              "Immune to Magic" },
+	{ SpecialAbility::FleeingImmunity,            "Immune to Fleeing" },
+	{ SpecialAbility::MeleeImmunityExceptBane,    "Immune to Melee except Bane" },
+	{ SpecialAbility::MeleeImmunityExceptMagical, "Immune to Non-Magical Melee" },
+	{ SpecialAbility::AggroImmunity,              "Immune to Aggro" },
+	{ SpecialAbility::BeingAggroImmunity,         "Immune to Being Aggro" },
+	{ SpecialAbility::CastingFromRangeImmunity,   "Immune to Ranged Spells" },
+	{ SpecialAbility::FeignDeathImmunity,         "Immune to Feign Death" },
+	{ SpecialAbility::TauntImmunity,              "Immune to Taunt" },
+	{ SpecialAbility::TunnelVision,               "Tunnel Vision" },
+	{ SpecialAbility::NoBuffHealFriends,          "Does Not Heal or Buff Allies" },
+	{ SpecialAbility::PacifyImmunity,             "Immune to Pacify" },
+	{ SpecialAbility::Leash,                      "Leashed" },
+	{ SpecialAbility::Tether,                     "Tethered" },
+	{ SpecialAbility::DestructibleObject,         "Destructible Object" },
+	{ SpecialAbility::HarmFromClientImmunity,     "Immune to Harm from Client" },
+	{ SpecialAbility::AlwaysFlee,                 "Always Flees" },
+	{ SpecialAbility::FleePercent,                "Flee Percentage" },
+	{ SpecialAbility::AllowBeneficial,            "Allows Beneficial Spells" },
+	{ SpecialAbility::DisableMelee,               "Melee is Disabled" },
+	{ SpecialAbility::NPCChaseDistance,           "Chase Distance" },
+	{ SpecialAbility::AllowedToTank,              "Allowed to Tank" },
+	{ SpecialAbility::IgnoreRootAggroRules,       "Ignores Root Aggro" },
+	{ SpecialAbility::CastingResistDifficulty,    "Casting Resist Difficulty" },
+	{ SpecialAbility::CounterAvoidDamage,         "Counter Damage Avoidance" },
+	{ SpecialAbility::ProximityAggro,             "Proximity Aggro" },
+	{ SpecialAbility::RangedAttackImmunity,       "Immune to Ranged Attacks" },
+	{ SpecialAbility::ClientDamageImmunity,       "Immune to Client Damage" },
+	{ SpecialAbility::NPCDamageImmunity,          "Immune to NPC Damage" },
+	{ SpecialAbility::ClientAggroImmunity,        "Immune to Client Aggro" },
+	{ SpecialAbility::NPCAggroImmunity,           "Immune to NPC Aggro" },
+	{ SpecialAbility::ModifyAvoidDamage,          "Modify Damage Avoidance" },
+	{ SpecialAbility::MemoryFadeImmunity,         "Immune to Memory Fades" },
+	{ SpecialAbility::OpenImmunity,               "Immune to Open" },
+	{ SpecialAbility::AssassinateImmunity,        "Immune to Assassinate" },
+	{ SpecialAbility::HeadshotImmunity,           "Immune to Headshot" },
+	{ SpecialAbility::BotAggroImmunity,           "Immune to Bot Aggro" },
+	{ SpecialAbility::BotDamageImmunity,          "Immune to Bot Damage" },
+};
 
 namespace HeroicBonusBucket
 {
@@ -700,4 +672,246 @@ namespace HeroicBonusBucket
 	const std::string DexEnduranceRegen		= "HDEX-EnduranceRegen";
 }
 
-#endif /*COMMON_EMU_CONSTANTS_H*/
+namespace Bug {
+	namespace Category {
+		constexpr uint32 Other         = 0;
+		constexpr uint32 Video         = 1;
+		constexpr uint32 Audio         = 2;
+		constexpr uint32 Pathing       = 3;
+		constexpr uint32 Quest         = 4;
+		constexpr uint32 Tradeskills   = 5;
+		constexpr uint32 SpellStacking = 6;
+		constexpr uint32 DoorsPortals  = 7;
+		constexpr uint32 Items         = 8;
+		constexpr uint32 NPC           = 9;
+		constexpr uint32 Dialogs       = 10;
+		constexpr uint32 LoNTCG        = 11;
+		constexpr uint32 Mercenaries   = 12;
+	}
+
+	namespace InformationFlag {
+		constexpr uint32 None           = 0;
+		constexpr uint32 Repeatable     = 1;
+		constexpr uint32 Crash          = 2;
+		constexpr uint32 TargetInfo     = 4;
+		constexpr uint32 CharacterFlags = 8;
+		constexpr uint32 Unknown        = 4294967280;
+	}
+
+	uint32 GetID(const std::string& category_name);
+	std::string GetName(uint32 category_id);
+	bool IsValid(uint32 category_id);
+}
+
+static std::map<uint32, std::string> bug_category_names = {
+	{ Bug::Category::Other,         "Other" },
+	{ Bug::Category::Video,         "Video" },
+	{ Bug::Category::Audio,         "Audio" },
+	{ Bug::Category::Pathing,       "Pathing" },
+	{ Bug::Category::Quest,         "Quest" },
+	{ Bug::Category::Tradeskills,   "Tradeskills" },
+	{ Bug::Category::SpellStacking, "Spell Stacking" },
+	{ Bug::Category::DoorsPortals,  "Doors and Portals" },
+	{ Bug::Category::Items,         "Items" },
+	{ Bug::Category::NPC,           "NPC" },
+	{ Bug::Category::Dialogs,       "Dialogs" },
+	{ Bug::Category::LoNTCG,        "LoN - TCG" },
+	{ Bug::Category::Mercenaries,   "Mercenaries" }
+};
+
+namespace Stance {
+	constexpr uint32 Unknown    = 0;
+	constexpr uint32 Passive    = 1;
+	constexpr uint32 Balanced   = 2;
+	constexpr uint32 Efficient  = 3;
+	constexpr uint32 Reactive   = 4;
+	constexpr uint32 Aggressive = 5;
+	constexpr uint32 Assist     = 6;
+	constexpr uint32 Burn       = 7;
+	constexpr uint32 Efficient2 = 8;
+	constexpr uint32 AEBurn     = 9;
+
+	std::string GetName(uint8 stance_id);
+	uint8 GetIndex(uint8 stance_id);
+	bool IsValid(uint8 stance_id);
+}
+
+static std::map<uint32, std::string> stance_names = {
+	{ Stance::Unknown,    "Unknown" },
+	{ Stance::Passive,    "Passive" },
+	{ Stance::Balanced,   "Balanced" },
+	{ Stance::Efficient,  "Efficient" },
+	{ Stance::Reactive,   "Reactive" },
+	{ Stance::Aggressive, "Aggressive" },
+	{ Stance::Assist,     "Assist" },
+	{ Stance::Burn,       "Burn" },
+	{ Stance::Efficient2, "Efficient" },
+	{ Stance::AEBurn,     "AE Burn" }
+};
+
+namespace LDoNTheme {
+	constexpr uint32 Unused = 0;
+	constexpr uint32 GUK    = 1;
+	constexpr uint32 MIR    = 2;
+	constexpr uint32 MMC    = 3;
+	constexpr uint32 RUJ    = 4;
+	constexpr uint32 TAK    = 5;
+
+	constexpr uint32 UnusedBit = 0;
+	constexpr uint32 GUKBit    = 1;
+	constexpr uint32 MIRBit    = 2;
+	constexpr uint32 MMCBit    = 4;
+	constexpr uint32 RUJBit    = 8;
+	constexpr uint32 TAKBit    = 16;
+
+	uint32 GetBitmask(uint32 theme_id);
+	std::string GetName(uint32 theme_id);
+	bool IsValid(uint32 theme_id);
+}
+
+static std::map<uint32, std::pair<std::string, uint32>> ldon_theme_names = {
+	{ LDoNTheme::Unused, { "Unused",              LDoNTheme::UnusedBit }, },
+	{ LDoNTheme::GUK,    { "Deepest Guk",         LDoNTheme::GUKBit }, },
+	{ LDoNTheme::MIR,    { "Miragul's Menagerie", LDoNTheme::MIRBit }, },
+	{ LDoNTheme::MMC,    { "Mistmoore Catacombs", LDoNTheme::MMCBit }, },
+	{ LDoNTheme::RUJ,    { "Rujarkian Hills",     LDoNTheme::RUJBit }, },
+	{ LDoNTheme::TAK,    { "Takish-Hiz",          LDoNTheme::TAKBit }, },
+};
+
+namespace PCNPCOnlyFlagType {
+	constexpr int PC  = 1;
+	constexpr int NPC = 2;
+}
+
+namespace BookType {
+	constexpr uint8 Scroll   = 0;
+	constexpr uint8 Book     = 1;
+	constexpr uint8 ItemInfo = 2;
+}
+
+namespace PetButton {
+	constexpr uint8 Sit         = 0;
+	constexpr uint8 Stop        = 1;
+	constexpr uint8 Regroup     = 2;
+	constexpr uint8 Follow      = 3;
+	constexpr uint8 Guard       = 4;
+	constexpr uint8 Taunt       = 5;
+	constexpr uint8 Hold        = 6;
+	constexpr uint8 GreaterHold = 7;
+	constexpr uint8 Focus       = 8;
+	constexpr uint8 SpellHold   = 9;
+}
+
+namespace PetButtonState {
+	constexpr uint8 Off = 0;
+	constexpr uint8 On  = 1;
+}
+
+namespace PetCommand {
+	constexpr uint8 HealthReport   = 0;  // /pet health or Pet Window
+	constexpr uint8 Leader         = 1;  // /pet leader or Pet Window
+	constexpr uint8 Attack         = 2;  // /pet attack or Pet Window
+	constexpr uint8 QAttack        = 3;  // /pet qattack or Pet Window
+	constexpr uint8 FollowMe       = 4;  // /pet follow or Pet Window
+	constexpr uint8 GuardHere      = 5;  // /pet guard or Pet Window
+	constexpr uint8 Sit            = 6;  // /pet sit or Pet Window
+	constexpr uint8 SitDown        = 7;  // /pet sit on
+	constexpr uint8 StandUp        = 8;  // /pet sit off
+	constexpr uint8 Stop           = 9;  // /pet stop or Pet Window - Not implemented
+	constexpr uint8 StopOn         = 10; // /pet stop on - Not implemented
+	constexpr uint8 StopOff        = 11; // /pet stop off - Not implemented
+	constexpr uint8 Taunt          = 12; // /pet taunt or Pet Window
+	constexpr uint8 TauntOn        = 13; // /pet taunt on
+	constexpr uint8 TauntOff       = 14; // /pet taunt off
+	constexpr uint8 Hold           = 15; // /pet hold or Pet Window, won't add to hate list unless attacking
+	constexpr uint8 HoldOn         = 16; // /pet hold on
+	constexpr uint8 HoldOff        = 17; // /pet hold off
+	constexpr uint8 GreaterHold    = 18; // /pet ghold, will never add to hate list unless told to
+	constexpr uint8 GreaterHoldOn  = 19; // /pet ghold on
+	constexpr uint8 GreaterHoldOff = 20; // /pet ghold off
+	constexpr uint8 SpellHold      = 21; // /pet no cast or /pet spellhold or Pet Window
+	constexpr uint8 SpellHoldOn    = 22; // /pet spellhold on
+	constexpr uint8 SpellHoldOff   = 23; // /pet spellhold off
+	constexpr uint8 Focus          = 24; // /pet focus or Pet Window
+	constexpr uint8 FocusOn        = 25; // /pet focus on
+	constexpr uint8 FocusOff       = 26; // /pet focus off
+	constexpr uint8 Feign          = 27; // /pet feign
+	constexpr uint8 BackOff        = 28; // /pet back off
+	constexpr uint8 GetLost        = 29; // /pet get lost
+	constexpr uint8 GuardMe        = 30; // Same as /pet follow, but different message in older clients
+	constexpr uint8 Regroup        = 31; // /pet regroup, acts like classic hold
+	constexpr uint8 RegroupOn      = 32; // /pet regroup on
+	constexpr uint8 RegroupOff     = 33; // /pet regroup off
+	constexpr uint8 Max            = 34;
+
+	static std::map<uint8, std::string> pet_commands = {
+		{ PetCommand::HealthReport,   "Health Report" },
+		{ PetCommand::Leader,         "Leader" },
+		{ PetCommand::Attack,         "Attack" },
+		{ PetCommand::QAttack,        "QAttack" },
+		{ PetCommand::FollowMe,       "Follow Me" },
+		{ PetCommand::GuardHere,      "Guard Here" },
+		{ PetCommand::Sit,            "Sit" },
+		{ PetCommand::SitDown,        "Sit Down" },
+		{ PetCommand::StandUp,        "Stand Up" },
+		{ PetCommand::Stop,           "Stop" },
+		{ PetCommand::StopOn,         "Stop On" },
+		{ PetCommand::StopOff,        "Stop Off" },
+		{ PetCommand::Taunt,          "Taunt" },
+		{ PetCommand::TauntOn,        "Taunt On" },
+		{ PetCommand::TauntOff,       "Taunt Off" },
+		{ PetCommand::Hold,           "Hold" },
+		{ PetCommand::HoldOn,         "Hold On" },
+		{ PetCommand::HoldOff,        "Hold Off" },
+		{ PetCommand::GreaterHold,    "Greater Hold" },
+		{ PetCommand::GreaterHoldOn,  "Greater Hold On" },
+		{ PetCommand::GreaterHoldOff, "Greater Hold Off" },
+		{ PetCommand::SpellHold,      "Spell Hold" },
+		{ PetCommand::SpellHoldOn,    "Spell Hold On" },
+		{ PetCommand::SpellHoldOff,   "Spell Hold Off" },
+		{ PetCommand::Focus,          "Focus" },
+		{ PetCommand::FocusOn,        "Focus On" },
+		{ PetCommand::FocusOff,       "Focus Off" },
+		{ PetCommand::Feign,          "Feign" },
+		{ PetCommand::BackOff,        "Back Off" },
+		{ PetCommand::GetLost,        "Get Lost" },
+		{ PetCommand::GuardMe,        "Guard Me" },
+		{ PetCommand::Regroup,        "Regroup" },
+		{ PetCommand::RegroupOn,      "Regroup On" },
+		{ PetCommand::RegroupOff,     "Regroup Off" },
+		{ PetCommand::Max,            "Max" }
+	};
+
+	std::string GetName(uint8 pet_command);
+	bool IsValid(uint8 pet_command);
+}
+
+namespace PetOrder {
+	constexpr uint8 Follow = 0;
+	constexpr uint8 Sit    = 1;
+	constexpr uint8 Guard  = 2;
+	constexpr uint8 Feign  = 3;
+}
+
+namespace PetType {
+	constexpr uint8 Familiar   = 0;
+	constexpr uint8 Animation  = 1;
+	constexpr uint8 Normal     = 2;
+	constexpr uint8 Charmed    = 3;
+	constexpr uint8 Follow     = 4;
+	constexpr uint8 TargetLock = 5;
+	constexpr uint8 None       = 255;
+
+	static std::map<uint8, std::string> pet_types = {
+		{ PetType::Familiar, "Familiar" },
+		{ PetType::Animation, "Animation" },
+		{ PetType::Normal, "Normal" },
+		{ PetType::Charmed, "Charmed" },
+		{ PetType::Follow, "Follow" },
+		{ PetType::TargetLock, "Target Lock" },
+		{ PetType::None, "None" }
+	};
+
+	std::string GetName(uint8 pet_type);
+	bool IsValid(uint8 pet_type);
+}

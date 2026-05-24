@@ -1,29 +1,28 @@
-/*	EQEMu: Everquest Server Emulator
+/*	EQEmu: EQEmulator
 
-	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#pragma once
 
-#ifndef COMMON_SOD_STRUCTS_H
-#define COMMON_SOD_STRUCTS_H
+#include "common/eq_packet_structs.h"
+#include "common/patches/sod_limits.h"
+#include "common/textures.h"
+#include "common/types.h"
 
-
-namespace SoD
-{
-	namespace structs {
+namespace SoD { namespace structs {
 
 
 static const uint32 BUFF_COUNT = 25;
@@ -32,6 +31,7 @@ static const uint32 BUFF_COUNT = 25;
 ** Compiler override to ensure
 ** byte aligned structures
 */
+#pragma pack(push)
 #pragma pack(1)
 
 struct LoginInfo_Struct {
@@ -2879,19 +2879,20 @@ struct Trader_ShowItems_Struct{
 };
 
 struct TraderBuy_Struct {
-/*000*/ uint32   Action;
-/*004*/	uint32	Unknown004;
-/*008*/ uint32   Price;
-/*012*/	uint32	Unknown008;	// Probably high order bits of a 64 bit price.
-/*016*/ uint32   TraderID;
-/*020*/ char    ItemName[64];
-/*084*/ uint32   Unknown076;
-/*088*/ uint32   ItemID;
-/*092*/ uint32   AlreadySold;
-/*096*/ uint32   Quantity;
-/*100*/ uint32   Unknown092;
+/*000*/ uint32  action;
+/*004*/	uint32	unknown_004;
+/*008*/ uint32  price;
+/*012*/	uint32	unknown_008;	// Probably high order bits of a 64 bit price.
+/*016*/ uint32  trader_id;
+/*020*/ char    item_name[64];
+/*084*/ uint32  unknown_076;
+/*088*/ uint32  item_id;
+/*092*/ uint32  already_sold;
+/*096*/ uint32  quantity;
+/*100*/ uint32  unknown_092;
 /*104*/
 };
+
 
 struct TraderItemUpdate_Struct{
 	uint32 unknown0;
@@ -4527,8 +4528,7 @@ struct SayLinkBodyFrame_Struct {
 /*050*/
 };
 
-	}; /*structs*/
+#pragma pack(pop)
 
-}; /*SoD*/
-
-#endif /*COMMON_SOD_STRUCTS_H*/
+} /*structs*/
+} /*SoD*/

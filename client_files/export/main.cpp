@@ -1,43 +1,40 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2013 EQEMu Development Team (http://eqemulator.net)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#include "common/content/world_content_service.h"
+#include "common/crash.h"
+#include "common/eqemu_config.h"
+#include "common/eqemu_logsys.h"
+#include "common/events/player_event_logs.h"
+#include "common/evolving_items.h"
+#include "common/file.h"
+#include "common/path_manager.h"
+#include "common/platform.h"
+#include "common/repositories/base_data_repository.h"
+#include "common/repositories/db_str_repository.h"
+#include "common/repositories/skill_caps_repository.h"
+#include "common/repositories/spells_new_repository.h"
+#include "common/rulesys.h"
+#include "common/shareddb.h"
+#include "common/skill_caps.h"
+#include "common/strings.h"
+#include "common/zone_store.h"
 
-#include <stdio.h>
-
-#include "../../common/eqemu_logsys.h"
-#include "../../common/global_define.h"
-#include "../../common/shareddb.h"
-#include "../../common/eqemu_config.h"
-#include "../../common/platform.h"
-#include "../../common/crash.h"
-#include "../../common/rulesys.h"
-#include "../../common/strings.h"
-#include "../../common/content/world_content_service.h"
-#include "../../common/zone_store.h"
-#include "../../common/path_manager.h"
-#include "../../common/repositories/skill_caps_repository.h"
-#include "../../common/file.h"
-#include "../../common/events/player_event_logs.h"
-
-EQEmuLogSys         LogSys;
-WorldContentService content_service;
-ZoneStore           zone_store;
-PathManager         path;
-PlayerEventLogs     player_event_logs;
+#include <cstdio>
 
 void ExportSpells(SharedDatabase *db);
 void ExportSkillCaps(SharedDatabase *db);
@@ -47,10 +44,10 @@ void ExportDBStrings(SharedDatabase *db);
 int main(int argc, char **argv)
 {
 	RegisterExecutablePlatform(ExePlatformClientExport);
-	LogSys.LoadLogSettingsDefaults();
+	EQEmuLogSys::Instance()->LoadLogSettingsDefaults();
 	set_exception_handler();
 
-	path.LoadPaths();
+	PathManager::Instance()->Init();
 
 	LogInfo("Client Files Export Utility");
 	if (!EQEmuConfig::LoadConfig()) {
@@ -93,30 +90,27 @@ int main(int argc, char **argv)
 		content_db.SetMySQL(database);
 	}
 
-	LogSys.SetDatabase(&database)
-		->SetLogPath(path.GetLogPath())
+	EQEmuLogSys::Instance()->SetDatabase(&database)
+		->SetLogPath(PathManager::Instance()->GetLogPath())
 		->LoadLogDatabaseSettings()
 		->StartFileLogs();
 
-	std::string arg_1;
+	std::string export_type;
 
 	if (argv[1]) {
-		arg_1 = argv[1];
+		export_type = argv[1];
 	}
 
-	if (arg_1 == "spells") {
+	if (Strings::EqualFold(export_type, "spells")) {
 		ExportSpells(&content_db);
 		return 0;
-	}
-	if (arg_1 == "skills") {
+	} else if (Strings::EqualFold(export_type, "skills")) {
 		ExportSkillCaps(&content_db);
 		return 0;
-	}
-	if (arg_1 == "basedata") {
+	} else if (Strings::EqualFold(export_type, "basedata") || Strings::EqualFold(export_type, "base_data")) {
 		ExportBaseData(&content_db);
 		return 0;
-	}
-	if (arg_1 == "dbstring") {
+	} else if (Strings::EqualFold(export_type, "dbstr") || Strings::EqualFold(export_type, "dbstring")) {
 		ExportDBStrings(&database);
 		return 0;
 	}
@@ -126,186 +120,84 @@ int main(int argc, char **argv)
 	ExportBaseData(&content_db);
 	ExportDBStrings(&database);
 
-	LogSys.CloseFileLogs();
+	EQEmuLogSys::Instance()->CloseFileLogs();
 
 	return 0;
 }
 
-void ExportSpells(SharedDatabase *db)
+void ExportSpells(SharedDatabase* db)
 {
-	LogInfo("Exporting Spells");
-
-	std::string file = fmt::format("{}/export/spells_us.txt", path.GetServerPath());
-	FILE *f = fopen(file.c_str(), "w");
-	if (!f) {
+	std::ofstream file(fmt::format("{}/export/spells_us.txt", PathManager::Instance()->GetServerPath()));
+	if (!file || !file.is_open()) {
 		LogError("Unable to open export/spells_us.txt to write, skipping.");
 		return;
 	}
 
-	const std::string query   = "SELECT * FROM spells_new ORDER BY id";
-	auto              results = db->QueryDatabase(query);
+	const auto& lines = SpellsNewRepository::GetSpellFileLines(*db);
 
-	if (results.Success()) {
-		for (auto row = results.begin(); row != results.end(); ++row) {
-			std::string       line;
-			unsigned int      fields = results.ColumnCount();
-			for (unsigned int i      = 0; i < fields; ++i) {
-				if (i != 0) {
-					line.push_back('^');
-				}
+	const std::string& file_string = Strings::Implode("\n", lines);
 
-				if (row[i] != nullptr) {
-					line += row[i];
-				}
-			}
+	file << file_string;
 
-			fprintf(f, "%s\n", line.c_str());
-		}
-	}
-	else {
-	}
+	file.close();
 
-	fclose(f);
-}
-
-bool SkillUsable(SharedDatabase* db, int skill_id, int class_id)
-{
-	const auto& l = SkillCapsRepository::GetWhere(
-		*db,
-		fmt::format(
-			"`class_id` = {} AND `skill_id` = {} ORDER BY `cap` DESC LIMIT 1",
-			class_id,
-			skill_id
-		)
-	);
-
-	return !l.empty();
-}
-
-uint32 GetSkill(SharedDatabase* db, int skill_id, int class_id, int level)
-{
-	const auto& l = SkillCapsRepository::GetWhere(
-		*db,
-		fmt::format(
-			"`class_id` = {} AND `skill_id` = {} AND `level` = {}",
-			class_id,
-			skill_id,
-			level
-		)
-	);
-
-	if (l.empty()) {
-		return 0;
-	}
-
-	auto e = l.front();
-
-	return e.cap;
+	LogInfo("Exported [{}] Spell{}", lines.size(), lines.size() != 1 ? "s" : "");
 }
 
 void ExportSkillCaps(SharedDatabase* db)
 {
-	LogInfo("Exporting Skill Caps");
-
-	std::ofstream file(fmt::format("{}/export/SkillCaps.txt", path.GetServerPath()));
+	std::ofstream file(fmt::format("{}/export/SkillCaps.txt", PathManager::Instance()->GetServerPath()));
 	if (!file || !file.is_open()) {
 		LogError("Unable to open export/SkillCaps.txt to write, skipping.");
 		return;
 	}
 
-	const uint8 skill_cap_max_level = (
-		RuleI(Character, SkillCapMaxLevel) > 0 ?
-		RuleI(Character, SkillCapMaxLevel) :
-		RuleI(Character, MaxLevel)
-	);
+	const auto& lines = SkillCapsRepository::GetSkillCapFileLines(*db);
 
-	for (uint8 class_id = Class::Warrior; class_id <= Class::Berserker; class_id++) {
-		for (uint8 skill_id = EQ::skills::Skill1HBlunt; skill_id <= EQ::skills::Skill2HPiercing; skill_id++) {
-			if (SkillUsable(db, skill_id, class_id)) {
-				uint32 previous_cap = 0;
-				for (uint8 level = 1; level <= skill_cap_max_level; level++) {
-					uint32 cap = GetSkill(db, skill_id, class_id, level);
-					if (cap < previous_cap) {
-						cap = previous_cap;
-					}
+	const std::string& file_string = Strings::Implode("\n", lines);
 
-					file << fmt::format("{}^{}^{}^{}^0", class_id, skill_id, level, cap) << std::endl;
-
-					previous_cap = cap;
-				}
-			}
-		}
-	}
+	file << file_string;
 
 	file.close();
+
+	LogInfo("Exported [{}] Skill Cap{}", lines.size(), lines.size() != 1 ? "s" : "");
 }
 
 void ExportBaseData(SharedDatabase *db)
 {
-	LogInfo("Exporting Base Data");
-
-	std::string file = fmt::format("{}/export/BaseData.txt", path.GetServerPath());
-	FILE *f = fopen(file.c_str(), "w");
-	if (!f) {
+	std::ofstream file(fmt::format("{}/export/BaseData.txt", PathManager::Instance()->GetServerPath()));
+	if (!file || !file.is_open()) {
 		LogError("Unable to open export/BaseData.txt to write, skipping.");
 		return;
 	}
 
-	const std::string query   = "SELECT * FROM base_data ORDER BY level, class";
-	auto              results = db->QueryDatabase(query);
-	if (results.Success()) {
-		for (auto row = results.begin(); row != results.end(); ++row) {
-			std::string       line;
-			unsigned int      fields   = results.ColumnCount();
-			for (unsigned int rowIndex = 0; rowIndex < fields; ++rowIndex) {
-				if (rowIndex != 0) {
-					line.push_back('^');
-				}
+	const auto& lines = BaseDataRepository::GetBaseDataFileLines(*db);
 
-				if (row[rowIndex] != nullptr) {
-					line += row[rowIndex];
-				}
-			}
+	const std::string& file_string = Strings::Implode("\n", lines);
 
-			fprintf(f, "%s\n", line.c_str());
-		}
-	}
+	file << file_string;
 
-	fclose(f);
+	file.close();
+
+	LogInfo("Exported [{}] Base Data Entr{}", lines.size(), lines.size() != 1 ? "ies" : "y");
 }
 
 void ExportDBStrings(SharedDatabase *db)
 {
-	LogInfo("Exporting DB Strings");
-
-	std::string file = fmt::format("{}/export/dbstr_us.txt", path.GetServerPath());
-	FILE *f = fopen(file.c_str(), "w");
-	if (!f) {
+	std::ofstream file(fmt::format("{}/export/dbstr_us.txt", PathManager::Instance()->GetServerPath()));
+	if (!file || !file.is_open()) {
 		LogError("Unable to open export/dbstr_us.txt to write, skipping.");
 		return;
 	}
 
-	fprintf(f, "Major^Minor^String(New)\n");
-	const std::string query   = "SELECT * FROM db_str ORDER BY id, type";
-	auto              results = db->QueryDatabase(query);
-	if (results.Success()) {
-		for (auto row = results.begin(); row != results.end(); ++row) {
-			std::string       line;
-			unsigned int      fields   = results.ColumnCount();
-			for (unsigned int rowIndex = 0; rowIndex < fields; ++rowIndex) {
-				if (rowIndex != 0) {
-					line.push_back('^');
-				}
+	const auto& lines = DbStrRepository::GetDBStrFileLines(*db);
 
-				if (row[rowIndex] != nullptr) {
-					line += row[rowIndex];
-				}
-			}
+	const std::string& file_string = Strings::Implode("\n", lines);
 
-			fprintf(f, "%s\n", line.c_str());
-		}
-	}
+	file << file_string;
 
-	fclose(f);
+	file.close();
+
+	LogInfo("Exported [{}] Database String{}", lines.size(), lines.size() != 1 ? "s" : "");
 }
 

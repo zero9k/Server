@@ -1,33 +1,39 @@
-#ifndef EQEMU_LOGINSERVER_H
-#define EQEMU_LOGINSERVER_H
+/*	EQEmu: EQEmulator
 
-#include <utility>
-#include "../common/json_config.h"
-#include "database.h"
-#include "encryption.h"
-#include "options.h"
-#include "server_manager.h"
-#include "client_manager.h"
-#include "loginserver_webserver.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
 
-/**
- * Login server struct, Contains every variable for the server that needs to exist outside the scope of main()
- */
-struct LoginServer
-{
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
+#include "common/json_config.h"
+#include "loginserver/client_manager.h"
+#include "loginserver/loginserver_webserver.h"
+#include "loginserver/options.h"
+#include "loginserver/world_server_manager.h"
+
+struct LoginServer {
 public:
 
-	LoginServer() : db(nullptr), server_manager(nullptr) {
+	LoginServer() : server_manager(nullptr)
+	{
 
 	}
 
 	EQ::JsonConfigFile                 config;
-	Database                           *db;
 	LoginserverWebserver::TokenManager *token_manager{};
 	Options                            options;
-	ServerManager                      *server_manager;
+	WorldServerManager                 *server_manager;
 	ClientManager                      *client_manager{};
 };
-
-#endif
-

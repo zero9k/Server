@@ -1,40 +1,36 @@
-/**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2018 EQEmulator Development Team (https://github.com/EQEmu/Server)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#pragma once
 
-#ifndef EQEMU_LOGSYS_H
-#define EQEMU_LOGSYS_H
+#include "common/types.h"
 
-#include <iostream>
-#include <fstream>
-#include <cstdio>
-#include <functional>
+#include "fmt/format.h"
 #include <algorithm>
+#include <cstdio>
+#include <fstream>
+#include <functional>
+#include <iostream>
 
 #ifdef _WIN32
 #ifdef utf16_to_utf8
 #undef utf16_to_utf8
 #endif
 #endif
-
-#include <fmt/format.h>
-#include "types.h"
 
 namespace Logs {
 	enum DebugLevel {
@@ -74,7 +70,7 @@ namespace Logs {
 		Spawns,
 		Spells,
 		Status, // deprecated
-		TCPConnection,
+		TCPConnection, // deprecated
 		Tasks,
 		Tradeskills,
 		Trading,
@@ -142,6 +138,16 @@ namespace Logs {
 		EqTime,
 		Corpses,
 		XTargets,
+		EvolveItem,
+		PositionUpdate,
+		KSM,
+		BotSettings,
+		BotSpellChecks,
+		BotSpellTypeChecks,
+		NpcHandin,
+		ZoneState,
+		NetClient,
+		NetTCP,
 		MaxCategoryID /* Don't Remove this */
 	};
 
@@ -175,7 +181,7 @@ namespace Logs {
 		"Spawns",
 		"Spells",
 		"Status (Deprecated)",
-		"TCP Connection",
+		"TCP Connection (Deprecated)",
 		"Tasks",
 		"Tradeskills",
 		"Trading",
@@ -184,8 +190,8 @@ namespace Logs {
 		"Web Interface (Deprecated)",
 		"World Server (Deprecated)",
 		"Zone Server (Deprecated)",
-		"QueryErr",
-		"Query",
+		"MySQL Error",
+		"MySQL Query",
 		"Mercenaries",
 		"Quest Debug",
 		"Legacy Packet Logging (Deprecated)",
@@ -201,15 +207,15 @@ namespace Logs {
 		"Traps",
 		"NPC Roam Box",
 		"NPC Scaling",
-		"MobAppearance",
+		"Mob Appearance",
 		"Info",
 		"Warning",
 		"Critical (Deprecated)",
 		"Emergency (Deprecated)",
 		"Alert (Deprecated)",
 		"Notice (Deprecated)",
-		"AI Scan",
-		"AI Yell",
+		"AI Scan Close",
+		"AI Yell For Help",
 		"AI CastBeneficial",
 		"AOE Cast",
 		"Entity Management",
@@ -227,7 +233,7 @@ namespace Logs {
 		"DialogueWindow",
 		"HTTP",
 		"Saylink",
-		"ChecksumVer",
+		"Checksum Verification",
 		"CombatRecord",
 		"Hate",
 		"Discord",
@@ -242,11 +248,19 @@ namespace Logs {
 		"Zoning",
 		"EqTime",
 		"Corpses",
-		"XTargets"
+		"XTargets",
+		"EvolveItem",
+		"PositionUpdate",
+		"KSM", // Kernel Samepage Merging
+		"Bot Settings",
+		"Bot Spell Checks",
+		"Bot Spell Type Checks",
+		"NpcHandin",
+		"ZoneState",
+		"Net Server <-> Client",
+		"Net TCP"
 	};
 }
-
-#include "eqemu_logsys_log_aliases.h"
 
 class Database;
 
@@ -263,7 +277,13 @@ public:
 	 */
 	void CloseFileLogs();
 	EQEmuLogSys *LoadLogSettingsDefaults();
-	EQEmuLogSys *LoadLogDatabaseSettings();
+	EQEmuLogSys *LoadLogDatabaseSettings(bool silent_load = false);
+
+	static EQEmuLogSys *Instance()
+	{
+		static EQEmuLogSys instance;
+		return &instance;
+	}
 
 	/**
 	 * @param directory_name
@@ -330,7 +350,7 @@ public:
 	/**
 	 * Internally used memory reference for all log settings per category
 	 * These are loaded via DB and have defaults loaded in LoadLogSettingsDefaults
-	 * Database loaded via LogSys.SetDatabase(&database)->LoadLogDatabaseSettings();
+	 * Database loaded via EQEmuLogSys::Instance()->SetDatabase(&database)->LoadLogDatabaseSettings();
 	*/
 	LogSettings log_settings[Logs::LogCategory::MaxCategoryID]{};
 
@@ -414,7 +434,7 @@ private:
 	void InjectTablesIfNotExist();
 };
 
-extern EQEmuLogSys LogSys;
+#include "eqemu_logsys_log_aliases.h"
 
 /**
 template<typename... Args>
@@ -436,7 +456,5 @@ void OutF(
 
 #define OutF(ls, debug_level, log_category, file, func, line, formatStr, ...) \
 do { \
-    ls.Out(debug_level, log_category, file, func, line, fmt::format(formatStr, ##__VA_ARGS__).c_str()); \
+    ls->Out(debug_level, log_category, file, func, line, fmt::format(formatStr, ##__VA_ARGS__).c_str()); \
 } while(0)
-
-#endif

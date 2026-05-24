@@ -1,9 +1,26 @@
-#ifndef EQEMU_CHARACTER_DATA_REPOSITORY_H
-#define EQEMU_CHARACTER_DATA_REPOSITORY_H
+/*	EQEmu: EQEmulator
 
-#include "../database.h"
-#include "../strings.h"
-#include "base/base_character_data_repository.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
+#include "common/repositories/base/base_character_data_repository.h"
+
+#include "common/database.h"
+#include "common/strings.h"
 
 
 
@@ -64,6 +81,147 @@ public:
 
 		return Strings::ToUnsignedInt(row[0]);
 	}
-};
 
-#endif //EQEMU_CHARACTER_DATA_REPOSITORY_H
+	static CharacterData FindByName(
+		Database& db,
+		const std::string& character_name
+	)
+	{
+		auto l = CharacterDataRepository::GetWhere(
+			db,
+			fmt::format(
+				"`name` = '{}' LIMIT 1",
+				Strings::Escape(character_name)
+			)
+		);
+
+		return l.empty() ? CharacterDataRepository::NewEntity() : l.front();
+	}
+
+	struct InstancePlayerCount {
+		int32_t instance_id;
+		uint32_t zone_id;
+		uint32_t player_count;
+	};
+
+	static std::vector<InstancePlayerCount> GetInstanceZonePlayerCounts(Database& db, int zone_id) {
+		std::vector<InstancePlayerCount> zone_player_counts;
+
+		uint64_t shard_instance_duration = 3155760000;
+
+		auto query = fmt::format(SQL(
+			SELECT
+				zone_id,
+				0 AS instance_id,
+				COUNT(id) AS player_count
+				FROM
+				character_data
+			WHERE
+				zone_instance = 0
+				AND zone_id = {}
+				AND last_login >= UNIX_TIMESTAMP(NOW()) - 600
+			GROUP BY
+				zone_id
+			ORDER BY
+				zone_id, player_count DESC
+		), zone_id);
+
+		auto results = db.QueryDatabase(query);
+		for (auto row = results.begin(); row != results.end(); ++row) {
+			InstancePlayerCount e{};
+			e.zone_id      = std::stoi(row[0]);
+			e.instance_id  = 0;
+			e.player_count = std::stoi(row[2]);
+			zone_player_counts.push_back(e);
+		}
+
+		if (zone_player_counts.empty()) {
+			InstancePlayerCount e{};
+			e.zone_id      = zone_id;
+			e.instance_id  = 0;
+			e.player_count = 0;
+			zone_player_counts.push_back(e);
+		}
+
+		// duration 3155760000 is for shards explicitly
+		query = fmt::format(
+			SQL(
+				SELECT
+				i.id AS instance_id,
+				i.zone AS zone_id,
+				COUNT(c.id) AS player_count
+				FROM
+				instance_list  i
+				LEFT           JOIN
+				character_data c
+				ON
+				i.zone = c.zone_id
+				AND i.id = c.zone_instance
+				AND c.last_login >= UNIX_TIMESTAMP(NOW()) - 600
+				AND (i.start_time + i.duration >= UNIX_TIMESTAMP(NOW()) OR i.never_expires = 0)
+				AND i.duration = {}
+				WHERE
+				i.zone IS NOT NULL AND i.zone = {}
+				GROUP BY
+				i.id, i.zone, i.version
+				ORDER BY
+				i.id ASC;
+			), shard_instance_duration, zone_id
+		);
+
+		results = db.QueryDatabase(query);
+		if (!results.Success() || results.RowCount() == 0) {
+			return zone_player_counts;
+		}
+
+		for (auto row = results.begin(); row != results.end(); ++row) {
+			InstancePlayerCount e{};
+			e.instance_id  = std::stoi(row[0]);
+			e.zone_id      = std::stoi(row[1]);
+			e.player_count = std::stoi(row[2]);
+			zone_player_counts.push_back(e);
+		}
+
+		return zone_player_counts;
+	}
+
+	static std::vector<uint32_t> GetCharacterIDsByAccountID(
+		Database& db,
+		uint32_t  account_id
+	)
+	{
+		std::vector<uint32_t> character_ids;
+
+		auto query = fmt::format(
+			"SELECT id FROM character_data WHERE account_id = {} AND deleted_at IS NULL",
+			account_id
+		);
+
+		auto results = db.QueryDatabase(query);
+		if (results.Success()) {
+			for (auto row : results) {
+				if (row[0]) {
+					character_ids.push_back(static_cast<uint32_t>(std::stoul(row[0])));
+				}
+			}
+		}
+
+		return character_ids;
+	}
+
+	static uint32_t GetTotalTimePlayed(Database& db, uint32_t account_id)
+	{
+		auto query = fmt::format(
+			"SELECT SUM(time_played) FROM `character_data` WHERE `account_id` = {}",
+			account_id
+		);
+
+		auto results = db.QueryDatabase(query);
+		if (!results.Success()) {
+			return 0;
+		}
+
+		auto row = results.begin();
+		return Strings::ToUnsignedInt(row[0]);
+	}
+};

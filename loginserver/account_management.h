@@ -1,34 +1,40 @@
-#ifndef EQEMU_ACCOUNT_MANAGEMENT_H
-#define EQEMU_ACCOUNT_MANAGEMENT_H
+/*	EQEmu: EQEmulator
 
-#include "iostream"
-#include "../common/types.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
+#include "common/types.h"
+#include "loginserver/login_types.h"
+#include "loginserver/login_server.h"
+
+#include <string>
+
+extern LoginServer server;
+extern Database database;
 
 class AccountManagement {
 public:
+	static uint64 CreateLoginServerAccount(LoginAccountContext c);
+	static uint64 CheckLoginserverUserCredentials(LoginAccountContext c);
+	static bool UpdateLoginserverUserCredentials(LoginAccountContext c);
+	static uint64 CheckExternalLoginserverUserCredentials(LoginAccountContext c);
+	static bool UpdateLoginserverWorldAdminAccountPasswordByName(LoginAccountContext c);
+	static uint64 HealthCheckUserLogin();
 
-	/**
-	 * @param username
-	 * @param password
-	 * @param email
-	 * @param source_loginserver
-	 * @param login_account_id
-	 * @return
-	 */
-	static int32 CreateLoginServerAccount(
-		std::string username,
-		std::string password,
-		std::string email = "",
-		const std::string &source_loginserver = "local",
-		uint32 login_account_id = 0
-	);
-
-	/**
-	 * @param username
-	 * @param password
-	 * @param email
-	 * @return
-	 */
 	static bool CreateLoginserverWorldAdminAccount(
 		const std::string &username,
 		const std::string &password,
@@ -37,51 +43,4 @@ public:
 		const std::string &last_name = "",
 		const std::string &ip_address = ""
 	);
-
-	/**
-	 * @param in_account_username
-	 * @param in_account_password
-	 * @return
-	 */
-	static uint32 CheckLoginserverUserCredentials(
-		const std::string &in_account_username,
-		const std::string &in_account_password,
-		const std::string &source_loginserver = "local"
-	);
-
-	/**
-	 * @param in_account_username
-	 * @param in_account_password
-	 * @return
-	 */
-	static bool UpdateLoginserverUserCredentials(
-		const std::string &in_account_username,
-		const std::string &in_account_password,
-		const std::string &source_loginserver = "local"
-	);
-
-	/**
-	 * @param in_account_username
-	 * @param in_account_password
-	 * @return
-	 */
-	static uint32 CheckExternalLoginserverUserCredentials(
-		const std::string &in_account_username,
-		const std::string &in_account_password
-	);
-
-	/**
-	 * @param in_account_username
-	 * @param in_account_password
-	 * @return
-	 */
-	static bool UpdateLoginserverWorldAdminAccountPasswordByName(
-		const std::string &in_account_username,
-		const std::string &in_account_password
-	);
-
-	static uint32 HealthCheckUserLogin();
 };
-
-
-#endif //EQEMU_ACCOUNT_MANAGEMENT_H

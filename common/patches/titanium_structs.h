@@ -1,29 +1,29 @@
-/*	EQEMu: Everquest Server Emulator
+/*	EQEmu: EQEmulator
 
-	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#pragma once
 
-#ifndef COMMON_TITANIUM_STRUCTS_H
-#define COMMON_TITANIUM_STRUCTS_H
+#include "common/eq_packet_structs.h"
+#include "common/patches/titanium_limits.h"
+#include "common/textures.h"
+#include "common/types.h"
 
 
-namespace Titanium
-{
-	namespace structs {
+namespace Titanium { namespace structs {
 
 
 static const uint32 BUFF_COUNT = 25;
@@ -32,6 +32,7 @@ static const uint32 BUFF_COUNT = 25;
 ** Compiler override to ensure
 ** byte aligned structures
 */
+#pragma pack(push)
 #pragma pack(1)
 
 struct LoginInfo_Struct {
@@ -2273,24 +2274,29 @@ struct BazaarWelcome_Struct {
 };
 
 struct BazaarSearch_Struct {
-	BazaarWindowStart_Struct beginning;
-	uint32	traderid;
-	uint32  class_;
-	uint32  race;
-	uint32  stat;
-	uint32  slot;
-	uint32  type;
-	char   name[64];
-	uint32	minprice;
-	uint32	maxprice;
-	uint32	minlevel;
-	uint32	maxlevel;
+	BazaarWindowStart_Struct Beginning;
+	uint32	TraderID;
+	uint32	Class_;
+	uint32	Race;
+	uint32	ItemStat;
+	uint32	Slot;
+	uint32	Type;
+	char	Name[64];
+	uint32	MinPrice;
+	uint32	MaxPrice;
+	uint32	Minlevel;
+	uint32	MaxLlevel;
 };
-struct BazaarInspect_Struct{
+
+struct BazaarInspect_Struct {
+	uint32 action;
+	char   player_name[64];
+	uint32 unknown_068;
+	uint32 serial_number;
+	uint32 unknown_076;
 	uint32 item_id;
-	uint32 unknown;
-	char name[64];
 };
+
 struct BazaarReturnDone_Struct{
 	uint32 type;
 	uint32 traderid;
@@ -2298,16 +2304,17 @@ struct BazaarReturnDone_Struct{
 	uint32 unknown12;
 	uint32 unknown16;
 };
+
 struct BazaarSearchResults_Struct {
 	BazaarWindowStart_Struct Beginning;
-	uint32	SellerID;
-	uint32   NumItems; // Don't know. Don't know the significance of this field.
-	uint32   SerialNumber;
-	uint32   Unknown016;
-	uint32   Unknown020; // Something to do with stats as well
-	char	ItemName[64];
-	uint32	Cost;
-	uint32	ItemStat;
+	uint32                   entity_id;
+	uint32                   unknown_008;
+	uint32                   item_id;
+	uint32                   serial_number;
+	uint32                   unknown_020;
+	char                     item_name[64];
+	uint32                   item_cost;
+	uint32                   item_stat;
 };
 
 struct ServerSideFilters_Struct {
@@ -2454,44 +2461,52 @@ struct WhoAllReturnStruct {
 	struct WhoAllPlayer player[0];
 };
 
+struct BeginTrader_Struct {
+	uint32 action;
+	uint32 unknown04;
+	uint64 serial_number[EQ::invtype::BAZAAR_SIZE];
+	uint32 cost[EQ::invtype::BAZAAR_SIZE];
+};
+
 struct Trader_Struct {
-	uint32	code;
-	uint32	itemid[160];
-	uint32	unknown;
-	uint32	itemcost[80];
+	uint32 action;
+	uint32 unknown004;
+	uint64 item_id[EQ::invtype::BAZAAR_SIZE];
+	uint32 item_cost[EQ::invtype::BAZAAR_SIZE];
 };
 
 struct ClickTrader_Struct {
 	uint32	code;
 	uint32	unknown[161];//damn soe this is totally pointless :/ but at least your finally using memset! Good job :) -LE
-	uint32	itemcost[80];
+	uint32	itemcost[EQ::invtype::BAZAAR_SIZE];
 };
 
 struct GetItems_Struct{
-	uint32	items[80];
+	uint32	items[EQ::invtype::BAZAAR_SIZE];
 };
 
-struct BecomeTrader_Struct{
-	uint32 ID;
-	uint32 Code;
+struct BecomeTrader_Struct {
+	uint32 entity_id;
+	uint32 action;
+	char   trader_name[64];
 };
 
 struct Trader_ShowItems_Struct{
-	uint32 code;
-	uint32 traderid;
+	uint32 action;
+	uint32 entity_id;
 	uint32 unknown08[3];
 };
 
 struct TraderBuy_Struct {
-/*000*/ uint32   Action;
-/*004*/ uint32   Price;
-/*008*/ uint32   TraderID;
-/*012*/ char    ItemName[64];
-/*076*/ uint32   Unknown076;
-/*080*/ uint32   ItemID;
-/*084*/ uint32   AlreadySold;
-/*088*/ uint32   Quantity;
-/*092*/ uint32   Unknown092;
+/*000*/ uint32  action;
+/*004*/ uint32  price;
+/*008*/ uint32  trader_id;
+/*012*/ char    item_name[64];
+/*076*/ uint32  unknown_076;
+/*080*/ uint32  item_id;
+/*084*/ uint32  already_sold;
+/*088*/ uint32  quantity;
+/*092*/ uint32  unknown_092;
 };
 
 
@@ -2517,8 +2532,9 @@ struct TraderDelItem_Struct{
 };
 
 struct TraderClick_Struct{
-	uint32 traderid;
-	uint32 unknown4[2];
+	uint32 trader_id;
+	uint32 action;
+	uint32 unknown_004;
 	uint32 approval;
 };
 
@@ -3744,8 +3760,22 @@ struct GuildMemberRank_Struct {
 	/*076*/ uint32 alt_banker; //Banker/Alt bit 00 - none 10 - Alt 11 - Alt and Banker 01 - Banker.  Banker not functional for RoF2+
 };
 
-	}; /*structs*/
+enum TiBazaarTraderBuyerActions {
+	Zero            = 0,
+	BeginTraderMode = 1,
+	EndTraderMode   = 2,
+	PriceUpdate     = 3,
+	EndTransaction  = 4,
+	BazaarSearch    = 7,
+	WelcomeMessage  = 9,
+	BuyTraderItem   = 10,
+	ListTraderItems = 11,
+	BazaarInspect   = 18,
+	ItemMove        = 19,
+	ReconcileItems  = 20
+};
 
-}; /*Titanium*/
+#pragma pack(pop)
 
-#endif /*COMMON_TITANIUM_STRUCTS_H*/
+} /*structs*/
+} /*Titanium*/

@@ -1,7 +1,25 @@
-#include "../client.h"
-#include "../corpse.h"
-#include "../object.h"
-#include "../doors.h"
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#include "zone/client.h"
+#include "zone/command.h"
+#include "zone/corpse.h"
+#include "zone/doors.h"
+#include "zone/object.h"
 
 struct UniqueEntity {
 	uint16      entity_id;
@@ -74,20 +92,22 @@ void command_list(Client *c, const Seperator *sep)
 	if (is_bots) {
 		const auto& l = entity_list.GetBotList();
 
-		for (const auto& e: l) {
+		for (const auto& e : l) {
+			Bot* entity = e.second;
+
 			entity_count++;
 
-			const std::string& entity_name = Strings::ToLower(e->GetName());
+			const std::string& entity_name = Strings::ToLower(entity->GetName());
 			if (!search_string.empty() && !Strings::Contains(entity_name, search_string)) {
 				continue;
 			}
 
 			unique_entities.emplace_back(
 				UniqueEntity{
-					.entity_id = e->GetID(),
-					.entity_name = e->GetName(),
-					.unique_id = e->GetBotID(),
-					.position = e->GetPosition()
+					.entity_id = entity->GetID(),
+					.entity_name = entity->GetName(),
+					.unique_id = entity->GetBotID(),
+					.position = entity->GetPosition()
 				}
 			);
 

@@ -1,8 +1,27 @@
-#ifndef EQEMU_TASKS_H
-#define EQEMU_TASKS_H
+/*	EQEmu: EQEmulator
 
-#include "../common/strings.h"
-#include "serialize_buffer.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
+#include "common/emu_versions.h"
+#include "common/eqemu_logsys.h"
+#include "common/serialize_buffer.h"
+#include "common/strings.h"
+
 #include <algorithm>
 #include <array>
 
@@ -19,10 +38,10 @@
 #define RELOADTASKS 0
 #define RELOADTASKSETS 2
 
-typedef enum {
+enum TaskMethodType {
 	METHODSINGLEID = 0,
 	METHODQUEST    = 2
-} TaskMethodType;
+};
 
 enum class TaskActivityType : int32_t // task element/objective
 {
@@ -83,7 +102,8 @@ struct ActivityInformation {
 		if (zone_ids.empty()) {
 			return true;
 		}
-		bool found_zone = std::find(zone_ids.begin(), zone_ids.end(), zone_id) != zone_ids.end();
+		bool found_zone = std::any_of(zone_ids.begin(), zone_ids.end(),
+			[zone_id](int id) { return id <= 0 || id == zone_id; });
 
 		return found_zone && (zone_version == version || zone_version == -1);
 	}
@@ -100,7 +120,7 @@ struct ActivityInformation {
 			out.WriteInt32(activity_type == TaskActivityType::GiveCash ? 1 : goal_count);
 			out.WriteLengthString(skill_list); // used in SkillOn objective type string, "-1" for none
 			out.WriteLengthString(spell_list); // used in CastOn objective type string, "0" for none
-			out.WriteString(zones);            // used in objective zone column and task select "begins in" (may have multiple, "0" for "unknown zone", empty for "ALL")
+			out.WriteString(zones);            // used in ui zone columns and task select "begins in" (may have multiple, invalid id for "Unknown Zone", empty for "ALL")
 		}
 		else
 		{
@@ -114,7 +134,7 @@ struct ActivityInformation {
 		out.WriteString(description_override);
 
 		if (client_version >= EQ::versions::ClientVersion::RoF) {
-			out.WriteString(zones); // serialized again after description (seems unused)
+			out.WriteString(zones); // target zone version internal id (unused client side)
 		}
 	}
 
@@ -563,5 +583,3 @@ namespace TaskStr {
 		return "Unknown EQStr";
 	}
 }
-
-#endif //EQEMU_TASKS_H

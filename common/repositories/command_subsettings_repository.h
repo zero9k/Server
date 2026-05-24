@@ -1,9 +1,26 @@
-#ifndef EQEMU_COMMAND_SUBSETTINGS_REPOSITORY_H
-#define EQEMU_COMMAND_SUBSETTINGS_REPOSITORY_H
+/*	EQEmu: EQEmulator
 
-#include "../database.h"
-#include "../strings.h"
-#include "base/base_command_subsettings_repository.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
+#include "common/repositories/base/base_command_subsettings_repository.h"
+
+#include "common/database.h"
+#include "common/strings.h"
 
 class CommandSubsettingsRepository: public BaseCommandSubsettingsRepository {
 public:
@@ -49,8 +66,12 @@ public:
 		// these are the base definitions for command_subsettings and can be over-ridden by the database
 		std::vector<CommandSubsettingsRepository::CommandSubsettings> static_records = {
 			{.parent_command = "find", .sub_command = "aa", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findaa"},
+			{.parent_command = "find", .sub_command = "account", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findaccount"},
+			{.parent_command = "find", .sub_command = "body_type", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findbodytype"},
+			{.parent_command = "find", .sub_command = "bug_category", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findbugcategory"},
 			{.parent_command = "find", .sub_command = "character", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findcharacter"},
 			{.parent_command = "find", .sub_command = "class", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findclass"},
+			{.parent_command = "find", .sub_command = "comparison_type", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findcomparisontype"},
 			{.parent_command = "find", .sub_command = "currency", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findcurrency"},
 			{.parent_command = "find", .sub_command = "deity", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "finddeity"},
 			{.parent_command = "find", .sub_command = "emote", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findemote"},
@@ -58,9 +79,12 @@ public:
 			{.parent_command = "find", .sub_command = "item", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "fi|finditem|itemsearch"},
 			{.parent_command = "find", .sub_command = "language", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findlanguage"},
 			{.parent_command = "find", .sub_command = "npc_type", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "fn|findnpc|findnpctype"},
+			{.parent_command = "find", .sub_command = "object_type", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findobjecttype"},
 			{.parent_command = "find", .sub_command = "race", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findrace"},
 			{.parent_command = "find", .sub_command = "recipe", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findrecipe"},
 			{.parent_command = "find", .sub_command = "skill", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findskill"},
+			{.parent_command = "find", .sub_command = "special_ability", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "fsa|findspecialability"},
+			{.parent_command = "find", .sub_command = "stance", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findstance"},
 			{.parent_command = "find", .sub_command = "spell", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "fs|findspell"},
 			{.parent_command = "find", .sub_command = "task", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "findtask"},
 			{.parent_command = "find", .sub_command = "zone", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "fz|findzone"},
@@ -79,7 +103,6 @@ public:
 			{.parent_command = "set", .sub_command = "endurance", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "setendurance"},
 			{.parent_command = "set", .sub_command = "endurance_full", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "endurance"},
 			{.parent_command = "set", .sub_command = "exp", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "setxp|setexp"},
-			{.parent_command = "set", .sub_command = "faction", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "setfaction"},
 			{.parent_command = "set", .sub_command = "flymode", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "flymode"},
 			{.parent_command = "set", .sub_command = "freeze", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "freeze|unfreeze"},
 			{.parent_command = "set", .sub_command = "gender", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "gender"},
@@ -137,6 +160,7 @@ public:
 			{.parent_command = "show", .sub_command = "hatelist", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "hatelist"},
 			{.parent_command = "show", .sub_command = "inventory", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "peekinv"},
 			{.parent_command = "show", .sub_command = "ip_lookup", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "iplookup"},
+			{.parent_command = "show", .sub_command = "keyring", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "showkeyring"},
 			{.parent_command = "show", .sub_command = "line_of_sight", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "checklos"},
 			{.parent_command = "show", .sub_command = "network", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "network"},
 			{.parent_command = "show", .sub_command = "network_stats", .access_level = AccountStatus::QuestTroupe, .top_level_aliases = "netstats"},
@@ -221,5 +245,3 @@ public:
 		return db_sub_settings;
 	}
 };
-
-#endif //EQEMU_COMMAND_SUBSETTINGS_REPOSITORY_H

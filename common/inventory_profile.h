@@ -1,33 +1,29 @@
-/*	EQEMu: Everquest Server Emulator
+/*	EQEmu: EQEmulator
 
-	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  04111-1307  USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
 // @merth notes:
 // These classes could be optimized with database reads/writes by storing
 // a status flag indicating how object needs to interact with database
 
-#ifndef COMMON_INVENTORY_PROFILE_H
-#define COMMON_INVENTORY_PROFILE_H
+#pragma once
 
-
-#include "item_instance.h"
-#include "classes.h"
-#include "races.h"
+#include "common/classes.h"
+#include "common/item_instance.h"
+#include "common/races.h"
 
 #include <list>
 #include <vector>
@@ -57,6 +53,8 @@ public:
 
 	inline std::list<EQ::ItemInstance*>::const_iterator cbegin() { return m_list.cbegin(); }
 	inline std::list<EQ::ItemInstance*>::const_iterator cend() { return m_list.cend(); }
+	inline std::list<EQ::ItemInstance*>::iterator begin() { return m_list.begin(); }
+	inline std::list<EQ::ItemInstance*>::iterator end() { return m_list.end(); }
 
 	inline int size() { return static_cast<int>(m_list.size()); } // TODO: change to size_t
 	inline bool empty() { return m_list.empty(); }
@@ -132,7 +130,7 @@ namespace EQ
 
 		// Swap items in inventory
 		enum SwapItemFailState : int8 { swapInvalid = -1, swapPass = 0, swapNotAllowed, swapNullData, swapRaceClass, swapDeity, swapLevel };
-		bool SwapItem(int16 source_slot, int16 destination_slot, SwapItemFailState& fail_state, uint16 race_id = Race::Doug, uint8 class_id = Class::None, uint16 deity_id = deity::DeityType::DeityUnknown, uint8 level = 0);
+		bool SwapItem(int16 source_slot, int16 destination_slot, SwapItemFailState& fail_state, uint16 race_id = Race::Doug, uint8 class_id = Class::None, uint32 deity_id = Deity::Unknown, uint8 level = 0);
 
 		// Remove item from inventory
 		bool DeleteItem(int16 slot_id, int16 quantity = 0);
@@ -147,13 +145,13 @@ namespace EQ
 		bool HasItemEquippedByID(uint32 item_id);
 
 		// Check how many of a specific item the player has equipped by Item ID
-		int CountItemEquippedByID(uint32 item_id);
+		uint32 CountItemEquippedByID(uint32 item_id);
 
 		// Check if player has a specific augment equipped by Item ID
 		bool HasAugmentEquippedByID(uint32 item_id);
 
 		// Check how many of a specific augment the player has equipped by Item ID
-		int CountAugmentEquippedByID(uint32 item_id);
+		uint32 CountAugmentEquippedByID(uint32 item_id);
 
 		// Get a list of augments from a specific slot ID
 		std::vector<uint32> GetAugmentIDsBySlotID(int16 slot_id);
@@ -176,6 +174,8 @@ namespace EQ
 		// Locate an available inventory slot
 		int16 FindFreeSlot(bool for_bag, bool try_cursor, uint8 min_size = 0, bool is_arrow = false);
 		int16 FindFreeSlotForTradeItem(const ItemInstance* inst, int16 general_start = invslot::GENERAL_BEGIN, uint8 bag_start = invbag::SLOT_BEGIN);
+		int16 FindFirstFreeSlotThatFitsItem(const EQ::ItemData *inst);
+		int16 FindFirstFreeSlotThatFitsItemWithStacking(ItemInstance *inst) const;
 
 		// Calculate slot_id for an item within a bag
 		static int16 CalcSlotId(int16 slot_id); // Calc parent bag's slot_id
@@ -197,26 +197,25 @@ namespace EQ
 
 		uint8 FindBrightestLightType();
 
-		void dumpEntireInventory();
-		void dumpWornItems();
-		void dumpInventory();
-		void dumpBankItems();
-		void dumpSharedBankItems();
-
 		void SetCustomItemData(uint32 character_id, int16 slot_id, const std::string &identifier, const std::string& value);
 		void SetCustomItemData(uint32 character_id, int16 slot_id, const std::string &identifier, int value);
 		void SetCustomItemData(uint32 character_id, int16 slot_id, const std::string &identifier, float value);
 		void SetCustomItemData(uint32 character_id, int16 slot_id, const std::string &identifier, bool value);
 		std::string GetCustomItemData(int16 slot_id, const std::string& identifier);
 		static const int GetItemStatValue(uint32 item_id, const std::string& identifier);
+
+		std::map<int16, ItemInstance*>& GetWorn() { return m_worn; }
+		std::map<int16, ItemInstance*>& GetPersonal() { return m_inv; }
+		int16 HasEvolvingItem(uint64 evolve_unique_id, uint8 quantity, uint8 where);
+
+		inline int16 PushItem(int16 slot_id, ItemInstance* inst) { return _PutItem(slot_id, inst); }
+
 	protected:
 		///////////////////////////////
 		// Protected Methods
 		///////////////////////////////
 
 		int GetSlotByItemInstCollection(const std::map<int16, ItemInstance*> &collection, ItemInstance *inst);
-		void dumpItemCollection(const std::map<int16, ItemInstance*> &collection);
-		void dumpBagContents(ItemInstance *inst, std::map<int16, ItemInstance*>::const_iterator *it);
 
 		// Retrieves item within an inventory bucket
 		ItemInstance* _GetItem(const std::map<int16, ItemInstance*>& bucket, int16 slot_id) const;
@@ -231,6 +230,8 @@ namespace EQ
 		int16 _HasItemByUse(ItemInstQueue& iqueue, uint8 use, uint8 quantity);
 		int16 _HasItemByLoreGroup(std::map<int16, ItemInstance*>& bucket, uint32 loregroup);
 		int16 _HasItemByLoreGroup(ItemInstQueue& iqueue, uint32 loregroup);
+		int16 _HasEvolvingItem(std::map<int16, ItemInstance*>& bucket, uint64 evolve_unique_id, uint8 quantity);
+		int16 _HasEvolvingItem(ItemInstQueue& iqueue, uint64 evolve_unique_id, uint8 quantity);
 
 
 		// Player inventory
@@ -248,5 +249,3 @@ namespace EQ
 		const inventory::LookupEntry* m_lookup;
 	};
 }
-
-#endif /*COMMON_INVENTORY_PROFILE_H*/

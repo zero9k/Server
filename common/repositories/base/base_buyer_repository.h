@@ -1,3 +1,20 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
  * DO NOT MODIFY THIS FILE
  *
@@ -6,53 +23,59 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://docs.eqemu.io/developer/repositories
+ * @docs https://docs.eqemu.dev/developer/repositories
  */
 
-#ifndef EQEMU_BASE_BUYER_REPOSITORY_H
-#define EQEMU_BASE_BUYER_REPOSITORY_H
+#pragma once
 
-#include "../../database.h"
-#include "../../strings.h"
+#include "common/database.h"
+#include "common/strings.h"
+
 #include <ctime>
 
 class BaseBuyerRepository {
 public:
 	struct Buyer {
-		int32_t     charid;
-		int32_t     buyslot;
-		int32_t     itemid;
-		std::string itemname;
-		int32_t     quantity;
-		int32_t     price;
+		uint64_t    id;
+		uint32_t    char_id;
+		uint32_t    char_entity_id;
+		std::string char_name;
+		uint32_t    char_zone_id;
+		uint32_t    char_zone_instance_id;
+		time_t      transaction_date;
+		std::string welcome_message;
 	};
 
 	static std::string PrimaryKey()
 	{
-		return std::string("charid");
+		return std::string("id");
 	}
 
 	static std::vector<std::string> Columns()
 	{
 		return {
-			"charid",
-			"buyslot",
-			"itemid",
-			"itemname",
-			"quantity",
-			"price",
+			"id",
+			"char_id",
+			"char_entity_id",
+			"char_name",
+			"char_zone_id",
+			"char_zone_instance_id",
+			"transaction_date",
+			"welcome_message",
 		};
 	}
 
 	static std::vector<std::string> SelectColumns()
 	{
 		return {
-			"charid",
-			"buyslot",
-			"itemid",
-			"itemname",
-			"quantity",
-			"price",
+			"id",
+			"char_id",
+			"char_entity_id",
+			"char_name",
+			"char_zone_id",
+			"char_zone_instance_id",
+			"UNIX_TIMESTAMP(transaction_date)",
+			"welcome_message",
 		};
 	}
 
@@ -93,12 +116,14 @@ public:
 	{
 		Buyer e{};
 
-		e.charid   = 0;
-		e.buyslot  = 0;
-		e.itemid   = 0;
-		e.itemname = "";
-		e.quantity = 0;
-		e.price    = 0;
+		e.id                    = 0;
+		e.char_id               = 0;
+		e.char_entity_id        = 0;
+		e.char_name             = "";
+		e.char_zone_id          = 0;
+		e.char_zone_instance_id = 0;
+		e.transaction_date      = 0;
+		e.welcome_message       = "";
 
 		return e;
 	}
@@ -109,7 +134,7 @@ public:
 	)
 	{
 		for (auto &buyer : buyers) {
-			if (buyer.charid == buyer_id) {
+			if (buyer.id == buyer_id) {
 				return buyer;
 			}
 		}
@@ -135,12 +160,14 @@ public:
 		if (results.RowCount() == 1) {
 			Buyer e{};
 
-			e.charid   = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
-			e.buyslot  = row[1] ? static_cast<int32_t>(atoi(row[1])) : 0;
-			e.itemid   = row[2] ? static_cast<int32_t>(atoi(row[2])) : 0;
-			e.itemname = row[3] ? row[3] : "";
-			e.quantity = row[4] ? static_cast<int32_t>(atoi(row[4])) : 0;
-			e.price    = row[5] ? static_cast<int32_t>(atoi(row[5])) : 0;
+			e.id                    = row[0] ? strtoull(row[0], nullptr, 10) : 0;
+			e.char_id               = row[1] ? static_cast<uint32_t>(strtoul(row[1], nullptr, 10)) : 0;
+			e.char_entity_id        = row[2] ? static_cast<uint32_t>(strtoul(row[2], nullptr, 10)) : 0;
+			e.char_name             = row[3] ? row[3] : "";
+			e.char_zone_id          = row[4] ? static_cast<uint32_t>(strtoul(row[4], nullptr, 10)) : 0;
+			e.char_zone_instance_id = row[5] ? static_cast<uint32_t>(strtoul(row[5], nullptr, 10)) : 0;
+			e.transaction_date      = strtoll(row[6] ? row[6] : "-1", nullptr, 10);
+			e.welcome_message       = row[7] ? row[7] : "";
 
 			return e;
 		}
@@ -174,12 +201,13 @@ public:
 
 		auto columns = Columns();
 
-		v.push_back(columns[0] + " = " + std::to_string(e.charid));
-		v.push_back(columns[1] + " = " + std::to_string(e.buyslot));
-		v.push_back(columns[2] + " = " + std::to_string(e.itemid));
-		v.push_back(columns[3] + " = '" + Strings::Escape(e.itemname) + "'");
-		v.push_back(columns[4] + " = " + std::to_string(e.quantity));
-		v.push_back(columns[5] + " = " + std::to_string(e.price));
+		v.push_back(columns[1] + " = " + std::to_string(e.char_id));
+		v.push_back(columns[2] + " = " + std::to_string(e.char_entity_id));
+		v.push_back(columns[3] + " = '" + Strings::Escape(e.char_name) + "'");
+		v.push_back(columns[4] + " = " + std::to_string(e.char_zone_id));
+		v.push_back(columns[5] + " = " + std::to_string(e.char_zone_instance_id));
+		v.push_back(columns[6] + " = FROM_UNIXTIME(" + (e.transaction_date > 0 ? std::to_string(e.transaction_date) : "null") + ")");
+		v.push_back(columns[7] + " = '" + Strings::Escape(e.welcome_message) + "'");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -187,7 +215,7 @@ public:
 				TableName(),
 				Strings::Implode(", ", v),
 				PrimaryKey(),
-				e.charid
+				e.id
 			)
 		);
 
@@ -201,12 +229,14 @@ public:
 	{
 		std::vector<std::string> v;
 
-		v.push_back(std::to_string(e.charid));
-		v.push_back(std::to_string(e.buyslot));
-		v.push_back(std::to_string(e.itemid));
-		v.push_back("'" + Strings::Escape(e.itemname) + "'");
-		v.push_back(std::to_string(e.quantity));
-		v.push_back(std::to_string(e.price));
+		v.push_back(std::to_string(e.id));
+		v.push_back(std::to_string(e.char_id));
+		v.push_back(std::to_string(e.char_entity_id));
+		v.push_back("'" + Strings::Escape(e.char_name) + "'");
+		v.push_back(std::to_string(e.char_zone_id));
+		v.push_back(std::to_string(e.char_zone_instance_id));
+		v.push_back("FROM_UNIXTIME(" + (e.transaction_date > 0 ? std::to_string(e.transaction_date) : "null") + ")");
+		v.push_back("'" + Strings::Escape(e.welcome_message) + "'");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -217,7 +247,7 @@ public:
 		);
 
 		if (results.Success()) {
-			e.charid = results.LastInsertedID();
+			e.id = results.LastInsertedID();
 			return e;
 		}
 
@@ -236,12 +266,14 @@ public:
 		for (auto &e: entries) {
 			std::vector<std::string> v;
 
-			v.push_back(std::to_string(e.charid));
-			v.push_back(std::to_string(e.buyslot));
-			v.push_back(std::to_string(e.itemid));
-			v.push_back("'" + Strings::Escape(e.itemname) + "'");
-			v.push_back(std::to_string(e.quantity));
-			v.push_back(std::to_string(e.price));
+			v.push_back(std::to_string(e.id));
+			v.push_back(std::to_string(e.char_id));
+			v.push_back(std::to_string(e.char_entity_id));
+			v.push_back("'" + Strings::Escape(e.char_name) + "'");
+			v.push_back(std::to_string(e.char_zone_id));
+			v.push_back(std::to_string(e.char_zone_instance_id));
+			v.push_back("FROM_UNIXTIME(" + (e.transaction_date > 0 ? std::to_string(e.transaction_date) : "null") + ")");
+			v.push_back("'" + Strings::Escape(e.welcome_message) + "'");
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -275,12 +307,14 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			Buyer e{};
 
-			e.charid   = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
-			e.buyslot  = row[1] ? static_cast<int32_t>(atoi(row[1])) : 0;
-			e.itemid   = row[2] ? static_cast<int32_t>(atoi(row[2])) : 0;
-			e.itemname = row[3] ? row[3] : "";
-			e.quantity = row[4] ? static_cast<int32_t>(atoi(row[4])) : 0;
-			e.price    = row[5] ? static_cast<int32_t>(atoi(row[5])) : 0;
+			e.id                    = row[0] ? strtoull(row[0], nullptr, 10) : 0;
+			e.char_id               = row[1] ? static_cast<uint32_t>(strtoul(row[1], nullptr, 10)) : 0;
+			e.char_entity_id        = row[2] ? static_cast<uint32_t>(strtoul(row[2], nullptr, 10)) : 0;
+			e.char_name             = row[3] ? row[3] : "";
+			e.char_zone_id          = row[4] ? static_cast<uint32_t>(strtoul(row[4], nullptr, 10)) : 0;
+			e.char_zone_instance_id = row[5] ? static_cast<uint32_t>(strtoul(row[5], nullptr, 10)) : 0;
+			e.transaction_date      = strtoll(row[6] ? row[6] : "-1", nullptr, 10);
+			e.welcome_message       = row[7] ? row[7] : "";
 
 			all_entries.push_back(e);
 		}
@@ -305,12 +339,14 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			Buyer e{};
 
-			e.charid   = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
-			e.buyslot  = row[1] ? static_cast<int32_t>(atoi(row[1])) : 0;
-			e.itemid   = row[2] ? static_cast<int32_t>(atoi(row[2])) : 0;
-			e.itemname = row[3] ? row[3] : "";
-			e.quantity = row[4] ? static_cast<int32_t>(atoi(row[4])) : 0;
-			e.price    = row[5] ? static_cast<int32_t>(atoi(row[5])) : 0;
+			e.id                    = row[0] ? strtoull(row[0], nullptr, 10) : 0;
+			e.char_id               = row[1] ? static_cast<uint32_t>(strtoul(row[1], nullptr, 10)) : 0;
+			e.char_entity_id        = row[2] ? static_cast<uint32_t>(strtoul(row[2], nullptr, 10)) : 0;
+			e.char_name             = row[3] ? row[3] : "";
+			e.char_zone_id          = row[4] ? static_cast<uint32_t>(strtoul(row[4], nullptr, 10)) : 0;
+			e.char_zone_instance_id = row[5] ? static_cast<uint32_t>(strtoul(row[5], nullptr, 10)) : 0;
+			e.transaction_date      = strtoll(row[6] ? row[6] : "-1", nullptr, 10);
+			e.welcome_message       = row[7] ? row[7] : "";
 
 			all_entries.push_back(e);
 		}
@@ -385,12 +421,14 @@ public:
 	{
 		std::vector<std::string> v;
 
-		v.push_back(std::to_string(e.charid));
-		v.push_back(std::to_string(e.buyslot));
-		v.push_back(std::to_string(e.itemid));
-		v.push_back("'" + Strings::Escape(e.itemname) + "'");
-		v.push_back(std::to_string(e.quantity));
-		v.push_back(std::to_string(e.price));
+		v.push_back(std::to_string(e.id));
+		v.push_back(std::to_string(e.char_id));
+		v.push_back(std::to_string(e.char_entity_id));
+		v.push_back("'" + Strings::Escape(e.char_name) + "'");
+		v.push_back(std::to_string(e.char_zone_id));
+		v.push_back(std::to_string(e.char_zone_instance_id));
+		v.push_back("FROM_UNIXTIME(" + (e.transaction_date > 0 ? std::to_string(e.transaction_date) : "null") + ")");
+		v.push_back("'" + Strings::Escape(e.welcome_message) + "'");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -413,12 +451,14 @@ public:
 		for (auto &e: entries) {
 			std::vector<std::string> v;
 
-			v.push_back(std::to_string(e.charid));
-			v.push_back(std::to_string(e.buyslot));
-			v.push_back(std::to_string(e.itemid));
-			v.push_back("'" + Strings::Escape(e.itemname) + "'");
-			v.push_back(std::to_string(e.quantity));
-			v.push_back(std::to_string(e.price));
+			v.push_back(std::to_string(e.id));
+			v.push_back(std::to_string(e.char_id));
+			v.push_back(std::to_string(e.char_entity_id));
+			v.push_back("'" + Strings::Escape(e.char_name) + "'");
+			v.push_back(std::to_string(e.char_zone_id));
+			v.push_back(std::to_string(e.char_zone_instance_id));
+			v.push_back("FROM_UNIXTIME(" + (e.transaction_date > 0 ? std::to_string(e.transaction_date) : "null") + ")");
+			v.push_back("'" + Strings::Escape(e.welcome_message) + "'");
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -436,5 +476,3 @@ public:
 		return (results.Success() ? results.RowsAffected() : 0);
 	}
 };
-
-#endif //EQEMU_BASE_BUYER_REPOSITORY_H

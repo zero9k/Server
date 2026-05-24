@@ -1,3 +1,20 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
  * DO NOT MODIFY THIS FILE
  *
@@ -6,16 +23,16 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://docs.eqemu.io/developer/repositories
+ * @docs https://docs.eqemu.dev/developer/repositories
  */
 
-#ifndef EQEMU_BASE_PLAYER_EVENT_LOG_SETTINGS_REPOSITORY_H
-#define EQEMU_BASE_PLAYER_EVENT_LOG_SETTINGS_REPOSITORY_H
+#pragma once
 
-#include "../../database.h"
-#include "../../strings.h"
+#include "common/database.h"
+#include "common/strings.h"
+
 #include <ctime>
-
+#include <cereal/cereal.hpp>
 class BasePlayerEventLogSettingsRepository {
 public:
 	struct PlayerEventLogSettings {
@@ -24,6 +41,21 @@ public:
 		int8_t      event_enabled;
 		int32_t     retention_days;
 		int32_t     discord_webhook_id;
+		uint8_t     etl_enabled;
+
+		// cereal
+		template<class Archive>
+		void serialize(Archive &ar)
+		{
+			ar(
+				CEREAL_NVP(id),
+				CEREAL_NVP(event_name),
+				CEREAL_NVP(event_enabled),
+				CEREAL_NVP(retention_days),
+				CEREAL_NVP(discord_webhook_id),
+				CEREAL_NVP(etl_enabled)
+			);
+		}
 	};
 
 	static std::string PrimaryKey()
@@ -39,6 +71,7 @@ public:
 			"event_enabled",
 			"retention_days",
 			"discord_webhook_id",
+			"etl_enabled",
 		};
 	}
 
@@ -50,6 +83,7 @@ public:
 			"event_enabled",
 			"retention_days",
 			"discord_webhook_id",
+			"etl_enabled",
 		};
 	}
 
@@ -95,6 +129,7 @@ public:
 		e.event_enabled      = 0;
 		e.retention_days     = 0;
 		e.discord_webhook_id = 0;
+		e.etl_enabled        = 0;
 
 		return e;
 	}
@@ -136,6 +171,7 @@ public:
 			e.event_enabled      = row[2] ? static_cast<int8_t>(atoi(row[2])) : 0;
 			e.retention_days     = row[3] ? static_cast<int32_t>(atoi(row[3])) : 0;
 			e.discord_webhook_id = row[4] ? static_cast<int32_t>(atoi(row[4])) : 0;
+			e.etl_enabled        = row[5] ? static_cast<uint8_t>(strtoul(row[5], nullptr, 10)) : 0;
 
 			return e;
 		}
@@ -174,6 +210,7 @@ public:
 		v.push_back(columns[2] + " = " + std::to_string(e.event_enabled));
 		v.push_back(columns[3] + " = " + std::to_string(e.retention_days));
 		v.push_back(columns[4] + " = " + std::to_string(e.discord_webhook_id));
+		v.push_back(columns[5] + " = " + std::to_string(e.etl_enabled));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -200,6 +237,7 @@ public:
 		v.push_back(std::to_string(e.event_enabled));
 		v.push_back(std::to_string(e.retention_days));
 		v.push_back(std::to_string(e.discord_webhook_id));
+		v.push_back(std::to_string(e.etl_enabled));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -234,6 +272,7 @@ public:
 			v.push_back(std::to_string(e.event_enabled));
 			v.push_back(std::to_string(e.retention_days));
 			v.push_back(std::to_string(e.discord_webhook_id));
+			v.push_back(std::to_string(e.etl_enabled));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -272,6 +311,7 @@ public:
 			e.event_enabled      = row[2] ? static_cast<int8_t>(atoi(row[2])) : 0;
 			e.retention_days     = row[3] ? static_cast<int32_t>(atoi(row[3])) : 0;
 			e.discord_webhook_id = row[4] ? static_cast<int32_t>(atoi(row[4])) : 0;
+			e.etl_enabled        = row[5] ? static_cast<uint8_t>(strtoul(row[5], nullptr, 10)) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -301,6 +341,7 @@ public:
 			e.event_enabled      = row[2] ? static_cast<int8_t>(atoi(row[2])) : 0;
 			e.retention_days     = row[3] ? static_cast<int32_t>(atoi(row[3])) : 0;
 			e.discord_webhook_id = row[4] ? static_cast<int32_t>(atoi(row[4])) : 0;
+			e.etl_enabled        = row[5] ? static_cast<uint8_t>(strtoul(row[5], nullptr, 10)) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -380,6 +421,7 @@ public:
 		v.push_back(std::to_string(e.event_enabled));
 		v.push_back(std::to_string(e.retention_days));
 		v.push_back(std::to_string(e.discord_webhook_id));
+		v.push_back(std::to_string(e.etl_enabled));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -407,6 +449,7 @@ public:
 			v.push_back(std::to_string(e.event_enabled));
 			v.push_back(std::to_string(e.retention_days));
 			v.push_back(std::to_string(e.discord_webhook_id));
+			v.push_back(std::to_string(e.etl_enabled));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -424,5 +467,3 @@ public:
 		return (results.Success() ? results.RowsAffected() : 0);
 	}
 };
-
-#endif //EQEMU_BASE_PLAYER_EVENT_LOG_SETTINGS_REPOSITORY_H

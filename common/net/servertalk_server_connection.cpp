@@ -1,7 +1,25 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "servertalk_server_connection.h"
-#include "servertalk_server.h"
-#include "../eqemu_logsys.h"
-#include "../util/uuid.h"
+
+#include "common/eqemu_logsys.h"
+#include "common/net/servertalk_server.h"
+#include "common/util/uuid.h"
 
 EQ::Net::ServertalkServerConnection::ServertalkServerConnection(std::shared_ptr<EQ::Net::TCPConnection> c, EQ::Net::ServertalkServer *parent)
 {
@@ -25,7 +43,7 @@ void EQ::Net::ServertalkServerConnection::Send(uint16_t opcode, EQ::Net::Packet 
 			return;
 
 		if (opcode == ServerOP_UsertoWorldReq) {
-			auto req_in = (UsertoWorldRequest_Struct*)p.Data();
+			auto req_in = (UsertoWorldRequest*)p.Data();
 
 			EQ::Net::DynamicPacket req;
 			size_t i = 0;
@@ -45,7 +63,7 @@ void EQ::Net::ServertalkServerConnection::Send(uint16_t opcode, EQ::Net::Packet 
 		}
 
 		if (opcode == ServerOP_LSClientAuth) {
-			auto req_in = (ClientAuth_Struct*)p.Data();
+			auto req_in = (ClientAuth*)p.Data();
 
 			EQ::Net::DynamicPacket req;
 			size_t i = 0;
@@ -54,7 +72,7 @@ void EQ::Net::ServertalkServerConnection::Send(uint16_t opcode, EQ::Net::Packet 
 			req.PutData(i, req_in->key, 30); i += 30;
 			req.PutUInt8(i, req_in->lsadmin); i += 1;
 			req.PutUInt16(i, req_in->is_world_admin); i += 2;
-			req.PutUInt32(i, req_in->ip); i += 4;
+			req.PutUInt32(i, req_in->ip_address); i += 4;
 			req.PutUInt8(i, req_in->is_client_from_local_network); i += 1;
 
 			EQ::Net::DynamicPacket out;
@@ -123,7 +141,7 @@ void EQ::Net::ServertalkServerConnection::ProcessReadBuffer()
 {
 	size_t current = 0;
 	size_t total = m_buffer.size();
-	constexpr size_t ls_info_size = sizeof(ServerNewLSInfo_Struct);
+	constexpr size_t ls_info_size = sizeof(LoginserverNewWorldRequest);
 
 	while (current < total) {
 		auto left = total - current;
@@ -138,7 +156,7 @@ void EQ::Net::ServertalkServerConnection::ProcessReadBuffer()
 		//this creates a small edge case where the exact size of a
 		//packet from the modern protocol can't be "43061256"
 		//so in send we pad it one byte if that's the case
-		if (leg_opcode == ServerOP_NewLSInfo && leg_size == sizeof(ServerNewLSInfo_Struct)) {
+		if (leg_opcode == ServerOP_NewLSInfo && leg_size == sizeof(LoginserverNewWorldRequest)) {
 			m_legacy_mode = true;
 			m_identifier = "World";
 			m_parent->ConnectionIdentified(this);
@@ -319,7 +337,7 @@ void EQ::Net::ServertalkServerConnection::ProcessMessage(EQ::Net::Packet &p)
 			size_t message_len = length;
 			EQ::Net::StaticPacket packet(&data[0], message_len);
 
-			const auto is_detail_enabled = LogSys.IsLogEnabled(Logs::Detail, Logs::PacketServerToServer);
+			const auto is_detail_enabled = EQEmuLogSys::Instance()->IsLogEnabled(Logs::Detail, Logs::PacketServerToServer);
 			if (opcode != ServerOP_KeepAlive || is_detail_enabled) {
 				LogPacketServerToServer(
 					"[{:#06x}] Size [{}] {}",

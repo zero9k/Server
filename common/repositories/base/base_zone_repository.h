@@ -1,3 +1,20 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
  * DO NOT MODIFY THIS FILE
  *
@@ -6,14 +23,14 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://docs.eqemu.io/developer/repositories
+ * @docs https://docs.eqemu.dev/developer/repositories
  */
 
-#ifndef EQEMU_BASE_ZONE_REPOSITORY_H
-#define EQEMU_BASE_ZONE_REPOSITORY_H
+#pragma once
 
-#include "../../database.h"
-#include "../../strings.h"
+#include "common/database.h"
+#include "common/strings.h"
+
 #include <ctime>
 
 class BaseZoneRepository {
@@ -111,12 +128,13 @@ public:
 		int32_t     fast_regen_mana;
 		int32_t     fast_regen_endurance;
 		int32_t     npc_max_aggro_dist;
-		uint32_t    max_movement_update_range;
+		uint32_t    client_update_range;
 		int32_t     underworld_teleport_index;
 		int32_t     lava_damage;
 		int32_t     min_lava_damage;
 		uint8_t     idle_when_empty;
 		uint32_t    seconds_before_idle;
+		int32_t     shard_at_player_count;
 	};
 
 	static std::string PrimaryKey()
@@ -219,12 +237,13 @@ public:
 			"fast_regen_mana",
 			"fast_regen_endurance",
 			"npc_max_aggro_dist",
-			"max_movement_update_range",
+			"client_update_range",
 			"underworld_teleport_index",
 			"lava_damage",
 			"min_lava_damage",
 			"idle_when_empty",
 			"seconds_before_idle",
+			"shard_at_player_count",
 		};
 	}
 
@@ -323,12 +342,13 @@ public:
 			"fast_regen_mana",
 			"fast_regen_endurance",
 			"npc_max_aggro_dist",
-			"max_movement_update_range",
+			"client_update_range",
 			"underworld_teleport_index",
 			"lava_damage",
 			"min_lava_damage",
 			"idle_when_empty",
 			"seconds_before_idle",
+			"shard_at_player_count",
 		};
 	}
 
@@ -461,12 +481,13 @@ public:
 		e.fast_regen_mana           = 180;
 		e.fast_regen_endurance      = 180;
 		e.npc_max_aggro_dist        = 600;
-		e.max_movement_update_range = 600;
+		e.client_update_range       = 600;
 		e.underworld_teleport_index = 0;
 		e.lava_damage               = 50;
 		e.min_lava_damage           = 10;
 		e.idle_when_empty           = 1;
 		e.seconds_before_idle       = 60;
+		e.shard_at_player_count     = 0;
 
 		return e;
 	}
@@ -595,12 +616,13 @@ public:
 			e.fast_regen_mana           = row[89] ? static_cast<int32_t>(atoi(row[89])) : 180;
 			e.fast_regen_endurance      = row[90] ? static_cast<int32_t>(atoi(row[90])) : 180;
 			e.npc_max_aggro_dist        = row[91] ? static_cast<int32_t>(atoi(row[91])) : 600;
-			e.max_movement_update_range = row[92] ? static_cast<uint32_t>(strtoul(row[92], nullptr, 10)) : 600;
+			e.client_update_range       = row[92] ? static_cast<uint32_t>(strtoul(row[92], nullptr, 10)) : 600;
 			e.underworld_teleport_index = row[93] ? static_cast<int32_t>(atoi(row[93])) : 0;
 			e.lava_damage               = row[94] ? static_cast<int32_t>(atoi(row[94])) : 50;
 			e.min_lava_damage           = row[95] ? static_cast<int32_t>(atoi(row[95])) : 10;
 			e.idle_when_empty           = row[96] ? static_cast<uint8_t>(strtoul(row[96], nullptr, 10)) : 1;
 			e.seconds_before_idle       = row[97] ? static_cast<uint32_t>(strtoul(row[97], nullptr, 10)) : 60;
+			e.shard_at_player_count     = row[98] ? static_cast<int32_t>(atoi(row[98])) : 0;
 
 			return e;
 		}
@@ -725,12 +747,13 @@ public:
 		v.push_back(columns[89] + " = " + std::to_string(e.fast_regen_mana));
 		v.push_back(columns[90] + " = " + std::to_string(e.fast_regen_endurance));
 		v.push_back(columns[91] + " = " + std::to_string(e.npc_max_aggro_dist));
-		v.push_back(columns[92] + " = " + std::to_string(e.max_movement_update_range));
+		v.push_back(columns[92] + " = " + std::to_string(e.client_update_range));
 		v.push_back(columns[93] + " = " + std::to_string(e.underworld_teleport_index));
 		v.push_back(columns[94] + " = " + std::to_string(e.lava_damage));
 		v.push_back(columns[95] + " = " + std::to_string(e.min_lava_damage));
 		v.push_back(columns[96] + " = " + std::to_string(e.idle_when_empty));
 		v.push_back(columns[97] + " = " + std::to_string(e.seconds_before_idle));
+		v.push_back(columns[98] + " = " + std::to_string(e.shard_at_player_count));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -844,12 +867,13 @@ public:
 		v.push_back(std::to_string(e.fast_regen_mana));
 		v.push_back(std::to_string(e.fast_regen_endurance));
 		v.push_back(std::to_string(e.npc_max_aggro_dist));
-		v.push_back(std::to_string(e.max_movement_update_range));
+		v.push_back(std::to_string(e.client_update_range));
 		v.push_back(std::to_string(e.underworld_teleport_index));
 		v.push_back(std::to_string(e.lava_damage));
 		v.push_back(std::to_string(e.min_lava_damage));
 		v.push_back(std::to_string(e.idle_when_empty));
 		v.push_back(std::to_string(e.seconds_before_idle));
+		v.push_back(std::to_string(e.shard_at_player_count));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -971,12 +995,13 @@ public:
 			v.push_back(std::to_string(e.fast_regen_mana));
 			v.push_back(std::to_string(e.fast_regen_endurance));
 			v.push_back(std::to_string(e.npc_max_aggro_dist));
-			v.push_back(std::to_string(e.max_movement_update_range));
+			v.push_back(std::to_string(e.client_update_range));
 			v.push_back(std::to_string(e.underworld_teleport_index));
 			v.push_back(std::to_string(e.lava_damage));
 			v.push_back(std::to_string(e.min_lava_damage));
 			v.push_back(std::to_string(e.idle_when_empty));
 			v.push_back(std::to_string(e.seconds_before_idle));
+			v.push_back(std::to_string(e.shard_at_player_count));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -1102,12 +1127,13 @@ public:
 			e.fast_regen_mana           = row[89] ? static_cast<int32_t>(atoi(row[89])) : 180;
 			e.fast_regen_endurance      = row[90] ? static_cast<int32_t>(atoi(row[90])) : 180;
 			e.npc_max_aggro_dist        = row[91] ? static_cast<int32_t>(atoi(row[91])) : 600;
-			e.max_movement_update_range = row[92] ? static_cast<uint32_t>(strtoul(row[92], nullptr, 10)) : 600;
+			e.client_update_range       = row[92] ? static_cast<uint32_t>(strtoul(row[92], nullptr, 10)) : 600;
 			e.underworld_teleport_index = row[93] ? static_cast<int32_t>(atoi(row[93])) : 0;
 			e.lava_damage               = row[94] ? static_cast<int32_t>(atoi(row[94])) : 50;
 			e.min_lava_damage           = row[95] ? static_cast<int32_t>(atoi(row[95])) : 10;
 			e.idle_when_empty           = row[96] ? static_cast<uint8_t>(strtoul(row[96], nullptr, 10)) : 1;
 			e.seconds_before_idle       = row[97] ? static_cast<uint32_t>(strtoul(row[97], nullptr, 10)) : 60;
+			e.shard_at_player_count     = row[98] ? static_cast<int32_t>(atoi(row[98])) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -1224,12 +1250,13 @@ public:
 			e.fast_regen_mana           = row[89] ? static_cast<int32_t>(atoi(row[89])) : 180;
 			e.fast_regen_endurance      = row[90] ? static_cast<int32_t>(atoi(row[90])) : 180;
 			e.npc_max_aggro_dist        = row[91] ? static_cast<int32_t>(atoi(row[91])) : 600;
-			e.max_movement_update_range = row[92] ? static_cast<uint32_t>(strtoul(row[92], nullptr, 10)) : 600;
+			e.client_update_range       = row[92] ? static_cast<uint32_t>(strtoul(row[92], nullptr, 10)) : 600;
 			e.underworld_teleport_index = row[93] ? static_cast<int32_t>(atoi(row[93])) : 0;
 			e.lava_damage               = row[94] ? static_cast<int32_t>(atoi(row[94])) : 50;
 			e.min_lava_damage           = row[95] ? static_cast<int32_t>(atoi(row[95])) : 10;
 			e.idle_when_empty           = row[96] ? static_cast<uint8_t>(strtoul(row[96], nullptr, 10)) : 1;
 			e.seconds_before_idle       = row[97] ? static_cast<uint32_t>(strtoul(row[97], nullptr, 10)) : 60;
+			e.shard_at_player_count     = row[98] ? static_cast<int32_t>(atoi(row[98])) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -1396,12 +1423,13 @@ public:
 		v.push_back(std::to_string(e.fast_regen_mana));
 		v.push_back(std::to_string(e.fast_regen_endurance));
 		v.push_back(std::to_string(e.npc_max_aggro_dist));
-		v.push_back(std::to_string(e.max_movement_update_range));
+		v.push_back(std::to_string(e.client_update_range));
 		v.push_back(std::to_string(e.underworld_teleport_index));
 		v.push_back(std::to_string(e.lava_damage));
 		v.push_back(std::to_string(e.min_lava_damage));
 		v.push_back(std::to_string(e.idle_when_empty));
 		v.push_back(std::to_string(e.seconds_before_idle));
+		v.push_back(std::to_string(e.shard_at_player_count));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -1516,12 +1544,13 @@ public:
 			v.push_back(std::to_string(e.fast_regen_mana));
 			v.push_back(std::to_string(e.fast_regen_endurance));
 			v.push_back(std::to_string(e.npc_max_aggro_dist));
-			v.push_back(std::to_string(e.max_movement_update_range));
+			v.push_back(std::to_string(e.client_update_range));
 			v.push_back(std::to_string(e.underworld_teleport_index));
 			v.push_back(std::to_string(e.lava_damage));
 			v.push_back(std::to_string(e.min_lava_damage));
 			v.push_back(std::to_string(e.idle_when_empty));
 			v.push_back(std::to_string(e.seconds_before_idle));
+			v.push_back(std::to_string(e.shard_at_player_count));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -1539,5 +1568,3 @@ public:
 		return (results.Success() ? results.RowsAffected() : 0);
 	}
 };
-
-#endif //EQEMU_BASE_ZONE_REPOSITORY_H

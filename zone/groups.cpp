@@ -1,34 +1,37 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemu.org)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#include "groups.h"
 
-#include "../common/global_define.h"
-#include "../common/eqemu_logsys.h"
-#include "expedition.h"
-#include "masterentity.h"
-#include "worldserver.h"
-#include "string_ids.h"
-#include "../common/events/player_event_logs.h"
-#include "../common/repositories/group_id_repository.h"
-#include "../common/repositories/group_leaders_repository.h"
+#include "common/eqemu_logsys.h"
+#include "common/events/player_event_logs.h"
+#include "common/repositories/character_expedition_lockouts_repository.h"
+#include "common/repositories/group_id_repository.h"
+#include "common/repositories/group_leaders_repository.h"
+#include "zone/dynamic_zone.h"
+#include "zone/masterentity.h"
+#include "zone/queryserv.h"
+#include "zone/string_ids.h"
+#include "zone/worldserver.h"
 
 
-extern EntityList entity_list;
+extern EntityList  entity_list;
 extern WorldServer worldserver;
+extern QueryServ  *QServ;
 
 /*
 note about how groups work:
@@ -115,7 +118,7 @@ Group::~Group()
 }
 
 //Split money used in OP_Split (/split and /autosplit).
-void Group::SplitMoney(uint32 copper, uint32 silver, uint32 gold, uint32 platinum, Client *splitter)
+void Group::SplitMoney(uint32 copper, uint32 silver, uint32 gold, uint32 platinum, Client *splitter, bool share)
 {
 	// Return early if no money to split.
 	if (!copper && !silver && !gold && !platinum) {
@@ -152,6 +155,8 @@ void Group::SplitMoney(uint32 copper, uint32 silver, uint32 gold, uint32 platinu
 		return;
 	}
 
+	uint8 random_member = zone->random.Int(0, member_count - 1);
+
 	// Calculate split and remainder for each coin type
 	uint32 copper_split       = copper / member_count;
 	uint32 copper_remainder   = copper % member_count;
@@ -167,24 +172,41 @@ void Group::SplitMoney(uint32 copper, uint32 silver, uint32 gold, uint32 platinu
 		if (m && m->IsClient()) {
 			Client *member_client = m->CastToClient();
 
-			uint32 receive_copper = copper_split;
-			uint32 receive_silver = silver_split;
+			uint32 receive_copper   = copper_split;
+			uint32 receive_silver   = silver_split;
 			uint32 receive_gold     = gold_split;
 			uint32 receive_platinum = platinum_split;
 
-			// splitter gets the remainders of coin
-			if (member_client == splitter) {
-				receive_copper += copper_remainder;
-				receive_silver += silver_remainder;
-				receive_gold += gold_remainder;
+			// if /split is used then splitter gets the remainder + split.
+			// if /autosplit is used then random players in the group will get the remainder + split.
+			if(share ? member_client == splitter : member_client == members[random_member]) {
+				receive_copper   += copper_remainder;
+				receive_silver   += silver_remainder;
+				receive_gold     += gold_remainder;
 				receive_platinum += platinum_remainder;
 			}
 
-			// Add the coins to the player's purse.
-			member_client->AddMoneyToPP(receive_copper, receive_silver, receive_gold, receive_platinum, true);
+			// the group member other than the character doing the /split only gets this message "(splitter) shares the money with the group"
+			if (share && member_client != splitter) {
+				member_client->MessageString(
+					YOU_RECEIVE_AS_SPLIT,
+					SHARE_MONEY,
+					splitter->GetCleanName()
+				);
+			}
+
+			// Check if there are any coins to add to the player's purse.
+			if (receive_copper || receive_silver || receive_gold || receive_platinum) {
+				member_client->AddMoneyToPP(receive_copper, receive_silver, receive_gold, receive_platinum, true);
+				member_client->MessageString(
+					Chat::MoneySplit,
+					YOU_RECEIVE_AS_SPLIT,
+					Strings::Money(receive_platinum, receive_gold, receive_silver, receive_copper).c_str()
+				);
+			}
 
 			// If logging of player money transactions is enabled, record the transaction.
-			if (player_event_logs.IsEventEnabled(PlayerEvent::SPLIT_MONEY)) {
+			if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::SPLIT_MONEY)) {
 				auto e = PlayerEvent::SplitMoneyEvent{
 					.copper = receive_copper,
 					.silver = receive_silver,
@@ -194,13 +216,6 @@ void Group::SplitMoney(uint32 copper, uint32 silver, uint32 gold, uint32 platinu
 				};
 				RecordPlayerEventLogWithClient(member_client, PlayerEvent::SPLIT_MONEY, e);
 			}
-
-			// Notify the player of their received coins.
-			member_client->MessageString(
-				Chat::MoneySplit,
-				YOU_RECEIVE_AS_SPLIT,
-				Strings::Money(receive_platinum, receive_gold, receive_silver, receive_copper).c_str()
-			);
 		}
 	}
 }
@@ -1005,6 +1020,27 @@ void Group::GetBotList(std::list<Bot*>& bot_list, bool clear_list)
 	}
 }
 
+std::list<uint32> Group::GetRawBotList()
+{
+	std::list<uint32> bot_list;
+
+	const auto& l = GroupIdRepository::GetWhere(
+		database,
+		fmt::format(
+			"`group_id` = {}",
+			GetID()
+		)
+	);
+
+	for (const auto& e : l) {
+		if (e.bot_id) {
+			bot_list.push_back(e.bot_id);
+		}
+	}
+
+	return bot_list;
+}
+
 bool Group::Process() {
 	if(disbandcheck && !GroupCount())
 		return false;
@@ -1222,30 +1258,48 @@ void Group::GroupMessageString(Mob* sender, uint32 type, uint32 string_id, const
 void Client::LeaveGroup() {
 	Group *g = GetGroup();
 
-	if(g)
-	{
+	if (g) {
 		int32 MemberCount = g->GroupCount();
 		// Account for both client and merc leaving the group
-		if (GetMerc() && g == GetMerc()->GetGroup())
-		{
+		if (GetMerc() && g == GetMerc()->GetGroup()) {
 			MemberCount -= 1;
 		}
 
-		if(MemberCount < 3)
-		{
+		if (RuleB(Bots, Enabled)) {
+			std::list<uint32> sbl = g->GetRawBotList();
+
+			for (auto botID : sbl) {
+				auto b = entity_list.GetBotByBotID(botID);
+
+				if (b) {
+					if (b->GetBotOwnerCharacterID() == CharacterID()) {
+						MemberCount -= 1;
+					}
+				}
+				else {
+					if (database.botdb.GetOwnerID(botID) == CharacterID()) {
+						MemberCount -= 1;
+					}
+				}
+			}
+		}
+
+		if (MemberCount < 3) {
 			g->DisbandGroup();
 		}
-		else
-		{
+		else {
 			g->DelMember(this);
-			if (GetMerc() != nullptr && g == GetMerc()->GetGroup() )
-			{
+
+			if (GetMerc() != nullptr && g == GetMerc()->GetGroup()) {
 				GetMerc()->RemoveMercFromGroup(GetMerc(), GetMerc()->GetGroup());
+			}
+
+			if (RuleB(Bots, Enabled)) {
+				g->RemoveClientsBots(this);
 			}
 		}
 	}
-	else
-	{
+	else {
 		//force things a little
 		Group::RemoveFromGroup(this);
 
@@ -2105,15 +2159,20 @@ void Group::UnDelegateMarkNPC(const char *OldNPCMarkerName)
 
 void Group::SaveGroupLeaderAA()
 {
-    // Stores the Group Leaders Leadership AA data from the Player Profile as a blob in the group_leaders table.
-    // This is done so that group members not in the same zone as the Leader still have access to this information.
+	const uint32 group_id = GetID();
 
-    std::string aa((char *) &LeaderAbilities, sizeof(GroupLeadershipAA_Struct));
-    auto        results = GroupLeadersRepository::UpdateLeadershipAA(database, aa, GetID());
+	if (!group_id) {
+		return;
+	}
 
-	if (!results) {
-        LogError("Unable to store GroupLeadershipAA for group_id: [{}]", GetID());
-    }
+	// Stores the Group Leaders Leadership AA data from the Player Profile as a blob in the group_leaders table.
+	// This is done so that group members not in the same zone as the Leader still have access to this information.
+
+	std::string aa((char*) &LeaderAbilities, sizeof(GroupLeadershipAA_Struct));
+
+	if (!GroupLeadersRepository::UpdateLeadershipAA(database, aa, group_id)) {
+		LogError("Unable to store GroupLeadershipAA for group_id: [{}]", group_id);
+	}
 }
 
 void Group::UnMarkNPC(uint16 ID)
@@ -2205,24 +2264,24 @@ void Group::ClearAllNPCMarks()
 
 }
 
-int8 Group::GetNumberNeedingHealedInGroup(int8 hpr, bool includePets) {
-	int8 needHealed = 0;
+int8 Group::GetNumberNeedingHealedInGroup(int8 hpr, bool include_pets) {
+	int8 need_healed = 0;
 
 	for( int i = 0; i<MAX_GROUP_MEMBERS; i++) {
 		if(members[i] && !members[i]->qglobal) {
 
 			if(members[i]->GetHPRatio() <= hpr)
-				needHealed++;
+				need_healed++;
 
-			if(includePets) {
+			if(include_pets) {
 				if(members[i]->GetPet() && members[i]->GetPet()->GetHPRatio() <= hpr) {
-					needHealed++;
+					need_healed++;
 				}
 			}
 		}
 	}
 
-	return needHealed;
+	return need_healed;
 }
 
 void Group::UpdateGroupAAs()
@@ -2402,7 +2461,7 @@ bool Group::AmIMainAssist(const char *mob_name)
 	if (!mob_name)
 		return false;
 
-	return !((bool)MainTankName.compare(mob_name));
+	return !((bool)MainAssistName.compare(mob_name));
 }
 
 bool Group::AmIPuller(const char *mob_name)
@@ -2413,17 +2472,61 @@ bool Group::AmIPuller(const char *mob_name)
 	return !((bool)PullerName.compare(mob_name));
 }
 
-bool Group::HasRole(Mob *m, uint8 Role)
+bool Group::HasRole(Mob* m, uint8 Role)
 {
-	if(!m)
+	if (!m) {
 		return false;
-
-	for(uint32 i = 0; i < MAX_GROUP_MEMBERS; ++i)
-	{
-		if((m == members[i]) && (MemberRoles[i] & Role))
-			return true;
 	}
+
+	for (uint32 i = 0; i < MAX_GROUP_MEMBERS; ++i) {
+		if (m == members[i] && MemberRoles[i] & Role) {
+			return true;
+		}
+	}
+
 	return false;
+}
+
+uint8 Group::GetMemberRole(Mob* m)
+{
+	if (!m) {
+		return 0;
+	}
+
+	for (uint32 i = 0; i < MAX_GROUP_MEMBERS; ++i) {
+		if (m == members[i]) {
+			uint8 role = MemberRoles[i];
+
+			if (m == leader) {
+				role |= RoleLeader;
+			}
+
+			return role;
+		}
+	}
+
+	return 0;
+}
+
+uint8 Group::GetMemberRole(const char* name)
+{
+	if (!name) {
+		return 0;
+	}
+
+	for (uint32 i = 0; i < MAX_GROUP_MEMBERS; ++i) {
+		if (!strcasecmp(membername[i], name)) {
+			uint8 role = MemberRoles[i];
+
+			if (leader && !strcasecmp(leader->GetName(), name)) {
+				role |= RoleLeader;
+			}
+
+			return role;
+		}
+	}
+
+	return 0;
 }
 
 void Group::QueueClients(Mob *sender, const EQApplicationPacket *app, bool ack_required /*= true*/, bool ignore_sender /*= true*/, float distance /*= 0*/) {
@@ -2457,25 +2560,21 @@ void Group::QueueClients(Mob *sender, const EQApplicationPacket *app, bool ack_r
 	}
 }
 
-bool Group::DoesAnyMemberHaveExpeditionLockout(
-	const std::string& expedition_name, const std::string& event_name, int max_check_count)
+bool Group::AnyMemberHasDzLockout(const std::string& expedition, const std::string& event)
 {
-	if (max_check_count <= 0)
+	std::vector<std::string> names;
+	for (int i = 0; i < MAX_GROUP_MEMBERS; ++i)
 	{
-		max_check_count = MAX_GROUP_MEMBERS;
-	}
-
-	for (int i = 0; i < MAX_GROUP_MEMBERS && i < max_check_count; ++i)
-	{
-		if (membername[i][0])
+		if (!members[i] && membername[i][0])
 		{
-			if (Expedition::HasLockoutByCharacterName(membername[i], expedition_name, event_name))
-			{
-				return true;
-			}
+			names.emplace_back(membername[i]); // out of zone member
+		}
+		else if (members[i] && members[i]->IsClient() && members[i]->CastToClient()->HasDzLockout(expedition, event))
+		{
+			return true;
 		}
 	}
-	return false;
+	return !CharacterExpeditionLockoutsRepository::GetLockouts(database, names, expedition, event).empty();
 }
 
 bool Group::IsLeader(const char* name) {
@@ -2558,4 +2657,77 @@ void Group::AddToGroup(AddToGroupRequest r)
 			.merc_id = merc_id
 		}
 	);
+}
+
+void Group::RemoveClientsBots(Client* c) {
+	std::list<uint32> sbl = GetRawBotList();
+
+	for (auto botID : sbl) {
+		auto b = entity_list.GetBotByBotID(botID);
+
+		if (b) {
+			if (b->GetBotOwnerCharacterID() == c->CharacterID()) {
+				b->RemoveBotFromGroup(b, this);
+			}
+		}
+		else {
+			if (database.botdb.GetOwnerID(botID) == c->CharacterID()) {
+				auto botName = database.botdb.GetBotNameByID(botID);
+
+				for (uint32 i = 0; i < MAX_GROUP_MEMBERS; i++) {
+					if (membername[i] == botName) {
+						members[i] = nullptr;
+						membername[i][0] = '\0';
+						memset(membername[i], 0, 64);
+						MemberRoles[i] = 0;
+						break;
+					}
+				}
+
+				auto pack = new ServerPacket(ServerOP_GroupLeave, sizeof(ServerGroupLeave_Struct));
+				ServerGroupLeave_Struct* gl = (ServerGroupLeave_Struct*)pack->pBuffer;
+				gl->gid = GetID();
+				gl->zoneid = zone->GetZoneID();
+				gl->instance_id = zone->GetInstanceID();
+				strcpy(gl->member_name, botName.c_str());
+				worldserver.SendPacket(pack);
+				safe_delete(pack);
+
+				auto outapp = new EQApplicationPacket(OP_GroupUpdate, sizeof(GroupJoin_Struct));
+				GroupJoin_Struct* gu = (GroupJoin_Struct*)outapp->pBuffer;
+				gu->action = groupActLeave;
+				strcpy(gu->membername, botName.c_str());
+				strcpy(gu->yourname, botName.c_str());
+
+				gu->leader_aas = LeaderAbilities;
+
+				for (uint32 i = 0; i < MAX_GROUP_MEMBERS; i++) {
+					if (members[i] == nullptr) {
+						//if (DEBUG>=5) LogFile->write(EQEMuLog::Debug, "Group::DelMember() null member at slot %i", i);
+						continue;
+					}
+
+					if (membername[i] != botName.c_str()) {
+						strcpy(gu->yourname, members[i]->GetCleanName());
+
+						if (members[i]->IsClient()) {
+							members[i]->CastToClient()->QueuePacket(outapp);
+						}
+					}
+				}
+
+				safe_delete(outapp);
+
+				DelMemberOOZ(botName.c_str());
+
+				GroupIdRepository::DeleteWhere(
+					database,
+					fmt::format(
+						"`bot_id` = {}",
+						botID
+					)
+				);
+			}
+		}
+	}
 }

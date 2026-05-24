@@ -1,45 +1,30 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2003 EQEMu Development Team (http://eqemulator.net)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
-#include "../common/global_define.h"
-#include "../common/eq_packet_structs.h"
-#include "../common/features.h"
-#include "../common/repositories/guild_tributes_repository.h"
-#include "../common/guild_base.h"
-#include "guild_mgr.h"
-#include "worldserver.h"
-
 #include "client.h"
 
-#include <map>
+#include "common/eq_packet_structs.h"
+#include "common/features.h"
+#include "common/guild_base.h"
+#include "common/repositories/guild_tributes_repository.h"
+#include "zone/guild_mgr.h"
+#include "zone/worldserver.h"
 
-#ifdef _WINDOWS
-    #include <winsock2.h>
-    #define snprintf	_snprintf
-	#define vsnprintf	_vsnprintf
-    #define strncasecmp	_strnicmp
-    #define strcasecmp	_stricmp
-#else
-    #include <stdarg.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include "../common/unix.h"
-#endif
+#include <map>
 
 /*
 
@@ -48,7 +33,7 @@ but I dont see a point to that right now, so I dont do it.
 
 */
 extern WorldServer worldserver;
-std::map<uint32, TributeData> tribute_list;
+std::map<uint32, TributeData> tribute_list{};
 
 void Client::ToggleTribute(bool enabled) {
 	if(enabled) {
@@ -340,7 +325,7 @@ bool ZoneDatabase::LoadTributes() {
 		return false;
 	}
 
-    for (auto row = results.begin(); row != results.end(); ++row) {
+    for (auto &row = results.begin(); row != results.end(); ++row) {
         uint32 id = Strings::ToUnsignedInt(row[0]);
 		tributeData.name = row[1];
 		tributeData.description = row[2];
@@ -358,7 +343,7 @@ bool ZoneDatabase::LoadTributes() {
 		return false;
 	}
 
-	for (auto row = results.begin(); row != results.end(); ++row) {
+	for (auto &row = results.begin(); row != results.end(); ++row) {
 		uint32 id = Strings::ToUnsignedInt(row[0]);
 
 		if (tribute_list.count(id) != 1) {
@@ -620,6 +605,26 @@ void Client::SendGuildTributeDonatePlatReply(GuildTributeDonatePlatRequest_Struc
 	QueuePacket(outapp);
 	safe_delete(outapp)
 
+}
+
+std::map<uint32, TributeData> Client::GetTributeList() {
+	return tribute_list;
+}
+
+uint32 Client::LookupTributeItemID(uint32 tribute_id, uint32 tier)
+{
+	if (!tribute_id && !tier) {
+		return 0;
+	}
+
+	if (tribute_list.contains(tribute_id)) {
+		auto tribute = tribute_list.find(tribute_id);
+		auto item_id = tribute->second.tiers[tier].tribute_item_id;
+		if (item_id) {
+			return item_id;
+		}
+	}
+	return 0;
 }
 
 /*

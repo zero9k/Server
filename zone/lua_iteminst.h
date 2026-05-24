@@ -1,10 +1,27 @@
-#ifndef EQEMU_LUA_ITEMINST_H
-#define EQEMU_LUA_ITEMINST_H
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
 #ifdef LUA_EQEMU
 
-#include "lua_ptr.h"
+#include "common/types.h"
+#include "zone/lua_ptr.h"
 
-// Forward declaration
 class Lua_Item;
 
 namespace EQ
@@ -54,6 +71,7 @@ public:
 	bool IsAmmo();
 	uint32 GetID();
 	uint32 GetItemScriptID();
+	uint8 GetItemType();
 	int GetCharges();
 	void SetCharges(int charges);
 	uint32 GetPrice();
@@ -77,7 +95,6 @@ public:
 	void SetExp(uint32 exp);
 	void AddExp(uint32 exp);
 	int8 GetMaxEvolveLvl();
-	uint32 GetKillsNeeded(uint8 current_level);
 	Lua_ItemInst Clone();
 	void SetTimer(std::string name, uint32 time);
 	void StopTimer(std::string name);
@@ -87,13 +104,29 @@ public:
 	int GetTaskDeliveredCount();
 	int RemoveTaskDeliveredItems();
 	std::string GetName();
+	int GetSerialNumber();
 	void ItemSay(const char* text);
 	void ItemSay(const char* text, uint8 language_id);
 	luabind::object GetAugmentIDs(lua_State* L);
+	std::string GetItemLink();
+	void AddEvolveAmount(uint64 amount);
+	uint32 GetAugmentEvolveUniqueID(uint8 slot_id);
+	bool GetEvolveActivated();
+	uint64 GetEvolveAmount();
+	uint32 GetEvolveCharacterID();
+	bool GetEvolveEquipped();
+	uint32 GetEvolveFinalItemID();
+	uint32 GetEvolveItemID();
+	int8 GetEvolveLevel();
+	uint32 GetEvolveLoreID();
+	float GetEvolveProgression();
+	uint64 GetEvolveUniqueID();
+	bool IsEvolving();
+	void SetEvolveAmount(uint64 amount);
+	void SetEvolveProgression(float amount);
 
 private:
 	bool cloned_;
 };
 
-#endif
-#endif
+#endif // LUA_EQEMU

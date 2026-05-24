@@ -1,8 +1,26 @@
-#include "../common/features.h"
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#include "common/features.h"
+
 #ifdef EMBPERL_XS_CLASSES
-#include "../common/global_define.h"
-#include "embperl.h"
-#include "bot.h"
+
+#include "zone/bot.h"
+#include "zone/embperl.h"
 
 Mob* Perl_Bot_GetOwner(Bot* self) // @categories Script Utility, Bot
 {
@@ -145,7 +163,7 @@ EQ::ItemInstance* Perl_Bot_GetAugmentAt(Bot* self, int16 slot_id, uint8 augment_
 	return nullptr;
 }
 
-int Perl_Bot_CountAugmentEquippedByID(Bot* self, uint32 item_id)
+uint32 Perl_Bot_CountAugmentEquippedByID(Bot* self, uint32 item_id)
 {
 	return self->GetInv().CountAugmentEquippedByID(item_id);
 }
@@ -155,7 +173,7 @@ bool Perl_Bot_HasAugmentEquippedByID(Bot* self, uint32 item_id)
 	return self->GetInv().HasAugmentEquippedByID(item_id);
 }
 
-int Perl_Bot_CountItemEquippedByID(Bot* self, uint32 item_id)
+uint32 Perl_Bot_CountItemEquippedByID(Bot* self, uint32 item_id)
 {
 	return self->GetInv().CountItemEquippedByID(item_id);
 }
@@ -425,11 +443,6 @@ void Perl_Bot_SetExpansionBitmask(Bot* self, int expansion_bitmask)
 	self->SetExpansionBitmask(expansion_bitmask);
 }
 
-void Perl_Bot_SetExpansionBitmask(Bot* self, int expansion_bitmask, bool save)
-{
-	self->SetExpansionBitmask(expansion_bitmask, save);
-}
-
 void Perl_Bot_SetSpellDuration(Bot* self, int spell_id)
 {
 	self->SetSpellDuration(spell_id);
@@ -497,12 +510,12 @@ void Perl_Bot_SetSpellDurationRaid(Bot* self, int spell_id, int duration, int le
 
 bool Perl_Bot_ReloadBotDataBuckets(Bot* self)
 {
-	return DataBucket::GetDataBuckets(self);
+	return self->LoadDataBucketsCache();
 }
 
 bool Perl_Bot_ReloadBotOwnerDataBuckets(Bot* self)
 {
-	return self->HasOwner() && DataBucket::GetDataBuckets(self->GetBotOwner());
+	return self->HasOwner() && self->LoadDataBucketsCache();
 }
 
 bool Perl_Bot_ReloadBotSpells(Bot* self)
@@ -620,6 +633,11 @@ void Perl_Bot_DeleteBot(Bot* self) // @categories Script Utility
 	self->DeleteBot();
 }
 
+void Perl_Bot_RaidGroupSay(Bot* self, const char* message) // @categories Script Utility
+{
+	self->RaidGroupSay(message);
+}
+
 void perl_register_bot()
 {
 	perl::interpreter state(PERL_GET_THX);
@@ -649,8 +667,9 @@ void perl_register_bot()
 	package.add("ApplySpellRaid", (void(*)(Bot*, int, int, int))&Perl_Bot_ApplySpellRaid);
 	package.add("ApplySpellRaid", (void(*)(Bot*, int, int, int, bool))&Perl_Bot_ApplySpellRaid);
 	package.add("ApplySpellRaid", (void(*)(Bot*, int, int, int, bool, bool))&Perl_Bot_ApplySpellRaid);
+	package.add("RaidGroupSay", &Perl_Bot_RaidGroupSay);
 	package.add("Camp", (void(*)(Bot*))&Perl_Bot_Camp);
-	package.add("Camp", (void(*)(Bot*, bool))&Perl_Bot_Camp);	
+	package.add("Camp", (void(*)(Bot*, bool))&Perl_Bot_Camp);
 	package.add("ClearDisciplineReuseTimer", (void(*)(Bot*))&Perl_Bot_ClearDisciplineReuseTimer);
 	package.add("ClearDisciplineReuseTimer", (void(*)(Bot*, uint16))&Perl_Bot_ClearDisciplineReuseTimer);
 	package.add("ClearItemReuseTimer", (void(*)(Bot*))&Perl_Bot_ClearItemReuseTimer);
@@ -716,7 +735,6 @@ void perl_register_bot()
 	package.add("SendPayload", (void(*)(Bot*, int, std::string))&Perl_Bot_SendPayload);
 	package.add("SendSpellAnim", &Perl_Bot_SendSpellAnim);
 	package.add("SetExpansionBitmask", (void(*)(Bot*, int))&Perl_Bot_SetExpansionBitmask);
-	package.add("SetExpansionBitmask", (void(*)(Bot*, int, bool))&Perl_Bot_SetExpansionBitmask);
 	package.add("SetDisciplineReuseTimer", (void(*)(Bot*, uint16))&Perl_Bot_SetDisciplineReuseTimer);
 	package.add("SetDisciplineReuseTimer", (void(*)(Bot*, uint16, uint32))&Perl_Bot_SetDisciplineReuseTimer);
 	package.add("SetItemReuseTimer", (void(*)(Bot*, uint32))&Perl_Bot_SetItemReuseTimer);
@@ -741,4 +759,4 @@ void perl_register_bot()
 	package.add("Stand", &Perl_Bot_Stand);
 }
 
-#endif //EMBPERL_XS_CLASSES
+#endif // EMBPERL_XS_CLASSES

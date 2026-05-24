@@ -75,7 +75,7 @@
 #include <vector>
 #include <cassert>
 
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/preprocessor/repetition/enum_params.hpp>
 #include <boost/preprocessor/repetition/enum_params_with_a_default.hpp>
 #include <boost/preprocessor/repetition/repeat.hpp>
@@ -335,7 +335,7 @@ namespace luabind
         template <class T>
         struct default_pointer<null_type, T>
         {
-            typedef std::auto_ptr<T> type;
+            typedef std::unique_ptr<T> type;
         };
 
         template <class Class, class Pointer, class Signature, class Policies>

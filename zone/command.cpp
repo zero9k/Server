@@ -1,46 +1,56 @@
-#include <string.h>
-#include <algorithm>
-#include <thread>
-#include <fmt/format.h>
-#include "../common/repositories/command_subsettings_repository.h"
+/*	EQEmu: EQEmulator
 
-#ifdef _WINDOWS
-#define strcasecmp _stricmp
-#endif
+	Copyright (C) 2001-2026 EQEmu Development Team
 
-#include "../common/global_define.h"
-#include "../common/eq_packet.h"
-#include "../common/features.h"
-#include "../common/ptimer.h"
-#include "../common/rulesys.h"
-#include "../common/strings.h"
-#include "../common/say_link.h"
-#include "../common/net/eqstream.h"
-#include "../common/file.h"
-#include "../common/repositories/dynamic_zones_repository.h"
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-#include "data_bucket.h"
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "command.h"
-#include "dynamic_zone.h"
-#include "expedition.h"
-#include "queryserv.h"
-#include "quest_parser_collection.h"
-#include "titles.h"
-#include "water_map.h"
-#include "worldserver.h"
-#include "fastmath.h"
-#include "mob_movement_manager.h"
-#include "npc_scale_manager.h"
-#include "../common/events/player_event_logs.h"
+
+#include "common/data_bucket.h"
+#include "common/eq_packet.h"
+#include "common/events/player_event_logs.h"
+#include "common/features.h"
+#include "common/file.h"
+#include "common/net/eqstream.h"
+#include "common/ptimer.h"
+#include "common/repositories/command_subsettings_repository.h"
+#include "common/repositories/dynamic_zones_repository.h"
+#include "common/rulesys.h"
+#include "common/say_link.h"
+#include "common/strings.h"
+#include "zone/dynamic_zone.h"
+#include "zone/fastmath.h"
+#include "zone/mob_movement_manager.h"
+#include "zone/npc_scale_manager.h"
+#include "zone/queryserv.h"
+#include "zone/quest_parser_collection.h"
+#include "zone/titles.h"
+#include "zone/water_map.h"
+#include "zone/worldserver.h"
+
+#include "fmt/format.h"
+#include <algorithm>
+#include <cstring>
+#include <thread>
 
 extern QueryServ* QServ;
 extern WorldServer worldserver;
-extern TaskManager *task_manager;
 extern FastMath g_Math;
 void CatchSignal(int sig_num);
 
 
-int                                                           command_count; // how many commands we have
+int command_count; // how many commands we have
 
 // this is the pointer to the dispatch function, updated once
 // init has been performed to point at the real function
@@ -96,7 +106,7 @@ int command_init(void)
 		command_add("augmentitem", "Force augments an item. Must have the augment item window open.", AccountStatus::GMImpossible, command_augmentitem) ||
 		command_add("ban", "[Character Name] [Reason] - Ban by character name", AccountStatus::GMLeadAdmin, command_ban) ||
 		command_add("bugs", "[Close|Delete|Review|Search|View] - Handles player bug reports", AccountStatus::QuestTroupe, command_bugs) ||
-		command_add("bot", "Type \"#bot help\" or \"^help\" to the see the list of available commands for bots.", AccountStatus::Player, command_bot) ||
+		(RuleB(Bots, Enabled) && command_add("bot", "Type \"#bot help\" or \"^help\" to the see the list of available commands for bots.", AccountStatus::Player, command_bot)) ||
 		command_add("camerashake", "[Duration (Milliseconds)] [Intensity (1-10)] - Shakes the camera on everyone's screen globally.", AccountStatus::QuestTroupe, command_camerashake) ||
 		command_add("castspell", "[Spell ID] [Instant (0 = False, 1 = True, Default is 1 if Unused)] - Cast a spell", AccountStatus::Guide, command_castspell) ||
 		command_add("chat", "[Channel ID] [Message] - Send a channel message to all zones", AccountStatus::GMMgmt, command_chat) ||
@@ -112,7 +122,7 @@ int command_init(void)
 		command_add("delpetition", "[petition number] - Delete a petition", AccountStatus::ApprenticeGuide, command_delpetition) ||
 		command_add("depop", "[Start Spawn Timer] - Depop your NPC target and optionally start their spawn timer (false by default)", AccountStatus::Guide, command_depop) ||
 		command_add("depopzone", "[Start Spawn Timers] - Depop the zone and optionally start spawn timers (false by default)", AccountStatus::GMAdmin, command_depopzone) ||
-		command_add("devtools", "[Enable|Disable] - Manages Developer Tools (send no parameter for menu)", AccountStatus::GMMgmt, command_devtools) ||
+		command_add("devtools", "[menu|window] [enable|disable] - Manages Developer Tools (send no parameter for menu)", AccountStatus::GMMgmt, command_devtools) ||
 		command_add("disablerecipe", "[Recipe ID] - Disables a Recipe", AccountStatus::QuestTroupe, command_disablerecipe) ||
 		command_add("disarmtrap", "Analog for ldon disarm trap for the newer clients since we still don't have it working.", AccountStatus::QuestTroupe, command_disarmtrap) ||
 		command_add("door", "Door editing command", AccountStatus::QuestTroupe, command_door) ||
@@ -126,6 +136,7 @@ int command_init(void)
 		command_add("enablerecipe", "[Recipe ID] - Enables a Recipe", AccountStatus::QuestTroupe, command_enablerecipe) ||
 		command_add("entityvariable", "[clear|delete|set|view] - Modify entity variables for yourself or your target", AccountStatus::GMAdmin, command_entityvariable) ||
 		command_add("exptoggle", "[Toggle] - Toggle your or your target's experience gain.", AccountStatus::QuestTroupe, command_exptoggle) ||
+		command_add("evolve", "Evolving Item manipulation commands. Use argument help for more info.", AccountStatus::Steward, command_evolvingitems) ||
 		command_add("faction", "[Find (criteria | all ) | Review (criteria | all) | Reset (id)] - Resets Player's Faction", AccountStatus::QuestTroupe, command_faction) ||
 		command_add("factionassociation", "[factionid] [amount] - triggers a faction hits via association", AccountStatus::GMLeadAdmin, command_faction_association) ||
 		command_add("feature", "Change your or your target's feature's temporarily", AccountStatus::QuestTroupe, command_feature) ||
@@ -134,6 +145,7 @@ int command_init(void)
 		command_add("fish", "Fish for an item", AccountStatus::QuestTroupe, command_fish) ||
 		command_add("fixmob", "[race|gender|texture|helm|face|hair|haircolor|beard|beardcolor|heritage|tattoo|detail] [next|prev] - Manipulate appearance of your target", AccountStatus::QuestTroupe, command_fixmob) ||
 		command_add("flagedit", "Edit zone flags on your target. Use #flagedit help for more info.", AccountStatus::GMAdmin, command_flagedit) ||
+		command_add("fleeinfo", "- Gives info about whether a NPC will flee or not, using the command issuer as top hate.", AccountStatus::QuestTroupe, command_fleeinfo) ||
 		command_add("forage", "Forage an item", AccountStatus::QuestTroupe, command_forage) ||
 		command_add("gearup", "Developer tool to quickly equip yourself or your target", AccountStatus::GMMgmt, command_gearup) ||
 		command_add("giveitem", "[itemid] [charges] - Summon an item onto your target's cursor. Charges are optional.", AccountStatus::GMMgmt, command_giveitem) ||
@@ -146,6 +158,7 @@ int command_init(void)
 		command_add("help", "[Search Criteria] - List available commands and their description, specify partial command as argument to search", AccountStatus::Player, command_help) ||
 		command_add("hotfix", "[hotfix_name] - Reloads shared memory into a hotfix, equiv to load_shared_memory followed by apply_shared_memory", AccountStatus::GMImpossible, command_hotfix) ||
 		command_add("hp", "Refresh your HP bar from the server.", AccountStatus::Player, command_hp) ||
+		command_add("illusionblock", "Controls whether or not illusion effects will land on you when cast by other players or bots", AccountStatus::Guide, command_illusion_block) ||
 		command_add("instance", "Modify Instances", AccountStatus::GMMgmt, command_instance) ||
 		command_add("interrogateinv", "use [help] argument for available options", AccountStatus::Player, command_interrogateinv) ||
 		command_add("interrupt", "[Message ID] [Color] - Interrupt your casting. Arguments are optional.", AccountStatus::Guide, command_interrupt) ||
@@ -197,7 +210,7 @@ int command_init(void)
 		command_add("rl", "Reloads logs (alias of #reload logs).", AccountStatus::GMMgmt, command_reload) ||
 		command_add("removeitem", "[Item ID] [Amount] - Removes the specified Item ID by Amount from you or your player target's inventory (Amount defaults to 1 if not used)", AccountStatus::GMAdmin, command_removeitem) ||
 		command_add("repop", "[Force] - Repop the zone with optional force repop", AccountStatus::GMAdmin, command_repop) ||
-		command_add("resetaa", "Resets a Player's AA in their profile and refunds spent AA's to unspent, may disconnect player.", AccountStatus::GMMgmt, command_resetaa) ||
+		command_add("resetaa", "[aa|leadership] - Resets a player's AAs or Leadership AAs and refunds spent AAs (not Leadership AAs) to unspent, may disconnect player.", AccountStatus::GMMgmt, command_resetaa) ||
 		command_add("resetaa_timer", "[All|Timer ID] - Command to reset AA cooldown timers for you or your player target.", AccountStatus::GMMgmt, command_resetaa_timer) ||
 		command_add("resetdisc_timer", "[All|Timer ID] - Command to reset discipline timers.", AccountStatus::GMMgmt, command_resetdisc_timer) ||
 		command_add("revoke", "[Character Name] [0|1] - Revokes or unrevokes a player's ability to talk in OOC by name (0 = Unrevoke, 1 = Revoke)", AccountStatus::GMMgmt, command_revoke) ||
@@ -242,7 +255,9 @@ int command_init(void)
 		command_add("zone", "[Zone ID|Zone Short Name] [X] [Y] [Z] - Teleport to specified Zone by ID or Short Name (coordinates are optional)", AccountStatus::Guide, command_zone) ||
 		command_add("zonebootup", "[ZoneServerID] [shortname] - Make a zone server boot a specific zone", AccountStatus::GMLeadAdmin, command_zonebootup) ||
 		command_add("zoneinstance", "[Instance ID] [X] [Y] [Z] - Teleport to specified Instance by ID (coordinates are optional)", AccountStatus::Guide, command_zone_instance) ||
-		command_add("zoneshutdown", "[shortname] - Shut down a zone server", AccountStatus::GMLeadAdmin, command_zoneshutdown) ||
+		command_add("zoneshard", "[zone] [instance_id] - Teleport explicitly to a zone shard", AccountStatus::Player, command_zone_shard) ||
+		command_add("zoneshutdown", "[instance|zone] [Instance ID|Zone ID|Zone Short Name] - Shut down a zone server by Instance ID, Zone ID, or Zone Short Name", AccountStatus::GMLeadAdmin, command_zoneshutdown) ||
+		command_add("zonevariable", "[clear|delete|set|view] - Modify zone variables for your current zone", AccountStatus::GMAdmin, command_zonevariable) ||
 		command_add("zsave", " Saves zheader to the database", AccountStatus::QuestTroupe, command_zsave)
 	) {
 		command_deinit();
@@ -491,17 +506,6 @@ int command_realdispatch(Client *c, std::string message, bool ignore_status)
 		}
 	}
 
-	/* QS: Player_Log_Issued_Commands */
-	if (RuleB(QueryServ, PlayerLogIssuedCommandes)) {
-		auto event_desc = fmt::format(
-			"Issued command :: '{}' in Zone ID: {} Instance ID: {}",
-			message,
-			c->GetZoneID(),
-			c->GetInstanceID()
-		);
-		QServ->PlayerLogEvent(Player_Log_Issued_Commands, c->CharacterID(), event_desc);
-	}
-
 	if (current_command->admin >= COMMANDS_LOGGING_MIN_STATUS) {
 		LogCommands(
 			"[{}] ([{}]) used command: [{}] (target=[{}])",
@@ -521,7 +525,15 @@ int command_realdispatch(Client *c, std::string message, bool ignore_status)
 		parse->EventPlayer(EVENT_GM_COMMAND, c, message, 0);
 	}
 
-	if (player_event_logs.IsEventEnabled(PlayerEvent::GM_COMMAND) && message != "#help") {
+	bool log_command = true;
+	for (auto &cmd: Strings::Split(RuleS(Logging, PlayerEventsIgnoreGMCommands), ",")) {
+		if (Strings::Contains(command, Strings::ToLower(cmd))) {
+			log_command = false;
+			break;
+		}
+	}
+
+	if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::GM_COMMAND) && log_command) {
 		auto e = PlayerEvent::GMCommandEvent{
 			.message = message,
 			.target = c->GetTarget() ? c->GetTarget()->GetName() : "NONE"
@@ -782,156 +794,3 @@ void command_bot(Client *c, const Seperator *sep)
 		c->Message(Chat::Red, "Bots are disabled on this server.");
 	}
 }
-
-#include "gm_commands/acceptrules.cpp"
-#include "gm_commands/advnpcspawn.cpp"
-#include "gm_commands/aggrozone.cpp"
-#include "gm_commands/ai.cpp"
-#include "gm_commands/appearance.cpp"
-#include "gm_commands/appearanceeffects.cpp"
-#include "gm_commands/attack.cpp"
-#include "gm_commands/augmentitem.cpp"
-#include "gm_commands/ban.cpp"
-#include "gm_commands/bugs.cpp"
-#include "gm_commands/camerashake.cpp"
-#include "gm_commands/castspell.cpp"
-#include "gm_commands/chat.cpp"
-#include "gm_commands/clearxtargets.cpp"
-#include "gm_commands/copycharacter.cpp"
-#include "gm_commands/corpse.cpp"
-#include "gm_commands/corpsefix.cpp"
-#include "gm_commands/countitem.cpp"
-#include "gm_commands/damage.cpp"
-#include "gm_commands/databuckets.cpp"
-#include "gm_commands/dbspawn2.cpp"
-#include "gm_commands/delacct.cpp"
-#include "gm_commands/delpetition.cpp"
-#include "gm_commands/depop.cpp"
-#include "gm_commands/depopzone.cpp"
-#include "gm_commands/devtools.cpp"
-#include "gm_commands/disablerecipe.cpp"
-#include "gm_commands/disarmtrap.cpp"
-#include "gm_commands/doanim.cpp"
-#include "gm_commands/door.cpp"
-#include "gm_commands/door_manipulation.cpp"
-#include "gm_commands/dye.cpp"
-#include "gm_commands/dz.cpp"
-#include "gm_commands/dzkickplayers.cpp"
-#include "gm_commands/editmassrespawn.cpp"
-#include "gm_commands/emote.cpp"
-#include "gm_commands/emptyinventory.cpp"
-#include "gm_commands/enablerecipe.cpp"
-#include "gm_commands/entityvariable.cpp"
-#include "gm_commands/exptoggle.cpp"
-#include "gm_commands/faction.cpp"
-#include "gm_commands/feature.cpp"
-#include "gm_commands/find.cpp"
-#include "gm_commands/fish.cpp"
-#include "gm_commands/fixmob.cpp"
-#include "gm_commands/flagedit.cpp"
-#include "gm_commands/forage.cpp"
-#include "gm_commands/gearup.cpp"
-#include "gm_commands/giveitem.cpp"
-#include "gm_commands/givemoney.cpp"
-#include "gm_commands/gmzone.cpp"
-#include "gm_commands/goto.cpp"
-#include "gm_commands/grantaa.cpp"
-#include "gm_commands/grid.cpp"
-#include "gm_commands/guild.cpp"
-#include "gm_commands/hp.cpp"
-#include "gm_commands/instance.cpp"
-#include "gm_commands/interrogateinv.cpp"
-#include "gm_commands/interrupt.cpp"
-#include "gm_commands/invsnapshot.cpp"
-#include "gm_commands/ipban.cpp"
-#include "gm_commands/kick.cpp"
-#include "gm_commands/kill.cpp"
-#include "gm_commands/killallnpcs.cpp"
-#include "gm_commands/list.cpp"
-#include "gm_commands/lootsim.cpp"
-#include "gm_commands/loc.cpp"
-#include "gm_commands/logs.cpp"
-#include "gm_commands/makepet.cpp"
-#include "gm_commands/memspell.cpp"
-#include "gm_commands/merchantshop.cpp"
-#include "gm_commands/modifynpcstat.cpp"
-#include "gm_commands/movechar.cpp"
-#include "gm_commands/movement.cpp"
-#include "gm_commands/myskills.cpp"
-#include "gm_commands/mysql.cpp"
-#include "gm_commands/mystats.cpp"
-#include "gm_commands/npccast.cpp"
-#include "gm_commands/npcedit.cpp"
-#include "gm_commands/npceditmass.cpp"
-#include "gm_commands/npcemote.cpp"
-#include "gm_commands/npcloot.cpp"
-#include "gm_commands/npcsay.cpp"
-#include "gm_commands/npcshout.cpp"
-#include "gm_commands/npcspawn.cpp"
-#include "gm_commands/npctypespawn.cpp"
-#include "gm_commands/nudge.cpp"
-#include "gm_commands/nukebuffs.cpp"
-#include "gm_commands/nukeitem.cpp"
-#include "gm_commands/object.cpp"
-#include "gm_commands/object_manipulation.cpp"
-#include "gm_commands/parcels.cpp"
-#include "gm_commands/path.cpp"
-#include "gm_commands/peqzone.cpp"
-#include "gm_commands/petitems.cpp"
-#include "gm_commands/petname.cpp"
-#include "gm_commands/picklock.cpp"
-#include "gm_commands/profanity.cpp"
-#include "gm_commands/push.cpp"
-#include "gm_commands/raidloot.cpp"
-#include "gm_commands/randomfeatures.cpp"
-#include "gm_commands/refreshgroup.cpp"
-#include "gm_commands/reload.cpp"
-#include "gm_commands/removeitem.cpp"
-#include "gm_commands/repop.cpp"
-#include "gm_commands/resetaa.cpp"
-#include "gm_commands/resetaa_timer.cpp"
-#include "gm_commands/resetdisc_timer.cpp"
-#include "gm_commands/revoke.cpp"
-#include "gm_commands/roambox.cpp"
-#include "gm_commands/rules.cpp"
-#include "gm_commands/save.cpp"
-#include "gm_commands/scale.cpp"
-#include "gm_commands/scribespell.cpp"
-#include "gm_commands/scribespells.cpp"
-#include "gm_commands/sendzonespawns.cpp"
-#include "gm_commands/sensetrap.cpp"
-#include "gm_commands/serverrules.cpp"
-#include "gm_commands/set.cpp"
-#include "gm_commands/show.cpp"
-#include "gm_commands/shutdown.cpp"
-#include "gm_commands/spawn.cpp"
-#include "gm_commands/spawneditmass.cpp"
-#include "gm_commands/spawnfix.cpp"
-#include "gm_commands/faction_association.cpp"
-#include "gm_commands/stun.cpp"
-#include "gm_commands/summon.cpp"
-#include "gm_commands/summonburiedplayercorpse.cpp"
-#include "gm_commands/summonitem.cpp"
-#include "gm_commands/suspend.cpp"
-#include "gm_commands/suspendmulti.cpp"
-#include "gm_commands/takeplatinum.cpp"
-#include "gm_commands/task.cpp"
-#include "gm_commands/traindisc.cpp"
-#include "gm_commands/tune.cpp"
-#include "gm_commands/undye.cpp"
-#include "gm_commands/unmemspell.cpp"
-#include "gm_commands/unmemspells.cpp"
-#include "gm_commands/unscribespell.cpp"
-#include "gm_commands/unscribespells.cpp"
-#include "gm_commands/untraindisc.cpp"
-#include "gm_commands/untraindiscs.cpp"
-#include "gm_commands/wc.cpp"
-#include "gm_commands/worldshutdown.cpp"
-#include "gm_commands/worldwide.cpp"
-#include "gm_commands/wp.cpp"
-#include "gm_commands/wpadd.cpp"
-#include "gm_commands/zone.cpp"
-#include "gm_commands/zonebootup.cpp"
-#include "gm_commands/zoneshutdown.cpp"
-#include "gm_commands/zone_instance.cpp"
-#include "gm_commands/zsave.cpp"

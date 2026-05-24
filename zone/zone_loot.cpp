@@ -1,9 +1,28 @@
-#include <vector>
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "zone.h"
-#include "../common/repositories/loottable_repository.h"
-#include "../common/repositories/loottable_entries_repository.h"
-#include "../common/repositories/lootdrop_repository.h"
-#include "../common/repositories/lootdrop_entries_repository.h"
+
+#include "common/repositories/lootdrop_entries_repository.h"
+#include "common/repositories/lootdrop_repository.h"
+#include "common/repositories/loottable_entries_repository.h"
+#include "common/repositories/loottable_repository.h"
+
+#include <vector>
 
 void Zone::LoadLootTables(const std::vector<uint32> in_loottable_ids)
 {
@@ -211,7 +230,7 @@ LoottableRepository::Loottable *Zone::GetLootTable(const uint32 loottable_id)
 {
 	for (auto &e: m_loottables) {
 		if (e.id == loottable_id) {
-			if (!content_service.DoesPassContentFiltering(
+			if (!WorldContentService::Instance()->DoesPassContentFiltering(
 				ContentFlags{
 					.min_expansion = e.min_expansion,
 					.max_expansion = e.max_expansion,
@@ -249,7 +268,7 @@ LootdropRepository::Lootdrop Zone::GetLootdrop(const uint32 lootdrop_id) const
 {
 	for (const auto &e: m_lootdrops) {
 		if (e.id == lootdrop_id) {
-			if (!content_service.DoesPassContentFiltering(
+			if (!WorldContentService::Instance()->DoesPassContentFiltering(
 				ContentFlags{
 					.min_expansion = e.min_expansion,
 					.max_expansion = e.max_expansion,
@@ -276,7 +295,7 @@ std::vector<LootdropEntriesRepository::LootdropEntries> Zone::GetLootdropEntries
 	std::vector<LootdropEntriesRepository::LootdropEntries> entries = {};
 	for (const auto &e: m_lootdrop_entries) {
 		if (e.lootdrop_id == lootdrop_id) {
-			if (!content_service.DoesPassContentFiltering(
+			if (!WorldContentService::Instance()->DoesPassContentFiltering(
 				ContentFlags{
 					.min_expansion = e.min_expansion,
 					.max_expansion = e.max_expansion,
@@ -300,3 +319,96 @@ std::vector<LootdropEntriesRepository::LootdropEntries> Zone::GetLootdropEntries
 	return entries;
 }
 
+void Zone::LoadLootDrops(const std::vector<uint32> in_lootdrop_ids)
+{
+	BenchTimer timer;
+
+	// copy lootdrop_ids
+	std::vector<uint32> lootdrop_ids = in_lootdrop_ids;
+
+	// check if lootdrop is already loaded
+	std::vector<uint32> loaded_drops = {};
+	for (const auto &e: lootdrop_ids) {
+		for (const auto &f: m_lootdrops) {
+			if (e == f.id) {
+				LogLootDetail("Lootdrop [{}] already loaded", e);
+				loaded_drops.push_back(e);
+			}
+		}
+	}
+
+	// remove loaded drops from lootdrop_ids
+	for (const auto &e: loaded_drops) {
+		lootdrop_ids.erase(
+			std::remove(
+				lootdrop_ids.begin(),
+				lootdrop_ids.end(),
+				e
+			),
+			lootdrop_ids.end()
+		);
+	}
+
+	if (lootdrop_ids.empty()) {
+		LogLootDetail("No lootdrops to load");
+		return;
+	}
+
+	auto lootdrops = LootdropRepository::GetWhere(
+		content_db,
+		fmt::format(
+			"id IN ({})",
+			Strings::Join(lootdrop_ids, ",")
+		)
+	);
+
+	auto lootdrop_entries = LootdropEntriesRepository::GetWhere(
+		content_db,
+		fmt::format(
+			"lootdrop_id IN ({})",
+			Strings::Join(lootdrop_ids, ",")
+		)
+	);
+
+	// emplace back drops to m_lootdrops if not exists
+	for (const auto &e: lootdrops) {
+		bool has_drop = false;
+
+		for (const auto &l: m_lootdrops) {
+			if (e.id == l.id) {
+				has_drop = true;
+				break;
+			}
+		}
+
+		bool has_entry = false;
+		if (!has_drop) {
+			// add lootdrop
+			m_lootdrops.emplace_back(e);
+
+			// add lootdrop entries
+			// add lootdrop entries
+			for (const auto &h: lootdrop_entries) {
+				if (e.id == h.lootdrop_id) {
+
+					// check if lootdrop entry already exists in memory
+					has_entry = false;
+					for (const auto &i: m_lootdrop_entries) {
+						if (h.lootdrop_id == i.lootdrop_id && h.item_id == i.item_id) {
+							has_entry = true;
+							break;
+						}
+					}
+
+					if (!has_entry) {
+						m_lootdrop_entries.emplace_back(h);
+					}
+				}
+			}
+		}
+	}
+
+	if (!lootdrop_ids.empty()) {
+		LogInfo("Loaded [{}] lootdrops ({}s)", m_lootdrops.size(), std::to_string(timer.elapsed()));
+	}
+}

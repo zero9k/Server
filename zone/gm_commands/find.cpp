@@ -1,20 +1,47 @@
-#include "../client.h"
-#include "find/aa.cpp"
-#include "find/character.cpp"
-#include "find/class.cpp"
-#include "find/currency.cpp"
-#include "find/deity.cpp"
-#include "find/emote.cpp"
-#include "find/faction.cpp"
-#include "find/item.cpp"
-#include "find/language.cpp"
-#include "find/npctype.cpp"
-#include "find/race.cpp"
-#include "find/recipe.cpp"
-#include "find/skill.cpp"
-#include "find/spell.cpp"
-#include "find/task.cpp"
-#include "find/zone.cpp"
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#include "zone/client.h"
+
+void FindAA(Client* c, const Seperator* sep);
+void FindAccount(Client* c, const Seperator* sep);
+void FindBodyType(Client* c, const Seperator* sep);
+void FindBot(Client* c, const Seperator* sep);
+void FindBugCategory(Client* c, const Seperator* sep);
+void FindCharacter(Client* c, const Seperator* sep);
+void FindClass(Client* c, const Seperator* sep);
+void FindComparisonType(Client* c, const Seperator* sep);
+void FindCurrency(Client* c, const Seperator* sep);
+void FindDeity(Client* c, const Seperator* sep);
+void FindEmote(Client* c, const Seperator* sep);
+void FindFaction(Client* c, const Seperator* sep);
+void FindItem(Client* c, const Seperator* sep);
+void FindLanguage(Client* c, const Seperator* sep);
+void FindLDoNTheme(Client* c, const Seperator* sep);
+void FindNPCType(Client* c, const Seperator* sep);
+void FindObjectType(Client* c, const Seperator* sep);
+void FindRace(Client* c, const Seperator* sep);
+void FindRecipe(Client* c, const Seperator* sep);
+void FindSkill(Client* c, const Seperator* sep);
+void FindSpecialAbility(Client* c, const Seperator* sep);
+void FindStance(Client* c, const Seperator* sep);
+void FindSpell(Client* c, const Seperator* sep);
+void FindTask(Client* c, const Seperator* sep);
+void FindZone(Client* c, const Seperator* sep);
 
 void command_find(Client *c, const Seperator *sep)
 {
@@ -30,14 +57,19 @@ void command_find(Client *c, const Seperator *sep)
 
 	std::vector<Cmd> commands = {
 		Cmd{.cmd = "aa", .u = "aa [Search Criteria]", .fn = FindAA, .a = {"#findaa"}},
+		Cmd{.cmd = "account", .u = "account [Search Criteria]", .fn = FindAccount, .a = {"#findaccount"}},
+		Cmd{.cmd = "body_type", .u = "body_type [Search Criteria]", .fn = FindBodyType, .a = {"#findbodytype"}},
+		Cmd{.cmd = "bug_category", .u = "bug_category [Search Criteria]", .fn = FindBugCategory, .a = {"#findbugcategory"}},
 		Cmd{.cmd = "character", .u = "character [Search Criteria]", .fn = FindCharacter, .a = {"#findcharacter"}},
 		Cmd{.cmd = "class", .u = "class [Search Criteria]", .fn = FindClass, .a = {"#findclass"}},
+		Cmd{.cmd = "comparison_type", .u = "comparison_type [Search Criteria]", .fn = FindComparisonType, .a = {"#findcomparisontype"}},
 		Cmd{.cmd = "currency", .u = "currency [Search Criteria]", .fn = FindCurrency, .a = {"#findcurrency"}},
 		Cmd{.cmd = "deity", .u = "deity [Search Criteria]", .fn = FindDeity, .a = {"#finddeity"}},
 		Cmd{.cmd = "emote", .u = "emote [Search Criteria]", .fn = FindEmote, .a = {"#findemote"}},
 		Cmd{.cmd = "faction", .u = "faction [Search Criteria]", .fn = FindFaction, .a = {"#findfaction"}},
 		Cmd{.cmd = "item", .u = "item [Search Criteria]", .fn = FindItem, .a = {"#fi", "#finditem"}},
 		Cmd{.cmd = "language", .u = "language [Search Criteria]", .fn = FindLanguage, .a = {"#findlanguage"}},
+		Cmd{.cmd = "ldon_theme", .u = "ldon_theme [Search Criteria]", .fn = FindLDoNTheme, .a = {"#findldontheme"}},
 		Cmd{
 			.cmd = "npctype", .u = "npctype [Search Criteria]", .fn = FindNPCType, .a = {
 				"#fn",
@@ -45,13 +77,26 @@ void command_find(Client *c, const Seperator *sep)
 				"#findnpctype"
 			}
 		},
+		Cmd{.cmd = "object_type", .u = "object_type [Search Criteria]", .fn = FindObjectType, .a = {"#findobjecttype"}},
 		Cmd{.cmd = "race", .u = "race [Search Criteria]", .fn = FindRace, .a = {"#findrace"}},
 		Cmd{.cmd = "recipe", .u = "recipe [Search Criteria]", .fn = FindRecipe, .a = {"#findrecipe"}},
 		Cmd{.cmd = "skill", .u = "skill [Search Criteria]", .fn = FindSkill, .a = {"#findskill"}},
+		Cmd{.cmd = "special_ability", .u = "special_ability [Search Criteria]", .fn = FindSpecialAbility, .a = {"#fsa", "#findspecialability"}},
+		Cmd{.cmd = "stance", .u = "stance [Search Criteria]", .fn = FindStance, .a = {"#findstance"}},
 		Cmd{.cmd = "spell", .u = "spell [Search Criteria]", .fn = FindSpell, .a = {"#fs", "#findspell"}},
 		Cmd{.cmd = "task", .u = "task [Search Criteria]", .fn = FindTask, .a = {"#findtask"}},
 		Cmd{.cmd = "zone", .u = "zone [Search Criteria]", .fn = FindZone, .a = {"#fz", "#findzone"}},
 	};
+
+	if (RuleB(Bots, Enabled)) {
+		commands.emplace_back(
+			Cmd{.cmd = "bot", .u = "bot [Search Criteria]", .fn = FindBot, .a = {"#findbot"}}
+		);
+
+		std::sort(commands.begin(), commands.end(), [](const Cmd& a, const Cmd& b) {
+			return a.cmd < b.cmd;
+		});
+	}
 
 	// Check for arguments
 	const auto arguments = sep->argnum;

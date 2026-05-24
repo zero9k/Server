@@ -1,36 +1,34 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#pragma once
 
-#ifndef EQ_PACKET_STRUCTS_H
-#define EQ_PACKET_STRUCTS_H
+#include "common/emu_constants.h"
+#include "common/textures.h"
+#include "common/types.h"
+#include "common/version.h"
 
-#include "types.h"
-#include <string.h>
-#include <string>
+#include "cereal/archives/binary.hpp"
+#include "cereal/types/string.hpp"
+#include "cereal/types/vector.hpp"
 #include <list>
-#include <time.h>
-#include "../common/version.h"
-#include "emu_constants.h"
-#include "textures.h"
-#include "../cereal/include/cereal/archives/binary.hpp"
-#include "../cereal/include/cereal/types/string.hpp"
-#include "../cereal/include/cereal/types/vector.hpp"
-
+#include <cstring>
+#include <string>
+#include <ctime>
 
 static const uint32 BUFF_COUNT = 42;
 static const uint32 PET_BUFF_COUNT = 30;
@@ -46,9 +44,10 @@ static const uint32 ADVANCED_LORE_LENGTH = 8192;
 ** Compiler override to ensure
 ** byte aligned structures
 */
+#pragma pack(push)
 #pragma pack(1)
 
-struct LoginInfo_Struct {
+struct LoginInfo {
 /*000*/	char	login_info[64];
 /*064*/	uint8	unknown064[124];
 /*188*/	uint8	zoning;			// 01 if zoning, 00 if not
@@ -323,6 +322,10 @@ union
 	bool targetable_with_hotkey;
 	bool show_name;
 	bool guild_show;
+	bool trader;
+	bool buyer;
+	bool untargetable;
+	uint32 npc_tint_id;
 };
 
 struct PlayerState_Struct {
@@ -1119,7 +1122,7 @@ struct PlayerProfile_Struct
 /*19558*/	uint8				guildAutoconsent;	// 0=off, 1=on
 /*19559*/	uint8				unknown19595[5];	// ***Placeholder (6/29/2005)
 /*19564*/	uint32				RestTimer;
-/*19568*/
+/*19568*/	uint32				char_id;			// Found as part of bazaar revamp (5/15/2024)
 
 	// All player profile packets are translated and this overhead is ignored in out-bound packets
 	PlayerProfile_Struct() : m_player_profile_version(EQ::versions::MobVersion::Unknown) { }
@@ -1618,6 +1621,32 @@ struct MoveItem_Struct
 /*0004*/ uint32 to_slot;
 /*0008*/ uint32 number_in_stack;
 /*0012*/
+};
+
+// New for RoF2 - Size: 12
+struct InventorySlot_Struct
+{
+/*000*/	int16	Type;		// Worn and Normal inventory = 0, Bank = 1, Shared Bank = 2, Delete Item = -1
+/*002*/	int16	Unknown02;
+/*004*/	int16	Slot;
+/*006*/	int16	SubIndex;
+/*008*/	int16	AugIndex;	// Guessing - Seen 0xffff
+/*010*/	int16	Unknown01;	// Normally 0 - Seen 13262 when deleting an item, but didn't match item ID
+/*012*/
+};
+
+struct MultiMoveItemSub_Struct
+{
+/*0000*/ InventorySlot_Struct	from_slot;
+/*0012*/ InventorySlot_Struct	to_slot;
+/*0024*/ uint32			number_in_stack;
+/*0028*/ uint8			unknown[8];
+};
+
+struct MultiMoveItem_Struct
+{
+/*0000*/ uint32	count;
+/*0004*/ MultiMoveItemSub_Struct moves[0];
 };
 
 // both MoveItem_Struct/DeleteItem_Struct server structures will be changing to a structure-based slot format..this will
@@ -3002,26 +3031,26 @@ struct EnvDamage2_Struct {
 //
 
 enum {
-	BazaarTrader_StartTraderMode = 1,
-	BazaarTrader_EndTraderMode = 2,
-	BazaarTrader_UpdatePrice = 3,
-	BazaarTrader_EndTransaction = 4,
-	BazaarSearchResults = 7,
-	BazaarWelcome = 9,
-	BazaarBuyItem = 10,
-	BazaarTrader_ShowItems = 11,
-	BazaarSearchDone = 12,
+	BazaarTrader_StartTraderMode  = 1,
+	BazaarTrader_EndTraderMode    = 2,
+	BazaarTrader_UpdatePrice      = 3,
+	BazaarTrader_EndTransaction   = 4,
+	BazaarSearchResults           = 7,
+	BazaarWelcome                 = 9,
+	BazaarBuyItem                 = 10,
+	BazaarTrader_ShowItems        = 11,
+	BazaarSearchDone              = 12,
 	BazaarTrader_CustomerBrowsing = 13,
-	BazaarInspectItem = 18,
-	BazaarSearchDone2 = 19,
+	BazaarInspectItem             = 18,
+	BazaarSearchDone2             = 19,
 	BazaarTrader_StartTraderMode2 = 22
 };
 
 enum {
-	BazaarPriceChange_Fail = 0,
+	BazaarPriceChange_Fail        = 0,
 	BazaarPriceChange_UpdatePrice = 1,
-	BazaarPriceChange_RemoveItem = 2,
-	BazaarPriceChange_AddItem = 3
+	BazaarPriceChange_RemoveItem  = 2,
+	BazaarPriceChange_AddItem     = 3
 };
 
 struct BazaarWindowStart_Struct {
@@ -3032,31 +3061,41 @@ struct BazaarWindowStart_Struct {
 
 
 struct BazaarWelcome_Struct {
-	BazaarWindowStart_Struct Beginning;
-	uint32	Traders;
-	uint32	Items;
-	uint32	Unknown012;
-	uint32	Unknown016;
+	uint32 action;
+	uint32 traders;
+	uint32 items;
+	uint32 unknown_012;
+	uint32 unknown_016;
 };
 
-struct BazaarSearch_Struct {
-	BazaarWindowStart_Struct Beginning;
-	uint32	TraderID;
-	uint32	Class_;
-	uint32	Race;
-	uint32	ItemStat;
-	uint32	Slot;
-	uint32	Type;
-	char	Name[64];
-	uint32	MinPrice;
-	uint32	MaxPrice;
-	uint32	Minlevel;
-	uint32	MaxLlevel;
+struct BazaarSearchCriteria_Struct {
+	/*000*/ uint32 action{0};
+	/*004*/ uint32 search_scope{0}; // 1 all traders 0 local traders
+	/*008*/ uint32 unknown_008{0};
+	/*012*/ uint32 unknown_012{0};
+	/*016*/ uint32 trader_id{0};
+	/*020*/ uint32 _class{0};
+	/*024*/ uint32 race{0};
+	/*028*/ uint32 item_stat{0};
+	/*032*/ uint32 slot{0};
+	/*036*/ uint32 type{0};
+	/*040*/ char   item_name[64]{""};
+	/*104*/ uint32 min_cost{0};
+	/*108*/ uint32 max_cost{0};
+	/*112*/ uint32 min_level{1};
+	/*116*/ uint32 max_level{0};
+	/*120*/ uint32 max_results{0};
+	/*124*/ uint32 prestige{0};
+	/*128*/ uint32 augment{0};
+	/*132*/ uint32 trader_entity_id{0};
 };
-struct BazaarInspect_Struct{
-	uint32 ItemID;
-	uint32 Unknown004;
-	char Name[64];
+
+struct BazaarInspect_Struct {
+	uint32 action;
+	char   player_name[64];
+	uint32 serial_number;
+	uint32 item_id;
+	uint32 trader_id;
 };
 
 struct NewBazaarInspect_Struct {
@@ -3076,6 +3115,14 @@ struct BazaarReturnDone_Struct{
 	uint32 Unknown012;
 	uint32 Unknown016;
 };
+
+struct BazaarDeliveryCost_Struct {
+	uint32 action;
+	uint16 voucher_delivery_cost;
+	float  parcel_deliver_cost; //percentage of item cost
+	uint32 unknown_010;
+};
+
 struct BazaarSearchResults_Struct {
 /*000*/	BazaarWindowStart_Struct Beginning;
 /*004*/	uint32	NumItems;
@@ -3088,95 +3135,382 @@ struct BazaarSearchResults_Struct {
 	// New fields for SoD+, stripped off when encoding for older clients.
 	char	SellerName[64];
 	uint32	ItemID;
+	uint32	ItemID2;
 };
+
 
 // Barter/Buyer
 //
 //
-enum {
-	Barter_BuyerSearch = 0,
-	Barter_SellerSearch = 1,
-	Barter_BuyerModeOn = 2,
-	Barter_BuyerModeOff = 3,
-	Barter_BuyerItemUpdate = 5,
-	Barter_BuyerItemRemove = 6,
-	Barter_SellItem = 7,
+#define MAX_BUYER_COMPENSATION_ITEMS 10
+
+enum BarterBuyerActions {
+	Barter_BuyerSearch               = 0,
+	Barter_SellerSearch              = 1,
+	Barter_BuyerModeOn               = 2,
+	Barter_BuyerModeOff              = 3,
+	Barter_BuyerItemStart            = 4,
+	Barter_BuyerItemUpdate           = 5,
+	Barter_BuyerItemRemove           = 6,
+	Barter_SellItem                  = 7,
 	Barter_SellerTransactionComplete = 8,
-	Barter_BuyerTransactionComplete = 9,
-	Barter_BuyerInspectBegin = 10,
-	Barter_BuyerInspectEnd = 11,
-	Barter_BuyerAppearance = 12,
-	Barter_BuyerInspectWindow = 13,
-	Barter_BarterItemInspect = 14,
-	Barter_SellerBrowsing = 15,
-	Barter_BuyerSearchResults = 16,
-	Barter_Welcome = 17,
-	Barter_WelcomeMessageUpdate = 19,
-	Barter_BuyerItemInspect = 21,
-	Barter_Unknown23 = 23
+	Barter_BuyerTransactionComplete  = 9,
+	Barter_BuyerInspectBegin         = 10,
+	Barter_BuyerInspectEnd           = 11,
+	Barter_BuyerAppearance           = 12,
+	Barter_BuyerInspectWindow        = 13,
+	Barter_BarterItemInspect         = 14,
+	Barter_SellerBrowsing            = 15,
+	Barter_BuyerSearchResults        = 16,
+	Barter_Welcome                   = 17,
+	Barter_WelcomeMessageUpdate      = 19,
+	Barter_Greeting                  = 20,
+	Barter_BuyerItemInspect          = 21,
+	Barter_OpenBarterWindow          = 23,
+	Barter_AddToBarterWindow         = 26,
+	Barter_RemoveFromBarterWindow    = 27,
+	Barter_RemoveFromMerchantWindow  = 50,   //Not a client item.  Used for internal communications.
+	Barter_FailedTransaction         = 51,
+	Barter_BuyerCouldNotBeFound      = 52,
+	Barter_FailedBuyerChecks         = 53,
+	Barter_SellerCouldNotBeFound     = 54,
+	Barter_FailedSellerChecks        = 55
+};
+
+enum BarterBuyerSubActions {
+	Barter_Success               = 0,
+	Barter_Failure               = 1,
+	Barter_DataOutOfDate         = 4,
+	Barter_SellerDoesNotHaveItem = 6,
+	Barter_SameZone              = 8
+};
+
+enum BuyerBarter {
+	Off = 0,
+	On  = 1
+};
+
+struct BuyerRemoveItem_Struct {
+	uint32	action;
+	uint32	buy_slot_id;
+};
+
+struct BuyerRemoveItemFromMerchantWindow_Struct {
+	uint32 action;
+	uint32 unknown_004;
+	uint32 buy_slot_id;
+	uint32 unknown_012;
+};
+
+struct BuyerGeneric_Struct {
+	uint32 action;
+	char   payload[];
+};
+
+struct BuyerMessaging_Struct {
+	uint32 action;
+	uint32 sub_action;
+	uint32 zone_id;
+	uint32 buyer_id;
+	uint32 buyer_entity_id;
+	char   buyer_name[64];
+	uint32 buy_item_id;
+	uint32 buy_item_qty;
+	uint64 buy_item_cost;
+	uint32 buy_item_icon;
+	uint32 seller_entity_id;
+	char   seller_name[64];
+	char   item_name[64];
+	uint32 slot;
+	uint32 seller_quantity;
+	uint32 purchase_method; // 0 direct merchant, 1 via /barter window
+};
+
+struct BuyerAddBuyertoBarterWindow_Struct {
+	uint32 action;
+	uint32 zone_id;
+	uint32 buyer_id;
+	uint32 buyer_entity_id;
+	char   buyer_name[64];
+};
+
+struct BuyerRemoveBuyerFromBarterWindow_Struct {
+	uint32 action;
+	uint32 buyer_id;
+};
+
+struct BuyerBrowsing_Struct {
+	uint32 action;
+	char   char_name[64];
+};
+
+struct BuyerGreeting_Struct {
+	uint32 action;
+	uint32 buyer_id;
 };
 
 struct BuyerWelcomeMessageUpdate_Struct {
-/*000*/	uint32	Action;
-/*004*/	char	WelcomeMessage[256];
+	uint32 action;
+	char   welcome_message[256];
 };
 
-struct BuyerItemSearch_Struct {
-/*000*/	uint32	Unknown000;
-/*004*/	char	SearchString[64];
+struct BuyerLineTradeItems_Struct {
+	uint32      item_id;
+	uint32      item_quantity;
+	uint32      item_icon;
+	std::string item_name;
+
+	void operator*=(uint32 multiplier)
+	{
+		this->item_quantity *= multiplier;
+	}
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(item_id),
+			CEREAL_NVP(item_quantity),
+			CEREAL_NVP(item_icon),
+			CEREAL_NVP(item_name)
+		);
+	}
 };
 
-struct	BuyerItemSearchResultEntry_Struct {
-/*000*/	char	ItemName[64];
-/*064*/	uint32	ItemID;
-/*068*/	uint32	Unknown068;
-/*072*/	uint32	Unknown072;
+struct BuyerLineItems_Struct {
+	uint32                                  slot;
+	uint8                                   enabled;
+	uint32                                  item_id;
+	std::string                             item_name;
+	uint32                                  item_icon;
+	uint32                                  item_quantity;
+	uint8                                   item_toggle;
+	uint32                                  item_cost;
+	std::vector<BuyerLineTradeItems_Struct> trade_items;
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(slot),
+			CEREAL_NVP(enabled),
+			CEREAL_NVP(item_id),
+			CEREAL_NVP(item_name),
+			CEREAL_NVP(item_icon),
+			CEREAL_NVP(item_quantity),
+			CEREAL_NVP(item_toggle),
+			CEREAL_NVP(item_cost),
+			CEREAL_NVP(trade_items)
+		);
+	}
 };
 
-#define MAX_BUYER_ITEMSEARCH_RESULTS 200
+struct BuyerBuyLines_Struct {
+	uint32                             action;
+	union {
+		uint32 no_items;
+		uint32 string_length;
+	};
+	std::vector<BuyerLineItems_Struct> buy_lines;
 
-struct	BuyerItemSearchResults_Struct {
-	uint32	Action;
-	uint32	ResultCount;
-	BuyerItemSearchResultEntry_Struct	Results[MAX_BUYER_ITEMSEARCH_RESULTS];
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(action),
+			CEREAL_NVP(no_items),
+			CEREAL_NVP(buy_lines)
+		);
+	}
+};
+
+struct BuyerLineSellItem_Struct {
+	uint32                                  action;
+	uint32                                  sub_action;
+	uint32                                  error_code;
+	uint32                                  purchase_method; // 0 direct merchant, 1 via /barter window
+	uint32                                  buyer_entity_id;
+	uint32                                  buyer_id;
+	std::string                             buyer_name;
+	uint32                                  seller_entity_id;
+	std::string                             seller_name;
+	uint32                                  slot;
+	uint8                                   enabled;
+	uint32                                  item_id;
+	char                                    item_name[64];
+	uint32                                  item_icon;
+	uint32                                  item_quantity;
+	uint8                                   item_toggle;
+	uint32                                  item_cost;
+	uint32                                  no_trade_items;
+	std::vector<BuyerLineTradeItems_Struct> trade_items;
+	uint32                                  seller_quantity;
+	uint32                                  zone_id;
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(action),
+			CEREAL_NVP(sub_action),
+			CEREAL_NVP(error_code),
+			CEREAL_NVP(purchase_method),
+			CEREAL_NVP(buyer_entity_id),
+			CEREAL_NVP(buyer_id),
+			CEREAL_NVP(buyer_name),
+			CEREAL_NVP(seller_entity_id),
+			CEREAL_NVP(seller_name),
+			CEREAL_NVP(slot),
+			CEREAL_NVP(enabled),
+			CEREAL_NVP(item_id),
+			CEREAL_NVP(item_name),
+			CEREAL_NVP(item_icon),
+			CEREAL_NVP(item_quantity),
+			CEREAL_NVP(item_toggle),
+			CEREAL_NVP(item_cost),
+			CEREAL_NVP(no_trade_items),
+			CEREAL_NVP(trade_items),
+			CEREAL_NVP(seller_quantity),
+			CEREAL_NVP(zone_id)
+		);
+	}
+};
+
+struct BuyerLineItemsSearch_Struct {
+	uint32                                  slot;
+	uint8                                   enabled;
+	uint32                                  item_id;
+	char                                    item_name[64];
+	uint32                                  item_icon;
+	uint32                                  item_quantity;
+	uint8                                   item_toggle;
+	uint32                                  item_cost;
+	uint32                                  buyer_id;
+	uint32                                  buyer_entity_id;
+	uint32                                  buyer_zone_id;
+	uint32                                  buyer_zone_instance_id;
+	std::string                             buyer_name;
+	std::vector<BuyerLineTradeItems_Struct> trade_items;
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(slot),
+			CEREAL_NVP(enabled),
+			CEREAL_NVP(item_id),
+			CEREAL_NVP(item_name),
+			CEREAL_NVP(item_icon),
+			CEREAL_NVP(item_quantity),
+			CEREAL_NVP(item_toggle),
+			CEREAL_NVP(item_cost),
+			CEREAL_NVP(buyer_id),
+			CEREAL_NVP(buyer_entity_id),
+			CEREAL_NVP(buyer_zone_id),
+			CEREAL_NVP(buyer_zone_instance_id),
+			CEREAL_NVP(buyer_name),
+			CEREAL_NVP(trade_items)
+		);
+	}
+};
+
+struct BuyerLineSearch_Struct {
+	uint32                                   action;
+	uint32                                   no_items;
+	std::string                              search_string;
+	uint32                                   transaction_id;
+	std::vector<BuyerLineItemsSearch_Struct> buy_line;
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(action),
+			CEREAL_NVP(no_items),
+			CEREAL_NVP(search_string),
+			CEREAL_NVP(transaction_id),
+			CEREAL_NVP(buy_line)
+		);
+	}
+};
+
+struct BuyerSetAppearance_Struct {
+	uint32 action;
+	uint32 entity_id;
+	uint32 status; // 0 off 1 on
+	char   buyer_name[64];
+};
+
+struct BarterItemSearchLinkRequest_Struct {
+	uint32 action;
+	uint32 searcher_id;
+	uint32 unknown_008;
+	uint32 unknown_012;
+	uint32 item_id;
+	uint32 unknown_020;
+};
+
+struct BuyerInspectRequest_Struct {
+	uint32	action;
+	uint32	buyer_id;
+	uint32	approval;
 };
 
 struct BarterSearchRequest_Struct {
-	uint32	Action;
-	char	SearchString[64];
-	uint32	SearchID;
+	uint32 action;
+	char   search_string[64];
+	uint32 transaction_id;
+	uint32 unknown_072;
+	uint32 buyer_id;
+	uint8  search_scope;        //0 All Buyers, 1 Local Buyers
+	uint16 zone_id;
 };
 
+struct BuyerItemSearch_Struct {
+	uint32 action;
+	char   search_string[64];
+};
+
+struct BuyerItemSearchResultEntry_Struct {
+	char   item_name[64];
+	uint32 item_id;
+	uint32 item_icon;
+	uint32 unknown_072;
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(item_name),
+			CEREAL_NVP(item_id),
+			CEREAL_NVP(item_icon),
+			CEREAL_NVP(unknown_072)
+		);
+	}
+};
+
+struct BuyerItemSearchResults_Struct {
+	uint32                                         action;
+	uint32                                         result_count;
+	std::vector<BuyerItemSearchResultEntry_Struct> results;
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(action),
+			CEREAL_NVP(result_count),
+			CEREAL_NVP(results)
+		);
+	}
+};
+
+//old below here
 struct BuyerItemSearchLinkRequest_Struct {
 /*000*/	uint32	Action;	// 0x00000015
 /*004*/	uint32	ItemID;
 /*008*/	uint32	Unknown008;
 /*012*/	uint32	Unknown012;
-};
-
-struct BarterItemSearchLinkRequest_Struct {
-/*000*/	uint32	Action;	// 0x0000000E
-/*004*/	uint32	SearcherID;
-/*008*/	uint32	Unknown008;
-/*012*/	uint32	Unknown012;
-/*016*/	uint32	ItemID;
-/*020*/	uint32	Unknown020;
-};
-
-struct BuyerInspectRequest_Struct {
-	uint32	Action;
-	uint32	BuyerID;
-	uint32	Approval;
-};
-
-struct BuyerBrowsing_Struct {
-	uint32	Action;
-	char	PlayerName[64];
-};
-
-struct BuyerRemoveItem_Struct {
-	uint32	Action;
-	uint32	BuySlot;
 };
 
 struct ServerSideFilters_Struct {
@@ -3389,32 +3723,32 @@ struct WhoAllReturnStruct {
 };
 
 struct Trader_Struct {
-/*000*/	uint32	Code;
-/*004*/	uint32	Unknown004;
-/*008*/	uint64	Items[80];
-/*648*/	uint32	ItemCost[80];
+/*000*/	uint32	action;
+/*004*/	uint32	unknown_004;
+/*008*/	uint64	items[EQ::invtype::BAZAAR_SIZE];
+/*648*/	uint32	item_cost[EQ::invtype::BAZAAR_SIZE];
 };
 
 struct ClickTrader_Struct {
-/*000*/	uint32	Code;
-/*004*/	uint32	Unknown004;
-/*008*/	int64	SerialNumber[80];
-/*648*/	uint32	ItemCost[80];
+/*000*/	uint32	action;
+/*004*/	uint32	unknown_004;
+/*008*/	int64	serial_number[EQ::invtype::BAZAAR_SIZE] {};
+/*648*/	uint32	item_cost[EQ::invtype::BAZAAR_SIZE] {};
 };
 
 struct GetItems_Struct{
-	uint32	Items[80];
-	int32	SerialNumber[80];
-	int32	Charges[80];
+	uint32	items[EQ::invtype::BAZAAR_SIZE];
+	int32	serial_number[EQ::invtype::BAZAAR_SIZE];
+	int32	charges[EQ::invtype::BAZAAR_SIZE];
 };
 
-struct BecomeTrader_Struct
-{
-/*000*/	uint32 ID;
-/*004*/	uint32 Code;
-/*008*/	char Name[64];
-/*072*/	uint32 Unknown072;	// Observed 0x33,0x91 etc on zone-in, 0x00 when sent for a new trader after zone-in
-/*076*/
+struct BecomeTrader_Struct {
+	uint32 action;
+	uint16 zone_id;
+	uint16 zone_instance_id;
+	uint32 trader_id;
+	uint32 entity_id;
+	char   trader_name[64];
 };
 
 struct TraderStatus_Struct{
@@ -3424,20 +3758,30 @@ struct TraderStatus_Struct{
 };
 
 struct Trader_ShowItems_Struct{
-/*000*/	uint32 Code;
-/*004*/	uint32 TraderID;
+/*000*/	uint32 action;
+/*004*/	uint32 entity_id;
 /*008*/	uint32 Unknown08[3];
 /*020*/
 };
 
-struct TraderBuy_Struct{
-/*000*/	uint32 Action;
-/*004*/	uint32 TraderID;
-/*008*/	uint32 ItemID;
-/*012*/	uint32 AlreadySold;
-/*016*/	uint32 Price;
-/*020*/	uint32 Quantity;
-/*024*/	char ItemName[64];
+struct TraderBuy_Struct {
+/*000*/ uint32	action;
+/*004*/	uint32	method;
+/*008*/ uint32	sub_action;
+/*012*/	uint32	unknown_012;
+/*016*/ uint32	trader_id;
+/*020*/ char	buyer_name[64];
+/*084*/ char	seller_name[64];
+/*148*/ char	unknown_148[32];
+/*180*/ char	item_name[64];
+/*244*/ char	serial_number[17];
+/*261*/ char	unknown_261[3];
+/*264*/ uint32	item_id;
+/*268*/ uint32	price;
+/*272*/ uint32	already_sold;
+/*276*/ uint32	unknown_276;
+/*280*/ uint32	quantity;
+/*284*/
 };
 
 struct TraderItemUpdate_Struct{
@@ -3465,15 +3809,15 @@ struct MoneyUpdate_Struct{
 };
 
 struct TraderDelItem_Struct{
-	uint32 Unknown000;
-	uint32 TraderID;
-	uint32 ItemID;
-	uint32 Unknown012;
+	uint32 unknown_000;
+	uint32 trader_id;
+	uint32 item_id;
+	uint32 unknown_012;
 };
 
 struct TraderClick_Struct{
-/*000*/	uint32 TraderID;
-/*004*/	uint32 Code;
+/*000*/	uint32 Code;
+/*004*/	uint32 TraderID;
 /*008*/	uint32 Unknown008;
 /*012*/	uint32 Approval;
 /*016*/
@@ -3941,6 +4285,10 @@ struct NewCombine_Struct {
 /*04*/
 };
 
+struct TradeSkillRecipeInspect_Struct {
+	uint32 recipe_id;
+	uint32 padding[17]; // unknown
+};
 
 //client requesting favorite recipies
 struct TradeskillFavorites_Struct {
@@ -5183,56 +5531,65 @@ struct GuildBankWithdrawItem_Struct
 
 struct GuildBankItemUpdate_Struct
 {
-	void Init(uint32 inAction, uint32 inUnknown004, uint16 inSlotID, uint16 inArea, uint16 inUnknown012, uint32 inItemID, uint32 inIcon, uint32 inQuantity,
-			uint32 inPermissions, uint32 inAllowMerge, bool inUseable)
+	void Init(
+		uint32 inAction,
+		uint32 inUnknown004,
+		uint16 inSlotID,
+		uint16 inArea,
+		uint16 inUnknown012,
+		uint32 inItemID,
+		uint32 inIcon,
+		uint32 inQuantity,
+		uint32 inPermissions,
+		uint32 inAllowMerge,
+		bool   inUseable)
 	{
-		Action = inAction;
-		Unknown004 = inUnknown004;
-		SlotID = inSlotID;
-		Area = inArea;
-		Unknown012 = inUnknown012;
-		ItemID = inItemID;
-		Icon = inIcon;
-		Quantity = inQuantity;
-		Permissions = inPermissions;
-		AllowMerge = inAllowMerge;
-		Useable = inUseable;
-		ItemName[0] = '\0';
-		Donator[0] = '\0';
-		WhoFor[0] = '\0';
+		action       = inAction;
+		unknown004   = inUnknown004;
+		slot_id      = inSlotID;
+		area         = inArea;
+		display      = inUnknown012;
+		item_id      = inItemID;
+		icon_id      = inIcon;
+		quantity     = inQuantity;
+		permissions  = inPermissions;
+		allow_merge  = inAllowMerge;
+		is_useable   = inUseable;
+		item_name[0] = '\0';
+		donator[0]   = '\0';
+		who_for[0]   = '\0';
 	};
 
-/*000*/	uint32	Action;
-/*004*/	uint32	Unknown004;
-/*008*/	uint16	SlotID;
-/*010*/	uint16	Area;
-/*012*/	uint32	Unknown012;
-/*016*/	uint32	ItemID;
-/*020*/	uint32	Icon;
-/*024*/	uint32	Quantity;
-/*028*/	uint32	Permissions;
-/*032*/	uint8	AllowMerge;
-/*033*/	uint8	Useable;	// Used in conjunction with the Public-if-useable permission.
-/*034*/	char	ItemName[64];
-/*098*/	char	Donator[64];
-/*162*/ char	WhoFor[64];
-/*226*/	uint16	Unknown226;
+/*000*/	uint32	action;
+/*004*/	uint32	unknown004;
+/*008*/	uint16	slot_id;
+/*010*/	uint16	area;
+/*012*/	uint32	display;
+/*016*/	uint32	item_id;
+/*020*/	uint32	icon_id;
+/*024*/	uint32	quantity;
+/*028*/	uint32	permissions;
+/*032*/	uint8	allow_merge;
+/*033*/	uint8	is_useable;	// Used in conjunction with the Public-if-useable permission.
+/*034*/	char	item_name[64];
+/*098*/	char	donator[64];
+/*162*/ char	who_for[64];
+/*226*/	uint16	unknown226;
 };
 
 // newer clients (RoF+) send a list that contains 240 entries
 // The packets don't actually use all 64 chars in the strings, but we'll just overallocate for these
-struct GuildBankItemListEntry_Struct
-{
-	uint8 vaild;
+struct GuildBankItemListEntry_Struct {
+	uint8  vaild;
 	uint32 permissions;
-	char whofor[64];
-	char donator[64];
+	char   whofor[64];
+	char   donator[64];
 	uint32 item_id;
 	uint32 item_icon;
 	uint32 quantity;
-	uint8 allow_merge; // 1 here for non-full stacks
-	uint8 usable;
-	char item_name[64];
+	uint8  allow_merge; // 1 here for non-full stacks
+	uint8  usable;
+	char   item_name[64];
 };
 
 struct GuildBankClear_Struct
@@ -5475,6 +5832,28 @@ struct ChangeSize_Struct
 /*08*/ uint32 Unknown08;	// Observed 0
 /*12*/ float Unknown12;		// Observed 1.0f
 /*16*/
+};
+
+enum ChangeNameResponse : int {
+	Denied      = 0,  // 5167: "You have requested an invalid name or a Customer Service Representative has denied your name request. Please try another name."
+	Accepted    = 1,  // 5976: "Your request for a name change was successful."
+	Timeout     = -1, // 5977: "Your request for a name change has timed out. Please try again later."
+	ServerError = -2, // 5978: "The server had an error while processing your name request. Please try again later."
+	RateLimited = -3, // 5979: "You must wait longer before submitting another name request. Please try again in a few minutes."
+	Ineligible  = -4, // 5980: "Your character is not eligible for a name change."
+	Pending     = -5  // 5193: "You already have a name change pending. Please wait until it is fully processed before attempting another name change."
+};
+
+struct AltChangeName_Struct {
+/*00*/ char new_name[64];
+/*40*/ char old_name[64];
+/*80*/ int  response_code;
+};
+
+struct ChangePetName_Struct {
+/*00*/ char new_pet_name[64];
+/*40*/ char pet_owner_name[64];
+/*80*/ int  response_code;
 };
 
 // New OpCode/Struct for SoD+
@@ -5857,6 +6236,12 @@ struct SuspendMercenary_Struct {
 /*0001*/
 };
 
+// [OPCode: 0x1b37 (RoF2)] [Client->Server] [Size: 4]
+struct SwitchMercenary_Struct {
+/*0000*/	uint32	MercIndex;	// 0-based UI index into owned merc list
+/*0004*/
+};
+
 // [OPCode: 0x2528] On Live as of April 2 2012 [Server->Client] [Size: 4]
 // Response to suspend merc with timestamp
 struct SuspendMercenaryResponse_Struct {
@@ -5991,8 +6376,196 @@ struct UnderWorld {
 	/* 16 */
 };
 
+enum BazaarTraderBarterActions {
+	TraderOff                    = 0,
+	TraderOn                     = 1,
+	PriceUpdate                  = 3,
+	EndTransaction               = 4,
+	BazaarSearch                 = 7,
+	WelcomeMessage               = 9,
+	BuyTraderItem                = 10,
+	ListTraderItems              = 11,
+	CustomerBrowsing             = 13,
+	BazaarInspect                = 18,
+	ItemMove                     = 19,
+	TraderAck2                   = 22,
+	AddTraderToBazaarWindow      = 24,
+	RemoveTraderFromBazaarWindow = 25,
+	FirstOpenSearch              = 26,
+	ClickTrader                  = 28,
+	DeliveryCostUpdate           = 29
+};
+
+enum BazaarPurchaseActions {
+	BazaarByVendor            = 0,
+	BazaarByParcel            = 1,
+	BazaarByDirectToInventory = 2,
+	BarterByVendor            = 0,
+	BarterInBazaar            = 1,
+	BarterOutsideBazaar       = 2
+};
+
+enum BazaarPurchaseSubActions {
+	Success               = 0,
+	Failed                = 1,
+	DataOutDated          = 3,
+	TooManyParcels        = 5,
+	TransactionInProgress = 6,
+	InsufficientFunds     = 7
+};
+
+enum BazaarSearchScopes {
+	Local_Scope             = 0,
+	AllTraders_Scope        = 1,
+	NonRoFBazaarSearchScope = 99
+};
+
+struct BazaarSearchResultsFromDB_Struct {
+	uint32      count;
+	uint32      trader_id;
+	uint32      item_id;
+	uint32      serial_number;
+	uint32      charges;
+	uint32      cost;
+	uint32      slot_id;
+	uint32      icon_id;
+	uint32      sum_charges;
+	uint32      trader_zone_id;
+	int32       trader_zone_instance_id;
+	uint32      trader_entity_id;
+	uint32      item_stat;
+	bool        stackable;
+	std::string item_name;
+	std::string serial_number_RoF;
+	std::string trader_name;
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(count),
+			CEREAL_NVP(trader_id),
+			CEREAL_NVP(item_id),
+			CEREAL_NVP(serial_number),
+			CEREAL_NVP(charges),
+			CEREAL_NVP(cost),
+			CEREAL_NVP(slot_id),
+			CEREAL_NVP(icon_id),
+			CEREAL_NVP(sum_charges),
+			CEREAL_NVP(trader_zone_id),
+			CEREAL_NVP(trader_zone_instance_id),
+			CEREAL_NVP(trader_entity_id),
+			CEREAL_NVP(item_stat),
+			CEREAL_NVP(stackable),
+			CEREAL_NVP(item_name),
+			CEREAL_NVP(serial_number_RoF),
+			CEREAL_NVP(trader_name)
+		);
+	}
+};
+
+struct BazaarSearchMessaging_Struct {
+	uint32 action;
+	char   payload[];
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(action),
+			CEREAL_NVP(payload)
+		);
+	}
+};
+
+struct BuylineItemDetails_Struct {
+	uint64      item_cost;
+	uint32      item_quantity;
+};
+
+struct PickZoneEntry_Struct {
+	int16 zone_id;
+	int16 unknown;
+	int32 player_count;
+	int32 instance_id;
+};
+
+struct PickZoneWindow_Struct {
+	char                 padding000[64];
+	int64                session_id;
+	int8                 option_count;
+	char                 padding073[23];
+	PickZoneEntry_Struct entries[10];
+};
+
+struct PickZone_Struct {
+	int64 session_id;
+	int32 selection_id;
+};
+
+struct EvolveItemToggle {
+	uint32 action;
+	uint32 unknown_004;
+	uint64 unique_id;
+	uint32 percentage;
+	uint32 activated;
+};
+
+struct EvolveXPWindowReceive {
+	uint32 action;
+	uint32 unknown_004;
+	uint64 item1_unique_id;
+	uint64 item2_unique_id;
+};
+
+struct EvolveItemMessaging {
+	uint32 action;
+	char   serialized_data[];
+};
+
+struct EvolveXPWindowSend {
+	/*000*/    uint32   action;
+	/*004*/    uint64   item1_unique_id;
+	/*012*/    uint64   item2_unique_id;
+	/*020*/    uint32   compatibility;
+	/*024*/    uint32   max_transfer_level;
+	/*028*/    uint8    item1_present;
+	/*029*/ uint8       item2_present;
+	/*030*/ std::string serialize_item_1;
+	/*034*/ std::string serialize_item_2;
+
+	template<class Archive>
+	void serialize(Archive &archive)
+	{
+		archive(
+			CEREAL_NVP(action),
+			CEREAL_NVP(item1_unique_id),
+			CEREAL_NVP(item2_unique_id),
+			CEREAL_NVP(compatibility),
+			CEREAL_NVP(max_transfer_level),
+			CEREAL_NVP(item1_present),
+			CEREAL_NVP(item2_present),
+			CEREAL_NVP(serialize_item_1),
+			CEREAL_NVP(serialize_item_2)
+		);
+	}
+};
+
+struct EvolveTransfer {
+	uint32 item_from_id;
+	uint32 item_from_current_amount;
+	uint32 item_to_id;
+	uint32 item_to_current_amount;
+	uint32 compatibility;
+	uint32 max_transfer_level;
+};
+
+struct EvolveGetNextItem {
+	uint32 new_item_id;
+	uint64 new_current_amount;
+	uint64 from_current_amount;
+	uint32 max_transfer_level;
+};
+
 // Restore structure packing to default
-#pragma pack()
-
-#endif
-
+#pragma pack(pop)

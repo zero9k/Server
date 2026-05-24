@@ -1,8 +1,39 @@
-#include "../client.h"
-#include "../worldserver.h"
-#include "../../common/events/player_events.h"
+/*	EQEmu: EQEmulator
 
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#include "common/events/player_event_logs.h"
+#include "zone/client.h"
+#include "zone/queryserv.h"
+#include "zone/string_ids.h"
+#include "zone/worldserver.h"
+
+extern QueryServ  *QServ;
 extern WorldServer worldserver;
+
+void SendParcelsSubCommands(Client *c)
+{
+	c->Message(Chat::White, "#parcels listdb [Character Name]");
+	c->Message(Chat::White, "#parcels listmemory [Character Name] (Must be in the same zone)");
+	c->Message(
+		Chat::White,
+		"#parcels add [Character Name] [item id] [quantity] [note].  To send money use item id of 99990. Quantity is valid for stackable items, charges on an item, or amount of copper."
+	);
+	c->Message(Chat::White, "#parcels details [Character Name]");
+}
 
 void command_parcels(Client *c, const Seperator *sep)
 {
@@ -41,7 +72,7 @@ void command_parcels(Client *c, const Seperator *sep)
 			return;
 		}
 
-		auto results   = CharacterParcelsRepository::GetWhere(
+		auto results = CharacterParcelsRepository::GetWhere(
 			database,
 			fmt::format("char_id = '{}' ORDER BY slot_id ASC", player_id.at(0).char_id)
 		);
@@ -120,8 +151,8 @@ void command_parcels(Client *c, const Seperator *sep)
 		auto note     = std::string(sep->argplus[5]);
 
 		auto send_to_client = CharacterParcelsRepository::GetParcelCountAndCharacterName(
-				database,
-				to_name
+			database,
+			to_name
 		);
 		if (send_to_client.at(0).character_name.empty()) {
 			c->MessageString(Chat::Yellow, CANT_FIND_PLAYER, to_name.c_str());
@@ -163,15 +194,15 @@ void command_parcels(Client *c, const Seperator *sep)
 				return;
 			}
 
-			CharacterParcelsRepository::CharacterParcels parcel_out;
-			parcel_out.from_name  = c->GetName();
-			parcel_out.note       = note;
-			parcel_out.sent_date  = time(nullptr);
-			parcel_out.quantity   = quantity == 0 ? 1 : quantity;
-			parcel_out.item_id    = PARCEL_MONEY_ITEM_ID;
-			parcel_out.char_id    = send_to_client.at(0).char_id;
-			parcel_out.slot_id    = next_slot;
-			parcel_out.id         = 0;
+			auto parcel_out = CharacterParcelsRepository::NewEntity();
+			parcel_out.from_name = c->GetName();
+			parcel_out.note      = note;
+			parcel_out.sent_date = time(nullptr);
+			parcel_out.quantity  = quantity == 0 ? 1 : quantity;
+			parcel_out.item_id   = PARCEL_MONEY_ITEM_ID;
+			parcel_out.char_id   = send_to_client.at(0).char_id;
+			parcel_out.slot_id   = next_slot;
+			parcel_out.id        = 0;
 
 			auto result = CharacterParcelsRepository::InsertOne(database, parcel_out);
 			if (!result.id) {
@@ -197,15 +228,21 @@ void command_parcels(Client *c, const Seperator *sep)
 				send_to_client.at(0).character_name.c_str()
 			);
 
-			if (player_event_logs.IsEventEnabled(PlayerEvent::PARCEL_SEND)) {
+			if (inst && PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::PARCEL_SEND)) {
 				PlayerEvent::ParcelSend e{};
 				e.from_player_name = parcel_out.from_name;
 				e.to_player_name   = send_to_client.at(0).character_name;
 				e.item_id          = parcel_out.item_id;
+				e.augment_1_id     = inst->GetAugmentItemID(0);
+				e.augment_2_id     = inst->GetAugmentItemID(1);
+				e.augment_3_id     = inst->GetAugmentItemID(2);
+				e.augment_4_id     = inst->GetAugmentItemID(3);
+				e.augment_5_id     = inst->GetAugmentItemID(4);
+				e.augment_6_id     = inst->GetAugmentItemID(5);
 				e.quantity         = parcel_out.quantity;
 				e.sent_date        = parcel_out.sent_date;
 
-				RecordPlayerEventLogWithClient(c, PlayerEvent::PARCEL_SEND, e);
+				RecordPlayerEventLogWithClient (c, PlayerEvent::PARCEL_SEND, e);
 			}
 
 			Parcel_Struct ps{};
@@ -241,15 +278,15 @@ void command_parcels(Client *c, const Seperator *sep)
 					? inst->GetItem()->MaxCharges : (int16) quantity;
 			}
 
-			CharacterParcelsRepository::CharacterParcels parcel_out;
-			parcel_out.from_name  = c->GetName();
-			parcel_out.note       = note.empty() ? "" : note;
-			parcel_out.sent_date  = time(nullptr);
-			parcel_out.quantity   = quantity;
-			parcel_out.item_id    = item_id;
-			parcel_out.char_id    = send_to_client.at(0).char_id;
-			parcel_out.slot_id    = next_slot;
-			parcel_out.id         = 0;
+			auto parcel_out = CharacterParcelsRepository::NewEntity();
+			parcel_out.from_name = c->GetName();
+			parcel_out.note      = note.empty() ? "" : note;
+			parcel_out.sent_date = time(nullptr);
+			parcel_out.quantity  = quantity;
+			parcel_out.item_id   = item_id;
+			parcel_out.char_id   = send_to_client.at(0).char_id;
+			parcel_out.slot_id   = next_slot;
+			parcel_out.id        = 0;
 
 			auto result = CharacterParcelsRepository::InsertOne(database, parcel_out);
 			if (!result.id) {
@@ -275,15 +312,21 @@ void command_parcels(Client *c, const Seperator *sep)
 				send_to_client.at(0).character_name.c_str()
 			);
 
-			if (player_event_logs.IsEventEnabled(PlayerEvent::PARCEL_SEND)) {
+			if (inst && PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::PARCEL_SEND)) {
 				PlayerEvent::ParcelSend e{};
 				e.from_player_name = parcel_out.from_name;
 				e.to_player_name   = send_to_client.at(0).character_name;
 				e.item_id          = parcel_out.item_id;
+				e.augment_1_id     = inst->GetAugmentItemID(0);
+				e.augment_2_id     = inst->GetAugmentItemID(1);
+				e.augment_3_id     = inst->GetAugmentItemID(2);
+				e.augment_4_id     = inst->GetAugmentItemID(3);
+				e.augment_5_id     = inst->GetAugmentItemID(4);
+				e.augment_6_id     = inst->GetAugmentItemID(5);
 				e.quantity         = parcel_out.quantity;
 				e.sent_date        = parcel_out.sent_date;
 
-				RecordPlayerEventLogWithClient(c, PlayerEvent::PARCEL_SEND, e);
+				RecordPlayerEventLogWithClient (c, PlayerEvent::PARCEL_SEND, e);
 			}
 
 			Parcel_Struct ps{};
@@ -293,15 +336,4 @@ void command_parcels(Client *c, const Seperator *sep)
 			c->SendParcelDeliveryToWorld(ps);
 		}
 	}
-}
-
-void SendParcelsSubCommands(Client *c)
-{
-	c->Message(Chat::White, "#parcels listdb [Character Name]");
-	c->Message(Chat::White, "#parcels listmemory [Character Name] (Must be in the same zone)");
-	c->Message(
-			Chat::White,
-			"#parcels add [Character Name] [item id] [quantity] [note].  To send money use item id of 99990. Quantity is valid for stackable items, charges on an item, or amount of copper."
-	);
-	c->Message(Chat::White, "#parcels details [Character Name]");
 }

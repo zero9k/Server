@@ -1,25 +1,24 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2002 EQEMu Development Team (http://eqemu.org)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef SPAWN2_H
-#define SPAWN2_H
+#pragma once
 
-#include "../common/timer.h"
-#include "npc.h"
+#include "common/timer.h"
+#include "zone/npc.h"
 
 #define SC_AlwaysEnabled 0
 
@@ -55,10 +54,10 @@ public:
 	float	GetZ()		{ return z; }
 	float	GetHeading() { return heading; }
 	bool	PathWhenZoneIdle() { return path_when_zone_idle; }
-	void	SetRespawnTimer(uint32 newrespawntime) { respawn_ = newrespawntime; };
+	void	SetRespawnTimer(uint32 newrespawntime) { m_respawn_time = newrespawntime; };
 	void	SetVariance(uint32 newvariance) { variance_ = newvariance; }
 	const uint32 GetVariance() const { return variance_; }
-	uint32	RespawnTimer() { return respawn_; }
+	uint32	RespawnTimer() { return m_respawn_time; }
 	uint32	SpawnGroupID() { return spawngroup_id_; }
 	uint32	CurrentNPCID() { return currentnpcid; }
 	void	SetCurrentNPCID(uint32 nid) { currentnpcid = nid; }
@@ -69,13 +68,24 @@ public:
 	void	SetNPCPointerNull() { npcthis = nullptr; }
 	Timer	GetTimer() { return timer; }
 	void	SetTimer(uint32 duration) { timer.Start(duration); }
-	uint32  GetKillCount() { return killcount; }
+	uint32 GetKillCount() { return killcount; }
+	uint32 GetGrid() const { return grid_; }
+	bool GetPathWhenZoneIdle() const { return path_when_zone_idle; }
+	int16 GetConditionMinValue() const { return condition_min_value; }
+	int16 GetAnimation () { return anim; }
+	inline NPC *GetNPC() const { return npcthis; }
+	inline bool IsResumedFromZoneSuspend() const { return m_resumed_from_zone_suspend; }
+	inline void SetResumedFromZoneSuspend(bool resumed) { m_resumed_from_zone_suspend = resumed; }
+	inline void SetEntityVariables(std::map<std::string, std::string> vars) { m_entity_variables = vars; }
+	inline void SetResumedNPCID(uint32 npc_id) { m_resumed_npc_id = npc_id; }
+	inline void SetStoredLocation(const glm::vec4& loc) { m_stored_location = loc; }
+
 protected:
 	friend class Zone;
 	Timer	timer;
 private:
-	uint32	spawn2_id;
-	uint32	respawn_;
+	uint32 spawn2_id;
+	uint32 m_respawn_time;
 	uint32	resetTimer();
 	uint32	despawnTimer(uint32 despawn_timer);
 
@@ -95,6 +105,10 @@ private:
 	EmuAppearance anim;
 	bool IsDespawned;
 	uint32  killcount;
+	bool m_resumed_from_zone_suspend = false;
+	uint32 m_resumed_npc_id = 0;
+	std::map<std::string, std::string> m_entity_variables = {};
+	glm::vec4 m_stored_location = {0, 0, -1000, 0}; // use -1000 to indicate unset/zero-state
 };
 
 class SpawnCondition {
@@ -171,5 +185,3 @@ protected:
 
 constexpr int format_as(SpawnCondition::OnChange val) { return static_cast<int>(val); }
 constexpr int format_as(SpawnEvent::Action val) { return static_cast<int>(val); }
-
-#endif

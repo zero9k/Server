@@ -1,36 +1,34 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef ENTITY_H
-#define ENTITY_H
+#pragma once
 
-#include <unordered_map>
+#include "common/bodytypes.h"
+#include "common/emu_constants.h"
+#include "common/eq_constants.h"
+#include "common/linked_list.h"
+#include "common/servertalk.h"
+#include "common/types.h"
+#include "zone/common.h"
+#include "zone/position.h"
+#include "zone/zonedump.h"
+
 #include <queue>
-
-#include "../common/types.h"
-#include "../common/linked_list.h"
-#include "../common/servertalk.h"
-#include "../common/bodytypes.h"
-#include "../common/eq_constants.h"
-#include "../common/emu_constants.h"
-
-#include "position.h"
-#include "zonedump.h"
-#include "common.h"
+#include <unordered_map>
 
 class Encounter;
 class Beacon;
@@ -59,6 +57,8 @@ struct Who_All_Struct;
 class Bot;
 
 extern EntityList entity_list;
+
+constexpr const char* SEE_BUFFS_FLAG = "see_buffs_flag";
 
 class Entity
 {
@@ -114,6 +114,7 @@ public:
 	inline const time_t& GetSpawnTimeStamp() const { return spawn_timestamp; }
 
 	virtual const char* GetName() { return ""; }
+	bool CheckCoordLosNoZLeaps(float cur_x, float cur_y, float cur_z, float trg_x, float trg_y, float trg_z, float perwalk=1);
 
 	Bot* CastToBot();
 	const Bot* CastToBot() const;
@@ -197,7 +198,7 @@ public:
 	Raid *GetRaidByClient(Client* client);
 	Raid *GetRaidByID(uint32 id);
 	Raid* GetRaidByBotName(const char* name);
-	Raid* GetRaidByBot(const Bot* bot);
+	Raid* GetRaidByBot(Bot* bot);
 	Raid* GetRaidByName(const char* name);
 
 	Corpse *GetCorpseByOwner(Client* client);
@@ -426,30 +427,31 @@ public:
 	void	QueueClients(Mob* sender, const EQApplicationPacket* app, bool ignore_sender=false, bool ackreq = true);
 	void	QueueClientsStatus(Mob* sender, const EQApplicationPacket* app, bool ignore_sender = false, uint8 minstatus = AccountStatus::Player, uint8 maxstatus = AccountStatus::Player);
 	void	QueueClientsGuild(const EQApplicationPacket* app, uint32 guildeqid = 0);
-	void	QueueClientsGuildBankItemUpdate(const GuildBankItemUpdate_Struct *gbius, uint32 GuildID);
+	void	QueueClientsGuildBankItemUpdate(GuildBankItemUpdate_Struct *gbius, uint32 GuildID);
 	void	QueueClientsByTarget(Mob* sender, const EQApplicationPacket* app, bool iSendToSender = true, Mob* SkipThisMob = 0, bool ackreq = true, bool HoTT = true, uint32 ClientVersionBits = 0xFFFFFFFF, bool inspect_buffs = false, bool clear_target_window  = false);
 
 	void	QueueClientsByXTarget(Mob* sender, const EQApplicationPacket* app, bool iSendToSender = true, EQ::versions::ClientVersionBitmask client_version_bits = EQ::versions::ClientVersionBitmask::maskAllClients);
 	void	QueueToGroupsForNPCHealthAA(Mob* sender, const EQApplicationPacket* app);
 
 	void AEAttack(
-		Mob *attacker,
+		Mob* attacker,
 		float distance,
-		int Hand = EQ::invslot::slotPrimary,
-		int count = 0,
+		int16 slot_id = EQ::invslot::slotPrimary,
+		int hit_count = 0,
 		bool is_from_spell = false,
 		int attack_rounds = 1
 	);
-	void AETaunt(Client *caster, float range = 0, int32 bonus_hate = 0);
+	void AETaunt(Client* caster, float range = 0, int bonus_hate = 0);
 	void AESpell(
-		Mob *caster,
-		Mob *center,
+		Mob* caster,
+		Mob* center,
 		uint16 spell_id,
 		bool affect_caster = true,
 		int16 resist_adjust = 0,
-		int *max_targets = nullptr
+		int* max_targets = nullptr,
+		bool is_scripted = false
 	);
-	void MassGroupBuff(Mob *caster, Mob *center, uint16 spell_id, bool affect_caster = true);
+	void MassGroupBuff(Mob* caster, Mob* center, uint16 spell_id, bool affect_caster = true);
 
 	//trap stuff
 	Mob*	GetTrapTrigger(Trap* trap);
@@ -501,11 +503,12 @@ public:
 	Mob*	GetTargetForMez(Mob* caster);
 	uint32	CheckNPCsClose(Mob *center);
 
+	int		FleeAllyCount(Mob* attacker, Mob* skipped);
 	Corpse* GetClosestCorpse(Mob* sender, const char *Name);
 	void	TryWakeTheDead(Mob* sender, Mob* target, int32 spell_id, uint32 max_distance, uint32 duration, uint32 amount_pets);
-	NPC* GetClosestBanker(Mob* sender, uint32 &distance);
+	NPC*	GetClosestBanker(Mob* sender, uint32 &distance);
 	void	CameraEffect(uint32 duration, float intensity);
-	Mob*	GetClosestMobByBodyType(Mob* sender, bodyType BodyType, bool skip_client_pets=false);
+	Mob*	GetClosestMobByBodyType(Mob* sender, uint8 BodyType, bool skip_client_pets=false);
 	void	ForceGroupUpdate(uint32 gid);
 	void	SendGroupLeave(uint32 gid, const char *name);
 	void	SendGroupJoin(uint32 gid, const char *name);
@@ -542,7 +545,7 @@ public:
 	inline const std::unordered_map<uint16, NPC *> &GetNPCList() { return npc_list; }
 	inline const std::unordered_map<uint16, Merc *> &GetMercList() { return merc_list; }
 	inline const std::unordered_map<uint16, Client *> &GetClientList() { return client_list; }
-	inline const std::list<Bot *> &GetBotList() { return bot_list; }
+	inline const std::unordered_map<uint16, Bot*> &GetBotList() { return bot_list; }
 	std::vector<Bot *> GetBotListByCharacterID(uint32 character_id, uint8 class_id = Class::None);
 	std::vector<Bot *> GetBotListByClientName(std::string client_name, uint8 class_id = Class::None);
 	void SignalAllBotsByOwnerCharacterID(uint32 character_id, int signal_id);
@@ -555,17 +558,16 @@ public:
 
 	std::unordered_map<uint16, Mob *> &GetCloseMobList(Mob *mob, float distance = 0.0f);
 
+	std::vector<NPC*> GetNPCsByIDs(std::vector<uint32> npc_ids);
+	std::vector<NPC*> GetExcludedNPCsByIDs(std::vector<uint32> npc_ids);
+
 	void	DepopAll(int NPCTypeID, bool StartSpawnTimer = true);
 
 	uint16 GetFreeID();
 	void RefreshAutoXTargets(Client *c);
 	void RefreshClientXTargets(Client *c);
 	void SendAlternateAdvancementStats();
-	void ScanCloseMobs(
-		std::unordered_map<uint16, Mob *> &close_mobs,
-		Mob *scanning_mob,
-		bool add_self_to_other_lists = false
-	);
+	void ScanCloseMobs(Mob *scanning_mob);
 
 	void GetTrapInfo(Client* c);
 	bool IsTrapGroupSpawned(uint32 trap_id, uint8 group);
@@ -573,6 +575,11 @@ public:
 	void ClearTrapPointers();
 
 	int MovePlayerCorpsesToGraveyard(bool force_move_from_instance = false);
+
+	void SendMerchantEnd(Mob* merchant);
+	void SendMerchantInventory(Mob* m, int32 slot_id = -1, bool is_delete = false);
+	void RestoreCorpse(NPC* npc, uint32_t decay_time);
+	void CheckToClearTraderAndBuyerTables();
 
 protected:
 	friend class Zone;
@@ -619,19 +626,16 @@ private:
 		bool RemoveBot(uint16 entityID);
 		Mob* GetMobByBotID(uint32 botID);
 		Bot* GetBotByBotID(uint32 botID);
-		Bot* GetBotByBotName(std::string_view botName);
+		Bot* GetBotByBotName(std::string botName);
 		Client* GetBotOwnerByBotEntityID(uint32 entity_id);
 		Client* GetBotOwnerByBotID(const uint32 bot_id);
-		std::list<Bot*> GetBotsByBotOwnerCharacterID(uint32 botOwnerCharacterID);
+		std::vector<Bot*> GetBotsByBotOwnerCharacterID(uint32 botOwnerCharacterID);
 
-		bool Bot_AICheckCloseBeneficialSpells(Bot* caster, uint8 iChance, float iRange, uint32 iSpellTypes); // TODO: Evaluate this closesly in hopes to eliminate
 		void ShowSpawnWindow(Client* client, int Distance, bool NamedOnly); // TODO: Implement ShowSpawnWindow in the bot class but it needs entity list stuff
-
-		void ScanCloseClientMobs(std::unordered_map<uint16, Mob*>& close_mobs, Mob* scanning_mob);
 
 		void GetBotList(std::list<Bot*> &b_list);
 	private:
-		std::list<Bot*> bot_list;
+		std::unordered_map<uint16, Bot*> bot_list;
 };
 
 class BulkZoneSpawnPacket {
@@ -647,6 +651,3 @@ private:
 	NewSpawn_Struct* data;
 	Client* pSendTo;
 };
-
-#endif
-

@@ -1,9 +1,25 @@
-\
-#ifndef EQEMU_LUA_BOT_H
-#define EQEMU_LUA_BOT_H
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
 #ifdef LUA_EQEMU
 
-#include "lua_mob.h"
+#include "zone/lua_mob.h"
 
 class Bot;
 class Lua_Bot;
@@ -46,13 +62,13 @@ public:
 	Lua_Mob GetOwner();
 	int16 HasBotItem(uint32 item_id);
 	void OwnerMessage(std::string message);
+	void RaidGroupSay(const char* message);
 	bool ReloadBotDataBuckets();
 	bool ReloadBotOwnerDataBuckets();
 	bool ReloadBotSpells();
 	void ReloadBotSpellSettings();
 	void RemoveBotItem(uint32 item_id);
 	void SetExpansionBitmask(int expansion_bitmask);
-	void SetExpansionBitmask(int expansion_bitmask, bool save);
 	void Signal(int signal_id);
 	bool HasBotSpellEntry(uint16 spellid);
 	void SendPayload(int payload_id);
@@ -127,8 +143,8 @@ public:
 	void SetSpellRecastTimer(uint16 spell_id);
 	void SetSpellRecastTimer(uint16 spell_id, uint32 reuse_timer);
 
-	int CountAugmentEquippedByID(uint32 item_id);
-	int CountItemEquippedByID(uint32 item_id);
+	uint32 CountAugmentEquippedByID(uint32 item_id);
+	uint32 CountItemEquippedByID(uint32 item_id);
 	bool HasAugmentEquippedByID(uint32 item_id);
 	bool HasItemEquippedByID(uint32 item_id);
 	int GetHealAmount();
@@ -162,5 +178,4 @@ public:
 	void Fling(float value, float target_x, float target_y, float target_z, bool ignore_los, bool clip_through_walls);
 };
 
-#endif
-#endif
+#endif // LUA_EQEMU

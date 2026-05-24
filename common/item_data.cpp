@@ -1,26 +1,24 @@
-/*	EQEMu: Everquest Server Emulator
+/*	EQEmu: EQEmulator
 
-	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include "item_data.h"
-#include "classes.h"
-#include "races.h"
-//#include "deity.h"
+
+#include "common/classes.h"
+#include "common/races.h"
 
 
 uint32 EQ::item::ConvertAugTypeToAugTypeBit(uint8 aug_type)
@@ -218,6 +216,34 @@ bool EQ::ItemData::IsClassBook() const
 bool EQ::ItemData::IsType1HWeapon() const
 {
 	return ((ItemType == item::ItemType1HBlunt) || (ItemType == item::ItemType1HSlash) || (ItemType == item::ItemType1HPiercing) || (ItemType == item::ItemTypeMartial));
+}
+
+bool EQ::ItemData::IsPetUsable() const
+{
+	if (ItemClass == item::ItemClassBag) {
+		return true;
+	}
+
+	// if it's a misc item and has slots, it's wearable
+	// this item type is conflated with many other item types
+	if (ItemClass == item::ItemTypeMisc && Slots != 0) {
+		return true;
+	}
+
+	switch (ItemType) {
+		case item::ItemType1HBlunt:
+		case item::ItemType1HSlash:
+		case item::ItemType1HPiercing:
+		case item::ItemType2HBlunt:
+		case item::ItemType2HSlash:
+		case item::ItemTypeMartial:
+		case item::ItemTypeShield:
+		case item::ItemTypeArmor:
+		case item::ItemTypeJewelry:
+			return true;
+		default:
+			return false;
+	}
 }
 
 bool EQ::ItemData::IsType2HWeapon() const

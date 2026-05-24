@@ -1,14 +1,29 @@
-#include <stdlib.h>
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "lfguild.h"
-#include "database.h"
-#include "worldserver.h"
-#include "../common/eqemu_logsys.h"
-#include "../common/strings.h"
-#include "../common/packet_dump.h"
-#include "../common/rulesys.h"
+
+#include "common/rulesys.h"
+#include "common/strings.h"
+#include "queryserv/database.h"
+#include "queryserv/worldserver.h"
 
 extern WorldServer *worldserver;
-extern QSDatabase database;
+extern QSDatabase  qs_database;
 
 PlayerLookingForGuild::PlayerLookingForGuild(char *name, char *comments, uint32 level, uint32 classes, uint32 aa_count, uint32 time_zone, uint32 time_posted)
 {
@@ -38,7 +53,7 @@ bool LFGuildManager::LoadDatabase()
 	std::string query = "SELECT `type`,`name`,`comment`, "
                         "`fromlevel`, `tolevel`, `classes`, "
                         "`aacount`, `timezone`, `timeposted` FROM `lfguild`";
-    auto results = database.QueryDatabase(query);
+    auto results = qs_database.QueryDatabase(query);
 	if (!results.Success()) {
 		return false;
 	}
@@ -239,7 +254,7 @@ void LFGuildManager::TogglePlayer(uint32 FromZoneID, uint32 FromInstanceID, char
 		}
 
     std::string query = StringFormat("DELETE FROM `lfguild` WHERE `type` = 0 AND `name` = '%s'", From);
-    auto results = database.QueryDatabase(query);
+    auto results = qs_database.QueryDatabase(query);
 
 	uint32 Now = time(nullptr);
 
@@ -252,7 +267,7 @@ void LFGuildManager::TogglePlayer(uint32 FromZoneID, uint32 FromInstanceID, char
                             "`classes`, `aacount`, `timezone`, `timeposted`) "
                             "VALUES (0, '%s', '%s', %u, 0, %u, %u, %u, %u)",
                             From, Comments, Level, Class, AAPoints, TimeZone, Now);
-        auto results = database.QueryDatabase(query);
+        auto results = qs_database.QueryDatabase(query);
 	}
 
 	auto pack = new ServerPacket(ServerOP_QueryServGeneric, strlen(From) + strlen(Comments) + 30);
@@ -281,7 +296,7 @@ void LFGuildManager::ToggleGuild(uint32 FromZoneID, uint32 FromInstanceID, char 
 		}
 
     std::string query = StringFormat("DELETE FROM `lfguild` WHERE `type` = 1 AND `name` = '%s'", GuildName);
-    auto results = database.QueryDatabase(query);
+    auto results = qs_database.QueryDatabase(query);
 
 	uint32 Now = time(nullptr);
 
@@ -296,7 +311,7 @@ void LFGuildManager::ToggleGuild(uint32 FromZoneID, uint32 FromInstanceID, char 
                             "VALUES (1, '%s', '%s', %u, %u, %u, %u, %u, %u)",
                             GuildName, Comments, FromLevel, ToLevel,
                             Classes, AACount, TimeZone, Now);
-		auto results = database.QueryDatabase(query);
+		auto results = qs_database.QueryDatabase(query);
 
 	}
 
@@ -324,7 +339,7 @@ void LFGuildManager::ExpireEntries()
             continue;
 
         std::string query = StringFormat("DELETE from `lfguild` WHERE `type` = 0 AND `name` = '%s'", (*it).Name.c_str());
-        auto results = database.QueryDatabase(query);
+        auto results = qs_database.QueryDatabase(query);
         if(!results.Success())
 
         it = Players.erase(it);
@@ -336,7 +351,7 @@ void LFGuildManager::ExpireEntries()
             continue;
 
         std::string query = StringFormat("DELETE from `lfguild` WHERE `type` = 1 AND `name` = '%s'", (*it2).Name.c_str());
-        auto results = database.QueryDatabase(query);
+        auto results = qs_database.QueryDatabase(query);
         if(!results.Success())
 
         it2 = Guilds.erase(it2);

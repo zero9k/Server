@@ -1,43 +1,39 @@
-/*	EQEMu: Everquest Server Emulator
-	Copyright (C) 2001-2005 EQEMu Development Team (http://eqemulator.net)
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; version 2 of the License.
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
 	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY except by those people which sell it, which
-	are required to give you total support for your newly bought product;
-	without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-	A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#include "client.h"
 
-#include "../common/global_define.h"
-#include "../common/eqemu_logsys.h"
-#include "../common/rulesys.h"
-#include "../common/strings.h"
-
-#include "expedition.h"
-#include "queryserv.h"
-#include "quest_parser_collection.h"
-#include "string_ids.h"
-#include "worldserver.h"
-#include "zone.h"
-
-#include "bot.h"
+#include "common/eqemu_logsys.h"
+#include "common/events/player_event_logs.h"
+#include "common/repositories/character_peqzone_flags_repository.h"
+#include "common/repositories/zone_flags_repository.h"
+#include "common/rulesys.h"
+#include "common/strings.h"
+#include "zone/bot.h"
+#include "zone/dynamic_zone.h"
+#include "zone/queryserv.h"
+#include "zone/quest_parser_collection.h"
+#include "zone/string_ids.h"
+#include "zone/worldserver.h"
+#include "zone/zone.h"
 
 extern QueryServ* QServ;
 extern WorldServer worldserver;
 extern Zone* zone;
-
-#include "../common/repositories/character_peqzone_flags_repository.h"
-#include "../common/repositories/zone_flags_repository.h"
-#include "../common/events/player_event_logs.h"
-
 
 void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 	if (RuleB(Bots, Enabled)) {
@@ -72,7 +68,7 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 		int(zone_mode)
 	);
 
-	content_service.HandleZoneRoutingMiddleware(zc);
+	WorldContentService::Instance()->HandleZoneRoutingMiddleware(zc);
 
 	uint16 target_zone_id = 0;
 	auto target_instance_id = zc->instanceID;
@@ -94,7 +90,6 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 			case GMHiddenSummon:
 			case ZoneSolicited: //we told the client to zone somewhere, so we know where they are going.
 				target_zone_id = zonesummon_id;
-				target_instance_id = zonesummon_instance_id;
 				break;
 			case GateToBindPoint:
 			case ZoneToBindPoint:
@@ -127,7 +122,6 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 		// WildcardX 27 January 2008
 		if (zone_mode == EvacToSafeCoords && zonesummon_id) {
 			target_zone_id = zonesummon_id;
-			target_instance_id = zonesummon_instance_id;
 		} else {
 			target_zone_id = zc->zoneID;
 		}
@@ -243,7 +237,7 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 		}
 	}
 
-	if (player_event_logs.IsEventEnabled(PlayerEvent::ZONING)) {
+	if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::ZONING)) {
 		auto e = PlayerEvent::ZoningEvent{};
 		e.from_zone_long_name   = zone->GetLongName();
 		e.from_zone_short_name  = zone->GetShortName();
@@ -351,19 +345,19 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 	//TODO: ADVENTURE ENTRANCE CHECK
 
 	// Expansion checks and routing
-	if (content_service.GetCurrentExpansion() >= Expansion::Classic && !GetGM()) {
+	if (WorldContentService::Instance()->GetCurrentExpansion() >= Expansion::Classic && !GetGM()) {
 		bool meets_zone_expansion_check = false;
 
-		auto z = zone_store.GetZoneWithFallback(ZoneID(target_zone_name), 0);
-		if (z->expansion <= content_service.GetCurrentExpansion() || z->bypass_expansion_check) {
+		auto z = ZoneStore::Instance()->GetZoneWithFallback(ZoneID(target_zone_name), 0);
+		if (z->expansion <= WorldContentService::Instance()->GetCurrentExpansion() || z->bypass_expansion_check) {
 			meets_zone_expansion_check = true;
 		}
 
 		LogZoning(
 			"Checking zone request [{}] for expansion [{}] ({}) success [{}]",
 			target_zone_name,
-			(content_service.GetCurrentExpansion()),
-			content_service.GetCurrentExpansionName(),
+			(WorldContentService::Instance()->GetCurrentExpansion()),
+			WorldContentService::Instance()->GetCurrentExpansionName(),
 			meets_zone_expansion_check ? "true" : "false"
 		);
 
@@ -372,7 +366,7 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 		}
 	}
 
-	if (content_service.GetCurrentExpansion() >= Expansion::Classic && GetGM()) {
+	if (WorldContentService::Instance()->GetCurrentExpansion() >= Expansion::Classic && GetGM()) {
 		LogInfo("[{}] Bypassing zone expansion checks because GM flag is set", GetCleanName());
 		Message(Chat::White, "Your GM flag allows you to bypass zone expansion checks.");
 	}
@@ -491,25 +485,18 @@ void Client::DoZoneSuccess(ZoneChange_Struct *zc, uint16 zone_id, uint32 instanc
 
 	SendLogoutPackets();
 
-	/* QS: PlayerLogZone */
-	if (RuleB(QueryServ, PlayerLogZone)){
-		std::string event_desc = StringFormat("Zoning :: zoneid:%u instid:%u x:%4.2f y:%4.2f z:%4.2f h:%4.2f zonemode:%d from zoneid:%u instid:%i", zone_id, instance_id, dest_x, dest_y, dest_z, dest_h, zone_mode, GetZoneID(), GetInstanceID());
-		QServ->PlayerLogEvent(Player_Log_Zoning, CharacterID(), event_desc);
-	}
-
 	/* Dont clear aggro until the zone is successful */
 	entity_list.RemoveFromHateLists(this);
 
 	if(GetPet())
 		entity_list.RemoveFromHateLists(GetPet());
 
-	if (GetPendingExpeditionInviteID() != 0)
+	if (GetPendingDzInviteID() != 0)
 	{
 		// live re-invites if client zoned with a pending invite, save pending invite info in world
-		auto expedition = Expedition::FindCachedExpeditionByID(GetPendingExpeditionInviteID());
-		if (expedition)
+		if (auto dz = DynamicZone::FindDynamicZoneByID(GetPendingDzInviteID(), DynamicZoneType::Expedition))
 		{
-			expedition->SendWorldPendingInvite(m_pending_expedition_invite, GetName());
+			dz->SendWorldPendingInvite(m_dz_invite, GetName());
 		}
 	}
 
@@ -537,8 +524,12 @@ void Client::DoZoneSuccess(ZoneChange_Struct *zc, uint16 zone_id, uint32 instanc
 	m_pp.zone_id = zone_id;
 	m_pp.zoneInstance = instance_id;
 
-	//Force a save so its waiting for them when they zone
-	Save(2);
+	// save character position
+	m_pp.x       = m_Position.x;
+	m_pp.y       = m_Position.y;
+	m_pp.z       = m_Position.z;
+	m_pp.heading = m_Position.w;
+	SaveCharacterData();
 
 	m_lock_save_position = true;
 
@@ -575,7 +566,6 @@ void Client::DoZoneSuccess(ZoneChange_Struct *zc, uint16 zone_id, uint32 instanc
 	zone_mode = ZoneUnsolicited;
 	m_ZoneSummonLocation = glm::vec4();
 	zonesummon_id = 0;
-	zonesummon_instance_id = 0;
 	zonesummon_ignorerestrictions = 0;
 
 	// this simply resets the zone shutdown timer
@@ -687,8 +677,19 @@ void Client::MoveZoneInstanceRaid(uint16 instance_id, const glm::vec4 &location)
 
 void Client::ProcessMovePC(uint32 zoneID, uint32 instance_id, float x, float y, float z, float heading, uint8 ignorerestrictions, ZoneMode zm)
 {
-	// From what I have read, dragged corpses should stay with the player for Intra-zone summons etc, but we can implement that later.
+	// From what I have read, dragged corpses should stay with the player for Intra-zone summons etc, but we can
+	// implement that later.
 	ClearDraggedCorpses();
+
+	// Added to ensure that if a player is moved (ported, gmmove, etc) and they are an active trader or buyer, they will
+	// be removed from future transactions.
+	if (IsTrader()) {
+		TraderEndTrader();
+	}
+
+	if (IsBuyer()) {
+		ToggleBuyerMode(false);
+	}
 
 	if(zoneID == 0)
 		zoneID = zone->GetZoneID();
@@ -704,7 +705,7 @@ void Client::ProcessMovePC(uint32 zoneID, uint32 instance_id, float x, float y, 
 			//if they have a pet and they are staying in zone, move with them
 			Mob *p = GetPet();
 			if(p != nullptr){
-				p->SetPetOrder(SPO_Follow);
+				p->SetPetOrder(PetOrder::Follow);
 				p->GMMove(x+15, y, z);	//so it dosent have to run across the map.
 			}
 		}
@@ -740,7 +741,7 @@ void Client::ProcessMovePC(uint32 zoneID, uint32 instance_id, float x, float y, 
 			ZonePC(zoneID, instance_id, x, y, z, heading, ignorerestrictions, zm);
 			break;
 		default:
-			LogError("Client::ProcessMovePC received a reguest to perform an unsupported client zone operation");
+			LogError("Received a request to perform an unsupported client zone operation");
 			break;
 	}
 }
@@ -758,7 +759,7 @@ void Client::ZonePC(uint32 zoneID, uint32 instance_id, float x, float y, float z
 		pZoneName = strcpy(new char[zd->long_name.length() + 1], zd->long_name.c_str());
 	}
 
-	auto r = content_service.FindZone(zoneID, instance_id);
+	auto r = WorldContentService::Instance()->FindZone(zoneID, instance_id);
 	if (r.zone_id) {
 		zoneID      = r.zone_id;
 		instance_id = r.instance.id;
@@ -776,9 +777,69 @@ void Client::ZonePC(uint32 zoneID, uint32 instance_id, float x, float y, float z
 		);
 
 		// If we are zoning to the same zone, we need to use the current instance ID if it is not specified.
-		if (content_service.IsInPublicStaticInstance(instance_id) && zoneID == zone->GetZoneID() && instance_id == 0) {
+		if (WorldContentService::Instance()->IsInPublicStaticInstance(instance_id) && zoneID == zone->GetZoneID() && instance_id == 0) {
 			instance_id = zone->GetInstanceID();
 		}
+	}
+
+	// zone sharding
+	if (zoneID == zd->zoneidnumber &&
+		instance_id == 0 &&
+		zd->shard_at_player_count > 0) {
+
+		bool found_shard = false;
+		auto results     = CharacterDataRepository::GetInstanceZonePlayerCounts(database, zoneID);
+
+		LogZoning("Zone sharding results count [{}]", results.size());
+
+		uint64_t shard_instance_duration = 3155760000;
+
+		for (auto &e: results) {
+			LogZoning(
+				"Zone sharding results [{}] ({}) instance_id [{}] player_count [{}]",
+				ZoneName(e.zone_id) ? ZoneName(e.zone_id) : "Unknown",
+				e.zone_id,
+				e.instance_id,
+				e.player_count
+			);
+
+			if (e.player_count < zd->shard_at_player_count) {
+				instance_id = e.instance_id;
+
+				database.AddClientToInstance(instance_id, CharacterID());
+
+				LogZoning(
+					"Client [{}] attempting zone to sharded zone > instance_id [{}] zone [{}] ({})",
+					GetCleanName(),
+					instance_id,
+					ZoneName(zoneID) ? ZoneName(zoneID) : "Unknown",
+					zoneID
+				);
+
+				found_shard = true;
+				break;
+			}
+		}
+
+		if (!found_shard) {
+			uint16 new_instance_id = 0;
+			database.GetUnusedInstanceID(new_instance_id);
+			database.CreateInstance(new_instance_id, zoneID, zd->version, shard_instance_duration);
+			database.AddClientToInstance(new_instance_id, CharacterID());
+			instance_id = new_instance_id;
+			LogZoning(
+				"Client [{}] creating new sharded zone > instance_id [{}] zone [{}] ({})",
+				GetCleanName(),
+				new_instance_id,
+				ZoneName(zoneID) ? ZoneName(zoneID) : "Unknown",
+				zoneID
+			);
+		}
+	}
+
+	// passed from zone shard request to normal zone
+	if (instance_id == -1) {
+		instance_id = 0;
 	}
 
 	LogInfo(
@@ -962,7 +1023,6 @@ void Client::ZonePC(uint32 zoneID, uint32 instance_id, float x, float y, float z
 
 			// we hide the real zoneid we want to evac/succor to here
 			zonesummon_id = zoneID;
-			zonesummon_instance_id = instance_id;
 
 			outapp->priority = 6;
 			FastQueuePacket(&outapp);

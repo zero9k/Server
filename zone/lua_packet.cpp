@@ -1,10 +1,29 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #ifdef LUA_EQEMU
 
-#include <luabind/luabind.hpp>
-#include <luabind/object.hpp>
-
-#include "masterentity.h"
 #include "lua_packet.h"
+
+#include "zone/masterentity.h"
+
+#include "luabind/luabind.hpp"
+#include "luabind/object.hpp"
+
 
 struct Opcodes { };
 
@@ -60,6 +79,16 @@ Lua_Packet::Lua_Packet(const Lua_Packet& o) {
 	} else {
 		owned_ = false;
 		d_ = o.d_;
+	}
+}
+
+Lua_Packet::~Lua_Packet()
+{
+	if (owned_) {
+		EQApplicationPacket* ptr = GetLuaPtrData();
+		if (ptr) {
+			delete ptr;
+		}
 	}
 }
 
@@ -896,6 +925,7 @@ luabind::scope lua_register_packet_opcodes() {
 		luabind::value("Weblink", static_cast<int>(OP_Weblink)),
 		luabind::value("InspectMessageUpdate", static_cast<int>(OP_InspectMessageUpdate)),
 		luabind::value("ItemPreview", static_cast<int>(OP_ItemPreview)),
+		luabind::value("ItemPreviewRequest", static_cast<int>(OP_ItemPreviewRequest)),
 		luabind::value("MercenaryDataRequest", static_cast<int>(OP_MercenaryDataRequest)),
 		luabind::value("MercenaryDataResponse", static_cast<int>(OP_MercenaryDataResponse)),
 		luabind::value("MercenaryHire", static_cast<int>(OP_MercenaryHire)),
@@ -915,7 +945,9 @@ luabind::scope lua_register_packet_opcodes() {
 		luabind::value("Marquee", static_cast<int>(OP_Marquee)),
 		luabind::value("ClientTimeStamp", static_cast<int>(OP_ClientTimeStamp)),
 		luabind::value("GuildPromote", static_cast<int>(OP_GuildPromote)),
-		luabind::value("Fling", static_cast<int>(OP_Fling))
+		luabind::value("Fling", static_cast<int>(OP_Fling)),
+		luabind::value("PickZoneWindow", static_cast<int>(OP_PickZoneWindow)),
+		luabind::value("TradeSkillRecipeInspect", static_cast<int>(OP_TradeSkillRecipeInspect))
 	)];
 }
 

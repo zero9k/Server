@@ -1,15 +1,31 @@
-#include "../common/strings.h"
-#include "../common/repositories/auras_repository.h"
+/*	EQEmu: EQEmulator
 
-#include "aura.h"
-#include "client.h"
-#include "string_ids.h"
-#include "raids.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#include "common/repositories/auras_repository.h"
+#include "common/strings.h"
+#include "zone/aura.h"
+#include "zone/client.h"
+#include "zone/raids.h"
+#include "zone/string_ids.h"
 
 Aura::Aura(NPCType *type_data, Mob *owner, AuraRecord &record)
 	: NPC(type_data, 0, owner->GetPosition(), GravityBehavior::Flying), spell_id(record.spell_id),
 	  distance(record.distance),
-	  remove_timer(record.duration), movement_timer(100), process_timer(1000), aura_id(-1)
+	  remove_timer(record.duration), movement_timer(1000), process_timer(1000), aura_id(-1)
 {
 	GiveNPCTypeData(type_data); // we will delete this later on
 	m_owner = owner->GetID();
@@ -72,7 +88,7 @@ Mob *Aura::GetOwner()
 // not 100% sure how this one should work and PVP affects ...
 void Aura::ProcessOnAllFriendlies(Mob *owner)
 {
-	auto          &mob_list = entity_list.GetCloseMobList(this, distance);
+	auto          &mob_list = GetCloseMobList(distance);
 	std::set<int> delayed_remove;
 	bool          is_buff   = IsBuffSpell(spell_id); // non-buff spells don't cast on enter
 
@@ -81,7 +97,7 @@ void Aura::ProcessOnAllFriendlies(Mob *owner)
 		if (!mob) {
 			continue;
 		}
-		if (mob->IsClient() || mob->IsPetOwnerClient() || mob->IsMerc() || mob->IsBot()) {
+		if (mob->IsOfClientBotMerc() || mob->IsPetOwnerOfClientBot()) {
 			auto it = casted_on.find(mob->GetID());
 
 			if (it != casted_on.end()) { // we are already on the list, let's check for removal
@@ -127,11 +143,11 @@ void Aura::ProcessOnAllFriendlies(Mob *owner)
 
 void Aura::ProcessOnAllGroupMembers(Mob *owner)
 {
-	auto          &mob_list = entity_list.GetCloseMobList(this, distance);
+	auto          &mob_list = GetCloseMobList(distance);
 	std::set<int> delayed_remove;
 	bool          is_buff   = IsBuffSpell(spell_id); // non-buff spells don't cast on enter
 
-	if (owner->IsRaidGrouped() && owner->IsClient()) { // currently raids are just client, but safety check
+	if (owner->IsRaidGrouped() && owner->IsOfClientBot()) { // currently raids are just client, but safety check
 		auto raid = owner->GetRaid();
 		if (raid == nullptr) { // well shit
 			owner->RemoveAura(GetID(), false, true);
@@ -198,17 +214,17 @@ void Aura::ProcessOnAllGroupMembers(Mob *owner)
 			auto it  = casted_on.find(mob->GetID());
 			if (it != casted_on.end()) {
 				// verify still good!
-				if (mob->IsClient()) {
+				if (mob->IsOfClientBot()) {
 					if (!verify_raid_client(mob->CastToClient())) {
 						delayed_remove.insert(mob->GetID());
 					}
 				}
-				else if (mob->IsPet() && mob->IsPetOwnerClient() && mob->GetOwner()) {
+				else if (mob->IsPet() && mob->IsPetOwnerOfClientBot() && mob->GetOwner()) {
 					if (!verify_raid_client_pet(mob)) {
 						delayed_remove.insert(mob->GetID());
 					}
 				}
-				else if (mob->IsNPC() && mob->IsPetOwnerClient()) {
+				else if (mob->IsNPC() && mob->IsPetOwnerOfClientBot()) {
 					auto npc = mob->CastToNPC();
 					if (!verify_raid_client_swarm(npc)) {
 						delayed_remove.insert(mob->GetID());
@@ -216,19 +232,19 @@ void Aura::ProcessOnAllGroupMembers(Mob *owner)
 				}
 			}
 			else { // we're not on it!
-				if (mob->IsClient() && verify_raid_client(mob->CastToClient())) {
+				if (mob->IsOfClientBot() && verify_raid_client(mob->CastToClient())) {
 					casted_on.insert(mob->GetID());
 					if (is_buff) {
 						SpellFinished(spell_id, mob);
 					}
 				}
-				else if (mob->IsPet() && mob->IsPetOwnerClient() && mob->GetOwner() && verify_raid_client_pet(mob)) {
+				else if (mob->IsPet() && mob->IsPetOwnerOfClientBot() && mob->GetOwner() && verify_raid_client_pet(mob)) {
 					casted_on.insert(mob->GetID());
 					if (is_buff) {
 						SpellFinished(spell_id, mob);
 					}
 				}
-				else if (mob->IsNPC() && mob->IsPetOwnerClient()) {
+				else if (mob->IsNPC() && mob->IsPetOwnerOfClientBot()) {
 					auto npc = mob->CastToNPC();
 					if (verify_raid_client_swarm(npc)) {
 						casted_on.insert(mob->GetID());
@@ -369,14 +385,14 @@ void Aura::ProcessOnAllGroupMembers(Mob *owner)
 
 void Aura::ProcessOnGroupMembersPets(Mob *owner)
 {
-	auto          &mob_list    = entity_list.GetCloseMobList(this,distance);
+	auto          &mob_list    = GetCloseMobList(distance);
 	std::set<int> delayed_remove;
 	bool          is_buff      = IsBuffSpell(spell_id); // non-buff spells don't cast on enter
 	// This type can either live on the pet (level 55/70 MAG aura) or on the pet owner (level 85 MAG aura)
 	auto          group_member = owner->GetOwnerOrSelf();
 
 	if (group_member->IsRaidGrouped() &&
-		group_member->IsClient()) { // currently raids are just client, but safety check
+		group_member->IsOfClientBot()) { // currently raids are just client, but safety check
 		auto raid = group_member->GetRaid();
 		if (raid == nullptr) { // well shit
 			owner->RemoveAura(GetID(), false, true);
@@ -428,12 +444,12 @@ void Aura::ProcessOnGroupMembersPets(Mob *owner)
 			auto it  = casted_on.find(mob->GetID());
 			if (it != casted_on.end()) {
 				// verify still good!
-				if (mob->IsPet() && mob->IsPetOwnerClient() && mob->GetOwner()) {
+				if (mob->IsPet() && mob->IsPetOwnerOfClientBot() && mob->GetOwner()) {
 					if (!verify_raid_client_pet(mob)) {
 						delayed_remove.insert(mob->GetID());
 					}
 				}
-				else if (mob->IsNPC() && mob->IsPetOwnerClient()) {
+				else if (mob->IsNPC() && mob->IsPetOwnerOfClientBot()) {
 					auto npc = mob->CastToNPC();
 					if (!verify_raid_client_swarm(npc)) {
 						delayed_remove.insert(mob->GetID());
@@ -441,16 +457,16 @@ void Aura::ProcessOnGroupMembersPets(Mob *owner)
 				}
 			}
 			else { // we're not on it!
-				if (mob->IsClient()) {
+				if (mob->IsOfClientBot()) {
 					continue; // never hit client
 				}
-				else if (mob->IsPet() && mob->IsPetOwnerClient() && mob->GetOwner() && verify_raid_client_pet(mob)) {
+				else if (mob->IsPet() && mob->IsPetOwnerOfClientBot() && mob->GetOwner() && verify_raid_client_pet(mob)) {
 					casted_on.insert(mob->GetID());
 					if (is_buff) {
 						SpellFinished(spell_id, mob);
 					}
 				}
-				else if (mob->IsNPC() && mob->IsPetOwnerClient()) {
+				else if (mob->IsNPC() && mob->IsPetOwnerOfClientBot()) {
 					auto npc = mob->CastToNPC();
 					if (verify_raid_client_swarm(npc)) {
 						casted_on.insert(mob->GetID());
@@ -499,7 +515,7 @@ void Aura::ProcessOnGroupMembersPets(Mob *owner)
 				}
 			}
 			else { // not on, check if we should be!
-				if (mob->IsClient()) {
+				if (mob->IsOfClientBot()) {
 					continue;
 				}
 				else if (mob->IsPet() && verify_group_pet(mob)) {
@@ -576,7 +592,7 @@ void Aura::ProcessOnGroupMembersPets(Mob *owner)
 
 void Aura::ProcessTotem(Mob *owner)
 {
-	auto          &mob_list = entity_list.GetCloseMobList(this, distance);
+	auto          &mob_list = GetCloseMobList(distance);
 	std::set<int> delayed_remove;
 	bool          is_buff   = IsBuffSpell(spell_id); // non-buff spells don't cast on enter
 
@@ -634,9 +650,7 @@ void Aura::ProcessTotem(Mob *owner)
 
 void Aura::ProcessEnterTrap(Mob *owner)
 {
-	auto &mob_list = entity_list.GetCloseMobList(this, distance);
-
-	for (auto &e : mob_list) {
+	for (auto &e : GetCloseMobList(distance)) {
 		auto mob = e.second;
 		if (!mob) {
 			continue;
@@ -656,9 +670,7 @@ void Aura::ProcessEnterTrap(Mob *owner)
 
 void Aura::ProcessExitTrap(Mob *owner)
 {
-	auto &mob_list = entity_list.GetCloseMobList(this, distance);
-
-	for (auto &e : mob_list) {
+	for (auto &e : GetCloseMobList(distance)) {
 		auto mob = e.second;
 		if (!mob) {
 			continue;
@@ -689,8 +701,7 @@ void Aura::ProcessExitTrap(Mob *owner)
 // and hard to reason about
 void Aura::ProcessSpawns()
 {
-	const auto &clients = entity_list.GetCloseMobList(this, distance);
-	for (auto  &e : clients) {
+	for (auto &e: GetCloseMobList(distance)) {
 		if (!e.second) {
 			continue;
 		}
@@ -700,6 +711,10 @@ void Aura::ProcessSpawns()
 		}
 
 		auto c = e.second->CastToClient();
+
+		if (!c) {
+			continue;
+		}
 
 		bool spawned = spawned_for.find(c->GetID()) != spawned_for.end();
 		if (ShouldISpawnFor(c)) {
@@ -740,21 +755,22 @@ bool Aura::Process()
 
 	if (movement_type == AuraMovement::Follow && GetPosition() != owner->GetPosition() && movement_timer.Check()) {
 		m_Position = owner->GetPosition();
-		auto app = new EQApplicationPacket(OP_ClientUpdate, sizeof(PlayerPositionUpdateServer_Struct));
-		auto spu = (PlayerPositionUpdateServer_Struct *) app->pBuffer;
+
+		static EQApplicationPacket packet(OP_ClientUpdate, sizeof(PlayerPositionUpdateServer_Struct));
+		auto                       spu = (PlayerPositionUpdateServer_Struct *) packet.pBuffer;
+
 		MakeSpawnUpdate(spu);
 		auto it = spawned_for.begin();
 		while (it != spawned_for.end()) {
 			auto client = entity_list.GetClientByID(*it);
 			if (client) {
-				client->QueuePacket(app);
+				client->QueuePacket(&packet);
 				++it;
 			}
 			else {
 				it = spawned_for.erase(it);
 			}
 		}
-		safe_delete(app);
 	}
 	// TODO: waypoints?
 
@@ -805,7 +821,7 @@ bool Aura::ShouldISpawnFor(Client *c)
 		return true;
 	}
 
-	if (owner->IsRaidGrouped() && owner->IsClient()) {
+	if (owner->IsRaidGrouped() && owner->IsOfClientBot()) {
 		auto raid = owner->GetRaid();
 		if (raid == nullptr) {
 			return false;

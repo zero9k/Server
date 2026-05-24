@@ -1,3 +1,20 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
  * DO NOT MODIFY THIS FILE
  *
@@ -6,14 +23,14 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://docs.eqemu.io/developer/repositories
+ * @docs https://docs.eqemu.dev/developer/repositories
  */
 
-#ifndef EQEMU_BASE_DYNAMIC_ZONES_REPOSITORY_H
-#define EQEMU_BASE_DYNAMIC_ZONES_REPOSITORY_H
+#pragma once
 
-#include "../../database.h"
-#include "../../strings.h"
+#include "common/database.h"
+#include "common/strings.h"
+
 #include <ctime>
 
 class BaseDynamicZonesRepository {
@@ -42,6 +59,8 @@ public:
 		float       zone_in_z;
 		float       zone_in_heading;
 		uint8_t     has_zone_in;
+		int8_t      is_locked;
+		int8_t      add_replay;
 	};
 
 	static std::string PrimaryKey()
@@ -75,6 +94,8 @@ public:
 			"zone_in_z",
 			"zone_in_heading",
 			"has_zone_in",
+			"is_locked",
+			"add_replay",
 		};
 	}
 
@@ -104,6 +125,8 @@ public:
 			"zone_in_z",
 			"zone_in_heading",
 			"has_zone_in",
+			"is_locked",
+			"add_replay",
 		};
 	}
 
@@ -167,6 +190,8 @@ public:
 		e.zone_in_z           = 0;
 		e.zone_in_heading     = 0;
 		e.has_zone_in         = 0;
+		e.is_locked           = 0;
+		e.add_replay          = 1;
 
 		return e;
 	}
@@ -226,6 +251,8 @@ public:
 			e.zone_in_z           = row[20] ? strtof(row[20], nullptr) : 0;
 			e.zone_in_heading     = row[21] ? strtof(row[21], nullptr) : 0;
 			e.has_zone_in         = row[22] ? static_cast<uint8_t>(strtoul(row[22], nullptr, 10)) : 0;
+			e.is_locked           = row[23] ? static_cast<int8_t>(atoi(row[23])) : 0;
+			e.add_replay          = row[24] ? static_cast<int8_t>(atoi(row[24])) : 1;
 
 			return e;
 		}
@@ -281,6 +308,8 @@ public:
 		v.push_back(columns[20] + " = " + std::to_string(e.zone_in_z));
 		v.push_back(columns[21] + " = " + std::to_string(e.zone_in_heading));
 		v.push_back(columns[22] + " = " + std::to_string(e.has_zone_in));
+		v.push_back(columns[23] + " = " + std::to_string(e.is_locked));
+		v.push_back(columns[24] + " = " + std::to_string(e.add_replay));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -325,6 +354,8 @@ public:
 		v.push_back(std::to_string(e.zone_in_z));
 		v.push_back(std::to_string(e.zone_in_heading));
 		v.push_back(std::to_string(e.has_zone_in));
+		v.push_back(std::to_string(e.is_locked));
+		v.push_back(std::to_string(e.add_replay));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -377,6 +408,8 @@ public:
 			v.push_back(std::to_string(e.zone_in_z));
 			v.push_back(std::to_string(e.zone_in_heading));
 			v.push_back(std::to_string(e.has_zone_in));
+			v.push_back(std::to_string(e.is_locked));
+			v.push_back(std::to_string(e.add_replay));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -433,6 +466,8 @@ public:
 			e.zone_in_z           = row[20] ? strtof(row[20], nullptr) : 0;
 			e.zone_in_heading     = row[21] ? strtof(row[21], nullptr) : 0;
 			e.has_zone_in         = row[22] ? static_cast<uint8_t>(strtoul(row[22], nullptr, 10)) : 0;
+			e.is_locked           = row[23] ? static_cast<int8_t>(atoi(row[23])) : 0;
+			e.add_replay          = row[24] ? static_cast<int8_t>(atoi(row[24])) : 1;
 
 			all_entries.push_back(e);
 		}
@@ -480,6 +515,8 @@ public:
 			e.zone_in_z           = row[20] ? strtof(row[20], nullptr) : 0;
 			e.zone_in_heading     = row[21] ? strtof(row[21], nullptr) : 0;
 			e.has_zone_in         = row[22] ? static_cast<uint8_t>(strtoul(row[22], nullptr, 10)) : 0;
+			e.is_locked           = row[23] ? static_cast<int8_t>(atoi(row[23])) : 0;
+			e.add_replay          = row[24] ? static_cast<int8_t>(atoi(row[24])) : 1;
 
 			all_entries.push_back(e);
 		}
@@ -577,6 +614,8 @@ public:
 		v.push_back(std::to_string(e.zone_in_z));
 		v.push_back(std::to_string(e.zone_in_heading));
 		v.push_back(std::to_string(e.has_zone_in));
+		v.push_back(std::to_string(e.is_locked));
+		v.push_back(std::to_string(e.add_replay));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -622,6 +661,8 @@ public:
 			v.push_back(std::to_string(e.zone_in_z));
 			v.push_back(std::to_string(e.zone_in_heading));
 			v.push_back(std::to_string(e.has_zone_in));
+			v.push_back(std::to_string(e.is_locked));
+			v.push_back(std::to_string(e.add_replay));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -639,5 +680,3 @@ public:
 		return (results.Success() ? results.RowsAffected() : 0);
 	}
 };
-
-#endif //EQEMU_BASE_DYNAMIC_ZONES_REPOSITORY_H

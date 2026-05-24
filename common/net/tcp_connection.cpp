@@ -1,5 +1,27 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #include "tcp_connection.h"
-#include "../event/event_loop.h"
+
+#include "common/event/event_loop.h"
+
+#include <iostream>
+
+WriteReqPool tcp_write_pool;
 
 void on_close_handle(uv_handle_t* handle) {
 	delete (uv_tcp_t *)handle;
@@ -64,34 +86,37 @@ void EQ::Net::TCPConnection::Connect(const std::string &addr, int port, bool ipv
 	});
 }
 
-void EQ::Net::TCPConnection::Start() {
-	uv_read_start((uv_stream_t*)m_socket, [](uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-		buf->base = new char[suggested_size];
-		buf->len = suggested_size;
-	}, [](uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
+void EQ::Net::TCPConnection::Start()
+{
+	uv_read_start(
+		(uv_stream_t *) m_socket, [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
+			if (suggested_size > 65536) {
+				buf->base = new char[suggested_size];
+				buf->len  = suggested_size;
+				return;
+			}
 
-		TCPConnection *connection = (TCPConnection*)stream->data;
+			static thread_local char temp_buf[65536];
+			buf->base = temp_buf;
+			buf->len  = 65536;
+		}, [](uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
+			auto *connection = (TCPConnection *) stream->data;
 
-		if (nread > 0) {
-			connection->Read(buf->base, nread);
+			if (nread > 0) {
+				connection->Read(buf->base, nread);
+			}
+			else if (nread == UV_EOF) {
+				connection->Disconnect();
+			}
+			else if (nread < 0) {
+				connection->Disconnect();
+			}
 
-			if (buf->base) {
-				delete[] buf->base;
+			if (buf->len > 65536) {
+				delete [] buf->base;
 			}
 		}
-		else if (nread == UV_EOF) {
-			if (buf->base) {
-				delete[] buf->base;
-			}
-		}
-		else if (nread < 0) {
-			connection->Disconnect();
-
-			if (buf->base) {
-				delete[] buf->base;
-			}
-		}
-	});
+	);
 }
 
 void EQ::Net::TCPConnection::OnRead(std::function<void(TCPConnection*, const unsigned char*, size_t)> cb)
@@ -128,42 +153,91 @@ void EQ::Net::TCPConnection::Read(const char *data, size_t count)
 	}
 }
 
-void EQ::Net::TCPConnection::Write(const char *data, size_t count)
-{
-	if (!m_socket) {
+void EQ::Net::TCPConnection::Write(const char* data, size_t count) {
+	if (!m_socket || !data || count == 0) {
+		std::cerr << "TCPConnection::Write - Invalid socket or data\n";
 		return;
 	}
 
-	struct WriteBaton
-	{
-		TCPConnection *connection;
-		char *buffer;
-	};
-
-	WriteBaton *baton = new WriteBaton;
-	baton->connection = this;
-	baton->buffer = new char[count];
-
-	uv_write_t *write_req = new uv_write_t;
-	memset(write_req, 0, sizeof(uv_write_t));
-	write_req->data = baton;
-	uv_buf_t send_buffers[1];
-
-	memcpy(baton->buffer, data, count);
-	send_buffers[0] = uv_buf_init(baton->buffer, count);
-
-	uv_write(write_req, (uv_stream_t*)m_socket, send_buffers, 1, [](uv_write_t* req, int status) {
-		WriteBaton *baton = (WriteBaton*)req->data;
-		delete[] baton->buffer;
-		delete req;
-
-		if (status < 0) {
-			baton->connection->Disconnect();
+	if (count <= TCP_BUFFER_SIZE) {
+		// Fast path: use pooled request with embedded buffer
+		auto req_opt = tcp_write_pool.acquire();
+		if (!req_opt) {
+			std::cerr << "TCPConnection::Write - Out of write requests\n";
+			return;
 		}
 
-		delete baton;
-	});
+		TCPWriteReq* write_req = *req_opt;
+
+		// Fill buffer and set context
+		memcpy(write_req->buffer.data(), data, count);
+		write_req->connection = this;
+		write_req->magic = 0xC0FFEE;
+
+		uv_buf_t buf = uv_buf_init(write_req->buffer.data(), static_cast<unsigned int>(count));
+
+		int result = uv_write(
+			&write_req->req,
+			reinterpret_cast<uv_stream_t*>(m_socket),
+			&buf,
+			1,
+			[](uv_write_t* req, int status) {
+				auto* full_req = reinterpret_cast<TCPWriteReq*>(req);
+				if (full_req->magic != 0xC0FFEE) {
+					std::cerr << "uv_write callback - invalid magic, skipping release\n";
+					return;
+				}
+
+				tcp_write_pool.release(full_req);
+
+				if (status < 0 && full_req->connection) {
+					std::cerr << "uv_write failed: " << uv_strerror(status) << std::endl;
+					full_req->connection->Disconnect();
+				}
+			}
+		);
+
+		if (result < 0) {
+			std::cerr << "uv_write() failed immediately: " << uv_strerror(result) << std::endl;
+			tcp_write_pool.release(write_req);
+		}
+
+	} else {
+		// Slow path: allocate heap buffer for large write
+		LogNetTCP("[TCPConnection] Large write of [{}] bytes, using heap buffer", count);
+
+		char* heap_buffer = new char[count];
+		memcpy(heap_buffer, data, count);
+
+		uv_write_t* write_req = new uv_write_t;
+		write_req->data = heap_buffer;
+
+		uv_buf_t buf = uv_buf_init(heap_buffer, static_cast<unsigned int>(count));
+
+		int result = uv_write(
+			write_req,
+			reinterpret_cast<uv_stream_t*>(m_socket),
+			&buf,
+			1,
+			[](uv_write_t* req, int status) {
+				char* data = static_cast<char*>(req->data);
+				delete[] data;
+				delete req;
+
+				if (status < 0) {
+					std::cerr << "uv_write (large) failed: " << uv_strerror(status) << std::endl;
+				}
+			}
+		);
+
+		if (result < 0) {
+			std::cerr << "uv_write() (large) failed immediately: " << uv_strerror(result) << std::endl;
+			delete[] heap_buffer;
+			delete write_req;
+		}
+	}
 }
+
 
 std::string EQ::Net::TCPConnection::LocalIP() const
 {

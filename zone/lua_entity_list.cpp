@@ -1,21 +1,39 @@
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 #ifdef LUA_EQEMU
 
-#include <luabind/luabind.hpp>
-#include <luabind/iterator_policy.hpp>
-
-#include "masterentity.h"
 #include "lua_entity_list.h"
-#include "lua_mob.h"
-#include "lua_client.h"
-#include "lua_npc.h"
-#include "lua_object.h"
-#include "lua_door.h"
-#include "lua_corpse.h"
-#include "lua_group.h"
-#include "lua_raid.h"
-#include "lua_spawn.h"
 
-#include "lua_bot.h"
+#include "zone/lua_bot.h"
+#include "zone/lua_client.h"
+#include "zone/lua_corpse.h"
+#include "zone/lua_door.h"
+#include "zone/lua_group.h"
+#include "zone/lua_merc.h"
+#include "zone/lua_mob.h"
+#include "zone/lua_npc.h"
+#include "zone/lua_object.h"
+#include "zone/lua_raid.h"
+#include "zone/lua_spawn.h"
+#include "zone/masterentity.h"
+
+#include "luabind/luabind.hpp"
+#include "luabind/iterator_policy.hpp"
 
 struct Lua_Mob_List {
 	std::vector<Lua_Mob> entries;
@@ -381,12 +399,13 @@ Lua_Bot Lua_EntityList::GetBotByName(std::string bot_name) {
 Lua_Bot_List Lua_EntityList::GetBotList() {
 	Lua_Safe_Call_Class(Lua_Bot_List);
 	Lua_Bot_List ret;
-	auto &bot_list = self->GetBotList();
 
-	if (bot_list.size()) {
-		for (auto bot : bot_list) {
-			ret.entries.emplace_back(Lua_Bot(bot));
-		}
+	auto &current_bot_list = self->GetBotList();
+	auto it = current_bot_list.begin();
+
+	while (it != current_bot_list.end()) {
+		ret.entries.emplace_back(it->second);
+		++it;
 	}
 
 	return ret;
@@ -680,11 +699,167 @@ Lua_Mob_List Lua_EntityList::GetCloseMobList(Lua_Mob mob, float distance, bool i
 	return ret;
 }
 
+void Lua_EntityList::AreaAttack(Lua_Mob attacker, float distance)
+{
+	Lua_Safe_Call_Void();
+	self->AEAttack(attacker, distance);
+}
+
+void Lua_EntityList::AreaAttack(Lua_Mob attacker, float distance, int16 slot_id)
+{
+	Lua_Safe_Call_Void();
+	self->AEAttack(attacker, distance, slot_id);
+}
+
+void Lua_EntityList::AreaAttack(Lua_Mob attacker, float distance, int16 slot_id, int count)
+{
+	Lua_Safe_Call_Void();
+	self->AEAttack(attacker, distance, slot_id, count);
+}
+
+void Lua_EntityList::AreaAttack(Lua_Mob attacker, float distance, int16 slot_id, int count, bool is_from_spell)
+{
+	Lua_Safe_Call_Void();
+	self->AEAttack(attacker, distance, slot_id, count, is_from_spell);
+}
+
+void Lua_EntityList::AreaAttack(Lua_Mob attacker, float distance, int16 slot_id, int count, bool is_from_spell, int attack_rounds)
+{
+	Lua_Safe_Call_Void();
+	self->AEAttack(attacker, distance, slot_id, count, is_from_spell, attack_rounds);
+}
+
+void Lua_EntityList::AreaSpell(Lua_Mob caster, Lua_Mob center, uint16 spell_id)
+{
+	Lua_Safe_Call_Void();
+	self->AESpell(caster, center, spell_id);
+}
+
+void Lua_EntityList::AreaSpell(Lua_Mob caster, Lua_Mob center, uint16 spell_id, bool affect_caster)
+{
+	Lua_Safe_Call_Void();
+	self->AESpell(caster, center, spell_id, affect_caster);
+}
+
+void Lua_EntityList::AreaSpell(Lua_Mob caster, Lua_Mob center, uint16 spell_id, bool affect_caster, int16 resist_adjust)
+{
+	Lua_Safe_Call_Void();
+	self->AESpell(caster, center, spell_id, affect_caster, resist_adjust);
+}
+
+void Lua_EntityList::AreaSpell(Lua_Mob caster, Lua_Mob center, uint16 spell_id, bool affect_caster, int16 resist_adjust, int max_targets)
+{
+	Lua_Safe_Call_Void();
+	self->AESpell(caster, center, spell_id, affect_caster, resist_adjust, &max_targets);
+}
+
+void Lua_EntityList::AreaTaunt(Lua_Client caster)
+{
+	Lua_Safe_Call_Void();
+	self->AETaunt(caster);
+}
+
+void Lua_EntityList::AreaTaunt(Lua_Client caster, float range)
+{
+	Lua_Safe_Call_Void();
+	self->AETaunt(caster, range);
+}
+
+void Lua_EntityList::AreaTaunt(Lua_Client caster, float range, int bonus_hate)
+{
+	Lua_Safe_Call_Void();
+	self->AETaunt(caster, range, bonus_hate);
+}
+
+void Lua_EntityList::MassGroupBuff(Lua_Mob caster, Lua_Mob center, uint16 spell_id)
+{
+	Lua_Safe_Call_Void();
+	self->MassGroupBuff(caster, center, spell_id);
+}
+
+void Lua_EntityList::MassGroupBuff(Lua_Mob caster, Lua_Mob center, uint16 spell_id, bool affect_caster)
+{
+	Lua_Safe_Call_Void();
+	self->MassGroupBuff(caster, center, spell_id, affect_caster);
+}
+
+Lua_NPC_List Lua_EntityList::GetNPCsByExcludedIDs(luabind::adl::object table)
+{
+	Lua_Safe_Call_Class(Lua_NPC_List);
+	Lua_NPC_List ret;
+
+	if (luabind::type(table) != LUA_TTABLE) {
+		return ret;
+	}
+
+	if (d_) {
+		auto self = reinterpret_cast<NativeType*>(d_);
+
+		std::vector<uint32> ids;
+
+		int index = 1;
+		while (luabind::type(table[index]) != LUA_TNIL) {
+			ids.emplace_back(luabind::object_cast<uint32>(table[index]));
+			index++;
+		}
+
+		const auto& l = self->GetExcludedNPCsByIDs(ids);
+
+		for (const auto& e : l) {
+			ret.entries.emplace_back(Lua_NPC(e));
+		}
+	}
+
+	return ret;
+}
+
+Lua_NPC_List Lua_EntityList::GetNPCsByIDs(luabind::adl::object table)
+{
+	Lua_Safe_Call_Class(Lua_NPC_List);
+	Lua_NPC_List ret;
+
+	if (luabind::type(table) != LUA_TTABLE) {
+		return ret;
+	}
+
+	if (d_) {
+		auto self = reinterpret_cast<NativeType*>(d_);
+
+		std::vector<uint32> ids;
+
+		int index = 1;
+		while (luabind::type(table[index]) != LUA_TNIL) {
+			ids.emplace_back(luabind::object_cast<uint32>(table[index]));
+			index++;
+		}
+
+		const auto& l = self->GetNPCsByIDs(ids);
+
+		for (const auto& e : l) {
+			ret.entries.emplace_back(Lua_NPC(e));
+		}
+	}
+
+	return ret;
+}
+
 luabind::scope lua_register_entity_list() {
 	return luabind::class_<Lua_EntityList>("EntityList")
 	.def(luabind::constructor<>())
 	.property("null", &Lua_EntityList::Null)
 	.property("valid", &Lua_EntityList::Valid)
+	.def("AreaAttack", (void(Lua_EntityList::*)(Lua_Mob, float))&Lua_EntityList::AreaAttack)
+	.def("AreaAttack", (void(Lua_EntityList::*)(Lua_Mob, float, int16))&Lua_EntityList::AreaAttack)
+	.def("AreaAttack", (void(Lua_EntityList::*)(Lua_Mob, float, int16, int))&Lua_EntityList::AreaAttack)
+	.def("AreaAttack", (void(Lua_EntityList::*)(Lua_Mob, float, int16, int, bool))&Lua_EntityList::AreaAttack)
+	.def("AreaAttack", (void(Lua_EntityList::*)(Lua_Mob, float, int16, int, bool, int))&Lua_EntityList::AreaAttack)
+	.def("AreaSpell", (void(Lua_EntityList::*)(Lua_Mob, Lua_Mob, uint16))&Lua_EntityList::AreaSpell)
+	.def("AreaSpell", (void(Lua_EntityList::*)(Lua_Mob, Lua_Mob, uint16, bool))&Lua_EntityList::AreaSpell)
+	.def("AreaSpell", (void(Lua_EntityList::*)(Lua_Mob, Lua_Mob, uint16, bool, int16))&Lua_EntityList::AreaSpell)
+	.def("AreaSpell", (void(Lua_EntityList::*)(Lua_Mob, Lua_Mob, uint16, bool, int16, int))&Lua_EntityList::AreaSpell)
+	.def("AreaTaunt", (void(Lua_EntityList::*)(Lua_Client))&Lua_EntityList::AreaTaunt)
+	.def("AreaTaunt", (void(Lua_EntityList::*)(Lua_Client, float))&Lua_EntityList::AreaTaunt)
+	.def("AreaTaunt", (void(Lua_EntityList::*)(Lua_Client, float, int))&Lua_EntityList::AreaTaunt)
 	.def("CanAddHateForMob", (bool(Lua_EntityList::*)(Lua_Mob))&Lua_EntityList::CanAddHateForMob)
 	.def("ChannelMessage", (void(Lua_EntityList::*)(Lua_Mob, int, uint8, const char*))&Lua_EntityList::ChannelMessage)
 	.def("ClearClientPetitionQueue", (void(Lua_EntityList::*)(void))&Lua_EntityList::ClearClientPetitionQueue)
@@ -733,6 +908,8 @@ luabind::scope lua_register_entity_list() {
 	.def("GetNPCByNPCTypeID", (Lua_NPC(Lua_EntityList::*)(int))&Lua_EntityList::GetNPCByNPCTypeID)
 	.def("GetNPCBySpawnID", (Lua_NPC(Lua_EntityList::*)(int))&Lua_EntityList::GetNPCBySpawnID)
 	.def("GetNPCList", (Lua_NPC_List(Lua_EntityList::*)(void))&Lua_EntityList::GetNPCList)
+	.def("GetNPCsByExcludedIDs", (Lua_NPC_List(Lua_EntityList::*)(luabind::adl::object))&Lua_EntityList::GetNPCsByExcludedIDs)
+	.def("GetNPCsByIDs", (Lua_NPC_List(Lua_EntityList::*)(luabind::adl::object))&Lua_EntityList::GetNPCsByIDs)
 	.def("GetObjectByDBID", (Lua_Object(Lua_EntityList::*)(uint32))&Lua_EntityList::GetObjectByDBID)
 	.def("GetObjectByID", (Lua_Object(Lua_EntityList::*)(int))&Lua_EntityList::GetObjectByID)
 	.def("GetObjectList", (Lua_Object_List(Lua_EntityList::*)(void))&Lua_EntityList::GetObjectList)
@@ -759,6 +936,8 @@ luabind::scope lua_register_entity_list() {
 	.def("Marquee", (void(Lua_EntityList::*)(uint32, std::string))&Lua_EntityList::Marquee)
 	.def("Marquee", (void(Lua_EntityList::*)(uint32, std::string, uint32))&Lua_EntityList::Marquee)
 	.def("Marquee", (void(Lua_EntityList::*)(uint32, uint32, uint32, uint32, uint32, std::string))&Lua_EntityList::Marquee)
+	.def("MassGroupBuff", (void(Lua_EntityList::*)(Lua_Mob, Lua_Mob, uint16))&Lua_EntityList::MassGroupBuff)
+	.def("MassGroupBuff", (void(Lua_EntityList::*)(Lua_Mob, Lua_Mob, uint16, bool))&Lua_EntityList::MassGroupBuff)
 	.def("Message", (void(Lua_EntityList::*)(uint32, uint32, const char*))&Lua_EntityList::Message)
 	.def("MessageClose", (void(Lua_EntityList::*)(Lua_Mob, bool, float, uint32, const char*))&Lua_EntityList::MessageClose)
 	.def("MessageGroup", (void(Lua_EntityList::*)(Lua_Mob, bool, uint32, const char*))&Lua_EntityList::MessageGroup)

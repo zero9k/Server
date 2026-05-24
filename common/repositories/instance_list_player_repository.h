@@ -1,9 +1,27 @@
-#ifndef EQEMU_INSTANCE_LIST_PLAYER_REPOSITORY_H
-#define EQEMU_INSTANCE_LIST_PLAYER_REPOSITORY_H
+/*	EQEmu: EQEmulator
 
-#include "../database.h"
-#include "../strings.h"
-#include "base/base_instance_list_player_repository.h"
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
+#include "common/repositories/base/base_instance_list_player_repository.h"
+
+#include "common/database.h"
+#include "common/strings.h"
+#include "fmt/ranges.h"
 
 class InstanceListPlayerRepository: public BaseInstanceListPlayerRepository {
 public:
@@ -45,33 +63,26 @@ public:
 
 	// Custom extended repository methods here
 
-	static int InsertOrUpdateMany(Database& db,
-		const std::vector<InstanceListPlayer>& instance_list_player_entries)
+	static uint32_t InsertOrUpdateMany(Database& db, const std::vector<InstanceListPlayer>& entries)
 	{
-		std::vector<std::string> insert_chunks;
-
-		for (auto &instance_list_player_entry: instance_list_player_entries)
+		if (entries.empty())
 		{
-			std::vector<std::string> insert_values;
-
-			insert_values.push_back(std::to_string(instance_list_player_entry.id));
-			insert_values.push_back(std::to_string(instance_list_player_entry.charid));
-
-			insert_chunks.push_back("(" + Strings::Implode(",", insert_values) + ")");
+			return 0;
 		}
 
-		std::vector<std::string> insert_values;
+		std::vector<std::string> values;
+		values.reserve(entries.size());
 
-		auto results = db.QueryDatabase(
-			fmt::format(
-				"INSERT INTO {} ({}) VALUES {} ON DUPLICATE KEY UPDATE id = VALUES(id)",
-				TableName(),
-				ColumnsRaw(),
-				Strings::Implode(",", insert_chunks)
-			)
-		);
+		for (const auto& entry : entries)
+		{
+			values.push_back(fmt::format("({},{})", entry.id, entry.charid));
+		}
 
-		return (results.Success() ? results.RowsAffected() : 0);
+		auto results = db.QueryDatabase(fmt::format(
+			"INSERT INTO {} ({}) VALUES {} ON DUPLICATE KEY UPDATE id = VALUES(id)",
+			TableName(), ColumnsRaw(), fmt::join(values, ",")));
+
+		return results.Success() ? results.RowsAffected() : 0;
 	}
 
 	static bool ReplaceOne(Database& db, InstanceListPlayer e)
@@ -95,5 +106,3 @@ public:
 		return false;
 	}
 };
-
-#endif //EQEMU_INSTANCE_LIST_PLAYER_REPOSITORY_H

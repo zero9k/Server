@@ -1,77 +1,68 @@
-/**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2020 EQEmulator Development Team (https://github.com/EQEmu/Server)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- */
+/*	EQEmu: EQEmulator
 
-#define DONT_SHARED_OPCODES
-#define PLATFORM_ZONE 1
+	Copyright (C) 2001-2026 EQEmu Development Team
 
-#include "../common/global_define.h"
-#include "../common/timer.h"
-#include "../common/eq_packet_structs.h"
-#include "../common/mutex.h"
-#include "../common/opcodemgr.h"
-#include "../common/guilds.h"
-#include "../common/eq_stream_ident.h"
-#include "../common/patches/patches.h"
-#include "../common/rulesys.h"
-#include "../common/profanity_manager.h"
-#include "../common/strings.h"
-#include "../common/crash.h"
-#include "../common/memory_mapped_file.h"
-#include "../common/spdat.h"
-#include "../common/eqemu_logsys.h"
-#include "../common/misc.h"
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-#include "api_service.h"
-#include "zone_config.h"
-#include "masterentity.h"
-#include "worldserver.h"
-#include "zone.h"
-#include "queryserv.h"
-#include "command.h"
-#include "bot_command.h"
-#include "zonedb.h"
-#include "titles.h"
-#include "guild_mgr.h"
-#include "task_manager.h"
-#include "quest_parser_collection.h"
-#include "embparser.h"
-#include "lua_parser.h"
-#include "questmgr.h"
-#include "npc_scale_manager.h"
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
 
-#include "../common/net/eqstream.h"
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#include "common/crash.h"
+#include "common/database/database_update.h"
+#include "common/eq_packet_structs.h"
+#include "common/eq_stream_ident.h"
+#include "common/eqemu_logsys.h"
+#include "common/events/player_event_logs.h"
+#include "common/evolving_items.h"
+#include "common/file.h"
+#include "common/guilds.h"
+#include "common/memory_mapped_file.h"
+#include "common/misc.h"
+#include "common/net/eqstream.h"
+#include "common/opcodemgr.h"
+#include "common/patches/patches.h"
+#include "common/path_manager.h"
+#include "common/platform/posix/include_pthreads.h"
+#include "common/profanity_manager.h"
+#include "common/rulesys.h"
+#include "common/skill_caps.h"
+#include "common/spdat.h"
+#include "common/strings.h"
+#include "common/timer.h"
+#include "zone/api_service.h"
+#include "zone/bot_command.h"
+#include "zone/command.h"
+#include "zone/embparser.h"
+#include "zone/guild_mgr.h"
+#include "zone/lua_parser.h"
+#include "zone/masterentity.h"
+#include "zone/npc_scale_manager.h"
+#include "zone/queryserv.h"
+#include "zone/quest_parser_collection.h"
+#include "zone/questmgr.h"
+#include "zone/task_manager.h"
+#include "zone/titles.h"
+#include "zone/worldserver.h"
+#include "zone/zone_cli.h"
+#include "zone/zone_config.h"
+#include "zone/zone_event_scheduler.h"
+#include "zone/zone.h"
+#include "zone/zonedb.h"
 
-#include <signal.h>
 #include <chrono>
+#include <csignal>
 
 #ifdef _CRTDBG_MAP_ALLOC
 #undef new
 #define new new(_NORMAL_BLOCK, __FILE__, __LINE__)
-#endif
-
-#ifdef _WINDOWS
-#else
-
-#include <pthread.h>
-#include "../common/unix.h"
-
 #endif
 
 volatile bool RunLoops = true;
@@ -81,18 +72,8 @@ volatile bool RunLoops = true;
 
 extern volatile bool is_zone_loaded;
 
-#include "zone_event_scheduler.h"
-#include "../common/file.h"
-#include "../common/events/player_event_logs.h"
-#include "../common/path_manager.h"
-#include "../common/database/database_update.h"
-#include "../common/skill_caps.h"
-#include "zone_event_scheduler.h"
-#include "zone_cli.h"
-
 EntityList  entity_list;
 WorldServer worldserver;
-ZoneStore   zone_store;
 uint32      numclients = 0;
 char        errorname[32];
 extern Zone *zone;
@@ -100,16 +81,8 @@ extern Zone *zone;
 npcDecayTimes_Struct  npcCorpseDecayTimes[100];
 TitleManager          title_manager;
 QueryServ             *QServ        = 0;
-TaskManager           *task_manager = 0;
 NpcScaleManager       *npc_scale_manager;
 QuestParserCollection *parse        = 0;
-EQEmuLogSys           LogSys;
-ZoneEventScheduler    event_scheduler;
-WorldContentService   content_service;
-PathManager           path;
-PlayerEventLogs       player_event_logs;
-DatabaseUpdate        database_update;
-SkillCaps             skill_caps;
 
 const SPDat_Spell_Struct* spells;
 int32 SPDAT_RECORDS = -1;
@@ -122,19 +95,20 @@ void CatchSignal(int sig_num);
 
 extern void MapOpcodes();
 
+bool CheckForCompatibleQuestPlugins();
 int main(int argc, char **argv)
 {
 	RegisterExecutablePlatform(ExePlatformZone);
-	LogSys.LoadLogSettingsDefaults();
+	EQEmuLogSys::Instance()->LoadLogSettingsDefaults();
 
 	set_exception_handler();
 
 	// silence logging if we ran a command
-	if (ZoneCLI::RanConsoleCommand(argc, argv)) {
-		LogSys.SilenceConsoleLogging();
+	if (ZoneCLI::RanConsoleCommand(argc, argv) || ZoneCLI::RanTestCommand(argc, argv)) {
+		EQEmuLogSys::Instance()->SilenceConsoleLogging();
 	}
 
-	path.LoadPaths();
+	PathManager::Instance()->Init();
 
 #ifdef USE_MAP_MMFS
 	if (argc == 3 && strcasecmp(argv[1], "convert_map") == 0) {
@@ -241,8 +215,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	auto mutex = new Mutex;
-
 	LogInfo("Connecting to MySQL");
 	if (!database.Connect(
 		Config->DatabaseHost.c_str(),
@@ -270,11 +242,13 @@ int main(int argc, char **argv)
 		}
 	} else {
 		content_db.SetMySQL(database);
+
 		// when database and content_db share the same underlying mysql connection
 		// it needs to be protected by a shared mutex otherwise we produce concurrency issues
 		// when database actions are occurring in different threads
-		database.SetMutex(mutex);
-		content_db.SetMutex(mutex);
+		std::shared_ptr<DBcore::Mutex> sharedMutex = std::make_shared<DBcore::Mutex>();
+		database.SetMutex(sharedMutex);
+		content_db.SetMutex(sharedMutex);
 	}
 
 	//rules:
@@ -295,25 +269,29 @@ int main(int argc, char **argv)
 		EQ::InitializeDynamicLookups();
 	}
 
-	// command handler
-	if (ZoneCLI::RanConsoleCommand(argc, argv) && !ZoneCLI::RanSidecarCommand(argc, argv)) {
-		LogSys.EnableConsoleLogging();
+	// command handler (no sidecar or test commands)
+	if (ZoneCLI::RanConsoleCommand(argc, argv) && !(ZoneCLI::RanSidecarCommand(argc, argv) || ZoneCLI::RanTestCommand(argc, argv))) {
+		EQEmuLogSys::Instance()->EnableConsoleLogging();
 		ZoneCLI::CommandHandler(argc, argv);
 	}
 
-	LogSys.SetDatabase(&database)
-		->SetLogPath(path.GetLogPath())
-		->LoadLogDatabaseSettings()
+	EQEmuLogSys::Instance()->SetDatabase(&database)
+		->SetLogPath(PathManager::Instance()->GetLogPath())
+		->LoadLogDatabaseSettings(ZoneCLI::RanTestCommand(argc, argv))
 		->SetGMSayHandler(&Zone::GMSayHookCallBackProcess)
 		->StartFileLogs();
 
-	player_event_logs.SetDatabase(&database)->Init();
+	if (ZoneCLI::RanTestCommand(argc, argv)) {
+		EQEmuLogSys::Instance()->SilenceConsoleLogging();
+	}
 
-	skill_caps.SetContentDatabase(&content_db)->LoadSkillCaps();
+	PlayerEventLogs::Instance()->SetDatabase(&database)->Init();
+
+	SkillCaps::Instance()->SetContentDatabase(&content_db)->LoadSkillCaps();
 
 	const auto c = EQEmuConfig::get();
 	if (c->auto_database_updates) {
-		if (database_update.SetDatabase(&database)->HasPendingUpdates()) {
+		if (DatabaseUpdate::Instance()->SetDatabase(&database)->HasPendingUpdates()) {
 			LogWarning("Database is not up to date [world] needs to be ran to apply updates, shutting down in 5 seconds");
 			std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 			LogInfo("Exiting due to pending database updates");
@@ -360,10 +338,15 @@ int main(int argc, char **argv)
 		}
 	}
 
-	zone_store.LoadZones(content_db);
+	ZoneStore::Instance()->LoadZones(content_db);
 
-	if (zone_store.GetZones().empty()) {
+	if (ZoneStore::Instance()->GetZones().empty()) {
 		LogError("Failed to load zones data, check your schema for possible errors");
+		return 1;
+	}
+
+	if (!CheckForCompatibleQuestPlugins()) {
+		LogError("Incompatible quest plugins detected, please update your plugins to the latest version");
 		return 1;
 	}
 
@@ -387,6 +370,11 @@ int main(int argc, char **argv)
 	title_manager.LoadTitles();
 	content_db.LoadTributes();
 
+	// Load evolving item data
+	EvolvingItemsManager::Instance()->SetDatabase(&database);
+	EvolvingItemsManager::Instance()->SetContentDatabase(&content_db);
+	EvolvingItemsManager::Instance()->LoadEvolvingItems();
+
 	database.GetDecayTimes(npcCorpseDecayTimes);
 
 	if (!EQ::ProfanityManager::LoadProfanityList(&database)) {
@@ -401,12 +389,12 @@ int main(int argc, char **argv)
 		LogInfo("Loaded [{}] commands loaded", Strings::Commify(std::to_string(retval)));
 	}
 
-	content_service.SetDatabase(&database)
+	WorldContentService::Instance()->SetDatabase(&database)
 		->SetContentDatabase(&content_db)
 		->SetExpansionContext()
 		->ReloadContentFlags();
 
-	event_scheduler.SetDatabase(&database)->LoadScheduledEvents();
+	ZoneEventScheduler::Instance()->SetDatabase(&database)->LoadScheduledEvents();
 
 	EQ::SayLinkEngine::LoadCachedSaylinks();
 
@@ -433,8 +421,7 @@ int main(int argc, char **argv)
 	npc_scale_manager->LoadScaleData();
 
 	if (RuleB(TaskSystem, EnableTaskSystem)) {
-		task_manager = new TaskManager;
-		task_manager->LoadTasks();
+		TaskManager::Instance()->LoadTasks();
 	}
 
 	parse = new QuestParserCollection();
@@ -446,6 +433,21 @@ int main(int argc, char **argv)
 	auto perl_parser = new PerlembParser();
 	parse->RegisterQuestInterface(perl_parser, "pl");
 
+#ifdef __linux__
+	std::string current_version = CURRENT_VERSION;
+	// running release binaries
+	if (!Strings::Contains(current_version, "-dev")) {
+		if (!fs::exists("/opt/eqemu-perl")) {
+			LogError("You are running release binaries without having the required eqemu version of perl compiled and installed on this system present at /opt/eqemu-perl");
+			LogError("If you are running an old Linux install, you need to install the required perl version from the eqemu-perl");
+			LogError("Instructions can be referenced at https://github.com/Akkadius/akk-stack/blob/master/containers/eqemu-server/Dockerfile#L92-L106");
+			LogError("Press any key to continue");
+			getchar();
+			return 0;
+		}
+	}
+#endif
+
 	/* Load Perl Event Export Settings */
 	parse->LoadPerlEventExportSettings(parse->perl_event_export_settings);
 
@@ -455,15 +457,22 @@ int main(int argc, char **argv)
 	LogInfo("Loading quests");
 	parse->ReloadQuests();
 
+	QServ->CheckForConnectState();
+
 	worldserver.Connect();
-	worldserver.SetScheduler(&event_scheduler);
+	worldserver.SetScheduler(ZoneEventScheduler::Instance());
 
 	// sidecar command handler
-	if (ZoneCLI::RanConsoleCommand(argc, argv) && ZoneCLI::RanSidecarCommand(argc, argv)) {
+	if (ZoneCLI::RanConsoleCommand(argc, argv)
+		&& (ZoneCLI::RanSidecarCommand(argc, argv) || ZoneCLI::RanTestCommand(argc, argv))) {
+		EQEmuLogSys::Instance()->EnableConsoleLogging();
 		ZoneCLI::CommandHandler(argc, argv);
 	}
 
 	Timer InterserverTimer(INTERSERVER_TIMER); // does MySQL pings and auto-reconnect
+	Timer UpdateWhoTimer(RuleI(Zone, UpdateWhoTimer) * 1000); // updates who list every 2 minutes
+	Timer WorldserverProcess(1000);
+
 #ifdef EQPROFILE
 #ifdef PROFILE_DUMP_TIME
 	Timer profile_dump_timer(PROFILE_DUMP_TIME * 1000);
@@ -528,11 +537,11 @@ int main(int argc, char **argv)
 			LogInfo("Starting EQ Network server on port [{}]", Config->ZonePort);
 
 			EQStreamManagerInterfaceOptions opts(Config->ZonePort, false, RuleB(Network, CompressZoneStream));
-			opts.daybreak_options.resend_delay_ms     = RuleI(Network, ResendDelayBaseMS);
-			opts.daybreak_options.resend_delay_factor = RuleR(Network, ResendDelayFactor);
-			opts.daybreak_options.resend_delay_min    = RuleI(Network, ResendDelayMinMS);
-			opts.daybreak_options.resend_delay_max    = RuleI(Network, ResendDelayMaxMS);
-			opts.daybreak_options.outgoing_data_rate  = RuleR(Network, ClientDataRate);
+			opts.reliable_stream_options.resend_delay_ms     = RuleI(Network, ResendDelayBaseMS);
+			opts.reliable_stream_options.resend_delay_factor = RuleR(Network, ResendDelayFactor);
+			opts.reliable_stream_options.resend_delay_min    = RuleI(Network, ResendDelayMinMS);
+			opts.reliable_stream_options.resend_delay_max    = RuleI(Network, ResendDelayMaxMS);
+			opts.reliable_stream_options.outgoing_data_rate  = RuleR(Network, ClientDataRate);
 			eqsm      = std::make_unique<EQ::Net::EQStreamManager>(opts);
 			eqsf_open = true;
 
@@ -579,6 +588,10 @@ int main(int argc, char **argv)
 			}
 		}
 
+		if (WorldserverProcess.Check()) {
+			worldserver.Process();
+		}
+
 		if (is_zone_loaded) {
 			{
 				entity_list.GroupProcess();
@@ -591,26 +604,31 @@ int main(int argc, char **argv)
 				entity_list.MobProcess();
 				entity_list.BeaconProcess();
 				entity_list.EncounterProcess();
-				event_scheduler.Process(zone, &content_service);
+
+				ZoneEventScheduler::Instance()->Process(zone, WorldContentService::Instance());
 
 				if (zone) {
 					if (!zone->Process()) {
-						Zone::Shutdown();
+						zone->Shutdown();
 					}
 				}
 
 				if (quest_timers.Check()) {
 					quest_manager.Process();
 				}
-
 			}
 		}
+
+		QServ->CheckForConnectState();
 
 		if (InterserverTimer.Check()) {
 			InterserverTimer.Start();
 			database.ping();
 			content_db.ping();
-			entity_list.UpdateWho();
+			if (UpdateWhoTimer.Check()) {
+				UpdateWhoTimer.SetTimer(RuleI(Zone, UpdateWhoTimer) * 1000); // in-case it was changed
+				entity_list.UpdateWho();
+			}
 		}
 	};
 
@@ -631,27 +649,27 @@ int main(int argc, char **argv)
 	safe_delete(Config);
 
 	if (zone != 0) {
-		Zone::Shutdown(true);
+		zone->SetSaveZoneState(false);
+		zone->Shutdown(true);
 	}
 	//Fix for Linux world server problem.
-	safe_delete(task_manager);
 	safe_delete(npc_scale_manager);
 	command_deinit();
 	bot_command_deinit();
 	safe_delete(parse);
 	LogInfo("Proper zone shutdown complete.");
-	LogSys.CloseFileLogs();
+	EQEmuLogSys::Instance()->CloseFileLogs();
 
-	safe_delete(mutex);
+	safe_delete(QServ);
 
 	return 0;
 }
 
 void Shutdown()
 {
-	Zone::Shutdown(true);
+	zone->Shutdown(true);
 	LogInfo("Shutting down...");
-	LogSys.CloseFileLogs();
+	EQEmuLogSys::Instance()->CloseFileLogs();
 	EQ::EventLoop::Get().Shutdown();
 }
 
@@ -689,4 +707,52 @@ void UpdateWindowTitle(char *iNewTitle)
 	}
 	SetConsoleTitle(tmp);
 #endif
+}
+
+bool CheckForCompatibleQuestPlugins()
+{
+	const std::vector<std::pair<std::string, bool *>> directories = {
+		{"lua_modules", nullptr},
+		{"plugins",     nullptr}
+	};
+
+	bool lua_found  = false;
+	bool perl_found = false;
+
+	try {
+		for (const auto &[directory, flag]: directories) {
+			std::string dir_path = PathManager::Instance()->GetServerPath() + "/" + directory;
+			if (!File::Exists(dir_path)) { continue; }
+
+			for (const auto &file: fs::directory_iterator(dir_path)) {
+				if (!file.is_regular_file()) { continue; }
+
+				std::string file_path = file.path().string();
+				if (!File::Exists(file_path)) { continue; }
+
+				auto r = File::GetContents(file_path);
+				if (!Strings::Contains(r.contents, "CheckHandin")) { continue; }
+
+				if (directory == "lua_modules") {
+					lua_found = true;
+				}
+				else {
+					perl_found = true;
+				}
+
+				if (lua_found && perl_found) { return true; }
+			}
+		}
+	} catch (const fs::filesystem_error &ex) {
+		LogError("Failed to check for compatible quest plugins: {}", ex.what());
+	}
+
+	if (!lua_found) {
+		LogError("Failed to find CheckHandin in lua_modules");
+	}
+	if (!perl_found) {
+		LogError("Failed to find CheckHandin in plugins");
+	}
+
+	return lua_found && perl_found;
 }

@@ -1,18 +1,34 @@
-#ifndef _EQE_LUA_PARSER_H
-#define _EQE_LUA_PARSER_H
+/*	EQEmu: EQEmulator
+
+	Copyright (C) 2001-2026 EQEmu Development Team
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+#pragma once
+
 #ifdef LUA_EQEMU
 
-#include "quest_parser_collection.h"
-#include "quest_interface.h"
-#include <string>
+#include "common/repositories/bug_reports_repository.h"
+#include "zone/lua_mod.h"
+#include "zone/quest_interface.h"
+#include "zone/quest_parser_collection.h"
+#include "zone/zone_config.h"
+
+#include <exception>
 #include <list>
 #include <map>
-#include <exception>
-
-#include "zone_config.h"
-#include "lua_mod.h"
-
-#include "../common/repositories/bug_reports_repository.h"
+#include <string>
 
 extern const ZoneConfig *Config;
 
@@ -109,6 +125,36 @@ public:
 		uint32 extra_data,
 		std::vector<std::any> *extra_pointers
 	);
+	virtual int EventMerc(
+		QuestEventID evt,
+		Merc* merc,
+		Mob* init,
+		std::string data,
+		uint32 extra_data,
+		std::vector<std::any>* extra_pointers
+	);
+	virtual int EventGlobalMerc(
+		QuestEventID evt,
+		Merc* merc,
+		Mob* init,
+		std::string data,
+		uint32 extra_data,
+		std::vector<std::any>* extra_pointers
+	);
+	virtual int EventZone(
+		QuestEventID evt,
+		Zone* zone,
+		std::string data,
+		uint32 extra_data,
+		std::vector<std::any>* extra_pointers
+	);
+	virtual int EventGlobalZone(
+		QuestEventID evt,
+		Zone* zone,
+		std::string data,
+		uint32 extra_data,
+		std::vector<std::any>* extra_pointers
+	);
 
 	virtual bool HasQuestSub(uint32 npc_id, QuestEventID evt);
 	virtual bool HasGlobalQuestSub(QuestEventID evt);
@@ -120,6 +166,10 @@ public:
 	virtual bool HasEncounterSub(const std::string& package_name, QuestEventID evt);
 	virtual bool BotHasQuestSub(QuestEventID evt);
 	virtual bool GlobalBotHasQuestSub(QuestEventID evt);
+	virtual bool MercHasQuestSub(QuestEventID evt);
+	virtual bool GlobalMercHasQuestSub(QuestEventID evt);
+	virtual bool ZoneHasQuestSub(QuestEventID evt);
+	virtual bool GlobalZoneHasQuestSub(QuestEventID evt);
 
 	virtual void LoadNPCScript(std::string filename, int npc_id);
 	virtual void LoadGlobalNPCScript(std::string filename);
@@ -130,6 +180,10 @@ public:
 	virtual void LoadEncounterScript(std::string filename, std::string encounter_name);
 	virtual void LoadBotScript(std::string filename);
 	virtual void LoadGlobalBotScript(std::string filename);
+	virtual void LoadMercScript(std::string filename);
+	virtual void LoadGlobalMercScript(std::string filename);
+	virtual void LoadZoneScript(std::string filename);
+	virtual void LoadGlobalZoneScript(std::string filename);
 
 	virtual void AddVar(std::string name, std::string val);
 	virtual std::string GetVar(std::string name);
@@ -178,6 +232,21 @@ public:
 		std::string data,
 		uint32 extra_data,
 		std::vector<std::any> *extra_pointers
+	);
+	virtual int DispatchEventMerc(
+		QuestEventID evt,
+		Merc* merc,
+		Mob* init,
+		std::string data,
+		uint32 extra_data,
+		std::vector<std::any>* extra_pointers
+	);
+	virtual int DispatchEventZone(
+		QuestEventID evt,
+		Zone* zone,
+		std::string data,
+		uint32 extra_data,
+		std::vector<std::any>* extra_pointers
 	);
 
 	static LuaParser* Instance() {
@@ -269,6 +338,25 @@ private:
 		std::vector<std::any> *extra_pointers,
 		luabind::adl::object *l_func = nullptr
 	);
+	int _EventMerc(
+		std::string package_name,
+		QuestEventID evt,
+		Merc* merc,
+		Mob* init,
+		std::string data,
+		uint32 extra_data,
+		std::vector<std::any>* extra_pointers,
+		luabind::adl::object* l_func = nullptr
+	);
+	int _EventZone(
+		std::string package_name,
+		QuestEventID evt,
+		Zone* zone,
+		std::string data,
+		uint32 extra_data,
+		std::vector<std::any>* extra_pointers,
+		luabind::adl::object* l_func = nullptr
+	);
 
 	void LoadScript(std::string filename, std::string package_name);
 	void MapFunctions(lua_State *L);
@@ -279,13 +367,13 @@ private:
 	std::vector<LuaMod> mods_;
 	lua_State *L;
 
-	NPCArgumentHandler NPCArgumentDispatch[_LargestEventID];
-	PlayerArgumentHandler PlayerArgumentDispatch[_LargestEventID];
-	ItemArgumentHandler ItemArgumentDispatch[_LargestEventID];
-	SpellArgumentHandler SpellArgumentDispatch[_LargestEventID];
+	NPCArgumentHandler       NPCArgumentDispatch[_LargestEventID];
+	PlayerArgumentHandler    PlayerArgumentDispatch[_LargestEventID];
+	ItemArgumentHandler      ItemArgumentDispatch[_LargestEventID];
+	SpellArgumentHandler     SpellArgumentDispatch[_LargestEventID];
 	EncounterArgumentHandler EncounterArgumentDispatch[_LargestEventID];
-	BotArgumentHandler BotArgumentDispatch[_LargestEventID];
+	BotArgumentHandler       BotArgumentDispatch[_LargestEventID];
+	ZoneArgumentHandler      ZoneArgumentDispatch[_LargestEventID];
 };
 
-#endif
-#endif
+#endif // LUA_EQEMU
